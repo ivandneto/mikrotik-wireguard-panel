@@ -17,6 +17,23 @@ Painel web para **criar e gerenciar VPN WireGuard**, **liberar portas (NAT)** pa
 
 ---
 
+## Escolha sua instalação
+
+O painel roda de duas formas. As duas têm **exatamente as mesmas funções**; muda só onde ele fica ligado. Os arquivos prontos estão em **[Releases](../../releases/latest)**.
+
+| | 🐳 **Docker** (PC, servidor, Raspberry Pi) | 🖧 **Container no MikroTik** |
+|---|---|---|
+| Onde roda | Em qualquer máquina com Docker, ligada 24h | Dentro do próprio roteador (RouterOS 7, ARM64 — ex.: RB5009) |
+| Arquivo da Release | `wgpanel-docker-amd64.tar.gz` + `docker-compose.yml` + `.env.example` | `wgpanel-mikrotik-arm64.tar` |
+| Precisa de | Docker | Pacote `container` no RouterOS + pendrive/SSD USB |
+| Alerta "MikroTik caiu" | ✅ Funciona (o painel fica fora do roteador) | ❌ Não existe (se o roteador cai, o painel cai junto) |
+| Atualizar | Baixar a Release nova → `docker load` → `docker compose up -d` | Trocar a imagem do container (stop → remove → add → start) |
+| Guia | [2. Subir o painel](#2-subir-o-painel) | [Rodar dentro do próprio MikroTik](#rodar-dentro-do-próprio-mikrotik-container) |
+
+Nas duas formas, comece pelo [1. Preparar o MikroTik](#1-preparar-o-mikrotik-5-minutos).
+
+---
+
 ## Como funciona
 
 ```
@@ -54,6 +71,13 @@ Para conferir o endereço DDNS: `/ip cloud print` → campo `dns-name`.
 
 Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou Raspberry Pi).
 
+**Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64.tar.gz`, `docker-compose.yml` e `.env.example` da [Release mais recente](../../releases/latest) para uma pasta e rode:
+```bash
+docker load -i wgpanel-docker-amd64.tar.gz
+```
+
+**Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
+
 ```bash
 # 1. Copie o arquivo de configuração e edite
 cp .env.example .env        # no Windows: copy .env.example .env
@@ -69,7 +93,7 @@ ADMIN_PASSWORD=uma-senha-forte-para-o-painel
 ```
 
 ```bash
-# 2. Suba
+# 2. Suba (Opção A: sem --build, usa a imagem carregada)
 docker compose up -d --build
 
 # 3. Veja os logs (se não definiu ADMIN_PASSWORD, a senha gerada aparece aqui)
@@ -173,7 +197,7 @@ Testado em um **RB5009 com RouterOS 7.24.4**: o painel usa ~60 MB de RAM e a ima
 
 > Desvantagem: se o roteador travar, o painel cai junto, então não existe o alerta "MikroTik inacessível".
 
-**1. Gerar a imagem ARM64** (no PC, com Docker):
+**1. Pegar a imagem ARM64:** baixe `wgpanel-mikrotik-arm64.tar` da [Release mais recente](../../releases/latest) — ou gere a partir do código (no PC, com Docker):
 ```bash
 docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm64 \
   --output type=docker,dest=dist/wgpanel-arm64.tar .
@@ -208,7 +232,7 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste `dist/wgpanel-arm64.tar` para o `usb1` na janela **Files** do Winbox e rode:
+**5. Enviar e iniciar:** arraste o `.tar` (da Release ou de `dist/`) para o `usb1` na janela **Files** do Winbox — no comando abaixo use o nome exato do arquivo — e rode:
 ```
 /container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair

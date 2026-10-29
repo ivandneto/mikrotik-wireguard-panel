@@ -1,5 +1,8 @@
 services:
   wgpanel:
+    # Com a imagem da Release carregada (docker load), o compose usa ela direto.
+    # Com o código-fonte, "docker compose up -d --build" gera a imagem localmente.
+    image: wgpanel:latest
     build: .
     container_name: wgpanel
     restart: unless-stopped
