@@ -24,7 +24,7 @@ O painel roda de duas formas. As duas têm **exatamente as mesmas funções**; m
 | | 🐳 **Docker** (PC, servidor, Raspberry Pi) | 🖧 **Container no MikroTik** |
 |---|---|---|
 | Onde roda | Em qualquer máquina com Docker, ligada 24h | Dentro do próprio roteador (RouterOS 7, ARM64 — ex.: RB5009) |
-| Arquivo da Release | `wgpanel-docker-amd64.tar.gz` + `docker-compose.yml` + `.env.example` | `wgpanel-mikrotik-arm64.tar` |
+| Arquivo da Release | `wgpanel-docker-amd64.tar.gz` + `docker-compose.yml` + `env.example` | `wgpanel-mikrotik-arm64.tar` |
 | Precisa de | Docker | Pacote `container` no RouterOS + pendrive/SSD USB |
 | Alerta "MikroTik caiu" | ✅ Funciona (o painel fica fora do roteador) | ❌ Não existe (se o roteador cai, o painel cai junto) |
 | Atualizar | Baixar a Release nova → `docker load` → `docker compose up -d` | Trocar a imagem do container (stop → remove → add → start) |
@@ -71,7 +71,7 @@ Para conferir o endereço DDNS: `/ip cloud print` → campo `dns-name`.
 
 Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou Raspberry Pi).
 
-**Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64.tar.gz`, `docker-compose.yml` e `.env.example` da [Release mais recente](../../releases/latest) para uma pasta e rode:
+**Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64.tar.gz`, `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
 docker load -i wgpanel-docker-amd64.tar.gz
 ```
