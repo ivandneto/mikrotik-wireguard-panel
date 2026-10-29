@@ -51,10 +51,30 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(Text)
 
 
+class WgInterface(Base):
+    """Interface WireGuard do MikroTik gerenciada pelo painel (ex.: wg-casa, wg-clientes)."""
+    __tablename__ = "wg_interfaces"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(32), unique=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    listen_port: Mapped[int] = mapped_column(Integer)
+    address: Mapped[str] = mapped_column(String(64))  # IP do MikroTik na VPN + faixa (ex.: 10.10.0.1/24)
+    public_key: Mapped[str] = mapped_column(String(64), default="")
+    dns: Mapped[str] = mapped_column(String(128), default="")
+    lan_networks: Mapped[str] = mapped_column(Text, default="")  # redes daqui alcançáveis pelos peers
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Peer(Base):
-    """Cliente WireGuard criado pelo painel."""
+    """Cliente WireGuard criado pelo painel: um dispositivo ou outro MikroTik (site)."""
     __tablename__ = "peers"
     id: Mapped[int] = mapped_column(primary_key=True)
+    interface_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(8), default="device")  # device | site
+    remote_networks: Mapped[str] = mapped_column(Text, default="")  # site: LANs atrás do MikroTik remoto
+    # site: one_way = só você acessa a rede do cliente; two_way = os dois lados se acessam
+    site_access: Mapped[str] = mapped_column(String(8), default="one_way")
+    route_ids_json: Mapped[str] = mapped_column(Text, default="[]")  # site: rotas criadas no MikroTik
     name: Mapped[str] = mapped_column(String(64))
     description: Mapped[str] = mapped_column(Text, default="")
     owner: Mapped[str] = mapped_column(String(64), default="")
@@ -67,6 +87,14 @@ class Peer(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     created_by: Mapped[str] = mapped_column(String(64), default="")
+
+    @property
+    def route_ids(self) -> list[str]:
+        return json.loads(self.route_ids_json or "[]")
+
+    @route_ids.setter
+    def route_ids(self, value: list[str]):
+        self.route_ids_json = json.dumps(value)
 
 
 class NatRule(Base):
@@ -151,6 +179,47 @@ class AuditLog(Base):
 
 def init_db():
     Base.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate():
+    """Atualiza bancos de versões anteriores (create_all não adiciona colunas em tabelas existentes)."""
+    new_peer_columns = {
+        "interface_id": "INTEGER",
+        "kind": "VARCHAR(8) NOT NULL DEFAULT 'device'",
+        "remote_networks": "TEXT NOT NULL DEFAULT ''",
+        "site_access": "VARCHAR(8) NOT NULL DEFAULT 'one_way'",
+        "route_ids_json": "TEXT NOT NULL DEFAULT '[]'",
+    }
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(peers)")}
+        for column, ddl in new_peer_columns.items():
+            if column not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE peers ADD COLUMN {column} {ddl}")
+
+    # versões antigas tinham uma única interface guardada nas configurações
+    db = SessionLocal()
+    try:
+        if db.query(WgInterface).count():
+            return
+        legacy = {row.key: json.loads(row.value) for row in db.query(Setting).all()}
+        if not legacy.get("wg_configured"):
+            return
+        iface = WgInterface(
+            name=legacy.get("wg_interface", "wg-panel"),
+            listen_port=int(legacy.get("wg_listen_port", 13231)),
+            address=legacy.get("wg_address", "10.10.0.1/24"),
+            public_key=legacy.get("wg_server_public_key", ""),
+            dns=legacy.get("wg_dns", ""),
+            lan_networks=legacy.get("wg_lan_networks", ""),
+            description="Dispositivos",
+        )
+        db.add(iface)
+        db.flush()
+        db.query(Peer).filter(Peer.interface_id.is_(None)).update({Peer.interface_id: iface.id})
+        db.commit()
+    finally:
+        db.close()
 
 
 def audit(db, username: str, action: str, detail: str = ""):

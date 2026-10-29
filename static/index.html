@@ -160,7 +160,7 @@
 
       <!-- ===================== VPN ===================== -->
       <section data-tour="sec-vpn" x-show="tab === 'vpn'" class="space-y-4">
-        <template x-if="wg.status && !wg.status.configured">
+        <template x-if="wg.info && !wgIfaces.length">
           <div class="card text-center py-10 space-y-3">
             <div class="text-4xl">🔐</div>
             <h2 class="text-lg font-semibold text-white">A VPN ainda não foi configurada</h2>
@@ -170,42 +170,69 @@
           </div>
         </template>
 
-        <template x-if="wg.status?.configured">
+        <template x-if="wgIfaces.length">
           <div class="space-y-4">
-            <div class="card grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-              <div><div class="card-title">Interface</div><div class="mt-1 text-white mono" x-text="wg.status.interface"></div>
-                <span class="badge mt-1" :class="wg.status.router_interface?.running ? 'b-green' : 'b-red'" x-text="wg.status.router_interface ? (wg.status.router_interface.running ? 'rodando' : 'parada') : 'não encontrada'"></span></div>
-              <div><div class="card-title">Porta UDP</div><div class="mt-1 text-white mono" x-text="wg.status.listen_port"></div></div>
-              <div><div class="card-title">Rede da VPN</div><div class="mt-1 text-white mono" x-text="wg.status.address"></div></div>
-              <div><div class="card-title">Endereço remoto</div><div class="mt-1 mono" :class="wg.status.endpoint_remote ? 'text-white' : 'text-amber-400'" x-text="wg.status.endpoint_remote || 'não definido'"></div></div>
-              <div><div class="card-title">Endereço local</div><div class="mt-1 mono" :class="wg.status.endpoint_local ? 'text-white' : 'text-amber-400'" x-text="wg.status.endpoint_local || 'não definido'"></div></div>
+            <!-- abas de interface -->
+            <div class="flex flex-wrap items-center gap-2" data-tour="vpn-ifaces">
+              <template x-for="i in wgIfaces" :key="i.id">
+                <button class="iface-tab" :class="curIface?.id === i.id && 'active'" @click="wg.ifaceId = i.id">
+                  <span class="dot" :class="i.router?.running ? 'text-green-400' : 'text-red-400'"></span>
+                  <span class="mono" x-text="i.name"></span>
+                  <span class="text-xs text-slate-400" x-show="i.description" x-text="i.description"></span>
+                  <span class="badge b-gray" :title="i.peers_online + ' online de ' + i.peers_total" x-text="i.peers_online + '/' + i.peers_total"></span>
+                </button>
+              </template>
+              <button class="btn" x-show="isAdmin" @click="openSetup()">＋ Nova interface</button>
+            </div>
+
+            <div class="card grid grid-cols-2 lg:grid-cols-6 gap-4 text-sm" x-show="curIface">
+              <div><div class="card-title">Interface</div><div class="mt-1 text-white mono" x-text="curIface?.name"></div>
+                <span class="badge mt-1" :class="curIface?.router?.running ? 'b-green' : 'b-red'" x-text="curIface?.router ? (curIface.router.running ? 'rodando' : 'parada') : 'não encontrada'"></span></div>
+              <div><div class="card-title">Porta UDP</div><div class="mt-1 text-white mono" x-text="curIface?.listen_port"></div></div>
+              <div><div class="card-title">Rede da VPN</div><div class="mt-1 text-white mono" x-text="curIface?.address"></div></div>
+              <div><div class="card-title">Redes daqui</div><div class="mt-1 text-white mono text-xs" x-text="curIface?.lan_networks || '—'"></div></div>
+              <div><div class="card-title">Endereço remoto</div><div class="mt-1 mono text-xs" :class="wg.info.endpoint_remote ? 'text-white' : 'text-amber-400'" x-text="wg.info.endpoint_remote || 'não definido'"></div></div>
+              <div class="flex lg:justify-end items-start gap-1" x-show="isAdmin">
+                <button class="btn-ghost" title="Reconfigurar interface" @click="openSetup(curIface)">⚙️</button>
+                <button class="btn-ghost" title="Excluir interface" @click="deleteIface(curIface)">🗑️</button>
+              </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
               <input class="input max-w-xs" placeholder="Buscar cliente…" x-model="wg.filter">
-              <div class="ml-auto flex gap-2" x-show="isAdmin">
-                <button class="btn" @click="openSetup()">⚙️ Reconfigurar</button>
+              <div class="ml-auto flex flex-wrap gap-2" x-show="isAdmin">
                 <button class="btn" @click="openImport()" title="Trazer peers que já existem no MikroTik">⬇️ Importar do MikroTik</button>
-                <button class="btn-primary" data-tour="vpn-new" @click="newPeer()">＋ Novo cliente</button>
+                <button class="btn" @click="newPeer('site')" title="Túnel com o MikroTik de um cliente (site-to-site)">🖧 Outro MikroTik</button>
+                <button class="btn-primary" data-tour="vpn-new" @click="newPeer()">＋ Novo dispositivo</button>
               </div>
             </div>
 
             <div class="card p-0 overflow-x-auto" data-tour="vpn-table">
               <table class="table">
                 <thead><tr>
-                  <th>Status</th><th>Cliente</th><th>IP VPN</th><th>Modo</th><th>Último contato</th><th>Origem</th><th>Tráfego</th><th class="text-right">Ações</th>
+                  <th>Status</th><th>Cliente</th><th>IP VPN</th><th>Modo / Redes</th><th>Último contato</th><th>Origem</th><th>Tráfego</th><th class="text-right">Ações</th>
                 </tr></thead>
                 <tbody>
                   <template x-for="p in filteredPeers" :key="p.id">
                     <tr>
                       <td><span class="badge" :class="peerStatus(p).cls"><span class="dot" :class="p.live?.online && 'pulse'"></span><span x-text="peerStatus(p).label"></span></span></td>
                       <td>
-                        <div class="font-medium text-white"><span x-text="p.name"></span>
-                          <span class="badge b-gray ml-1" x-show="!p.has_config" title="Criado fora do painel: monitorado, mas sem QR/arquivo (use 🔑 para gerar chaves novas)">importado</span></div>
+                        <div class="font-medium text-white"><span x-text="(p.kind === 'site' ? '🖧 ' : '') + p.name"></span>
+                          <span class="badge b-gray ml-1" x-show="!p.has_config" title="Criado fora do painel: monitorado, mas sem QR/script (use 🔑 para gerar chaves novas)">importado</span></div>
                         <div class="text-xs text-slate-500" x-text="[p.owner, p.description].filter(Boolean).join(' · ')"></div>
                       </td>
                       <td class="mono" x-text="p.ip"></td>
-                      <td><span class="badge" :class="p.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="p.tunnel_mode === 'full' ? 'Toda internet' : 'Só rede local'"></span></td>
+                      <td>
+                        <template x-if="p.kind === 'site'">
+                          <div>
+                            <span class="badge" :class="p.site_access === 'two_way' ? 'b-amber' : 'b-blue'" x-text="p.site_access === 'two_way' ? '↔️ Mão dupla' : '➡️ Só eu acesso'"></span>
+                            <div class="text-xs mono text-slate-400 mt-1" x-text="p.remote_networks.join(', ')"></div>
+                          </div>
+                        </template>
+                        <template x-if="p.kind !== 'site'">
+                          <span class="badge" :class="p.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="p.tunnel_mode === 'full' ? 'Toda internet' : 'Só rede local'"></span>
+                        </template>
+                      </td>
                       <td x-text="p.live?.last_handshake != null ? fmtDur(p.live.last_handshake) + ' atrás' : 'nunca'"></td>
                       <td class="mono text-xs text-slate-400" x-text="p.live?.endpoint || '—'"></td>
                       <td class="text-xs whitespace-nowrap"><div>↓ <span x-text="fmtBytes(p.live?.tx)"></span></div><div>↑ <span x-text="fmtBytes(p.live?.rx)"></span></div></td>
@@ -213,7 +240,7 @@
                         <button class="btn-ghost" title="Gráfico" @click="showPeerChart(p)">📈</button>
                         <template x-if="isAdmin">
                           <span>
-                            <button class="btn-ghost" :title="p.has_config ? 'QR Code / baixar configuração' : 'Sem QR: cliente importado (use 🔑 para gerar chaves novas)'" :disabled="!p.has_config" @click="openQr(p)">📱</button>
+                            <button class="btn-ghost" :title="!p.has_config ? 'Sem configuração: cliente importado sem chave (use 🔑)' : (p.kind === 'site' ? 'Script RouterOS para o MikroTik do cliente' : 'QR Code / baixar configuração')" :disabled="!p.has_config" @click="openPeerConfig(p)" x-text="p.kind === 'site' ? '📜' : '📱'"></button>
                             <button class="btn-ghost" title="Editar" @click="editPeer(p)">✏️</button>
                             <button class="btn-ghost" :title="p.enabled ? 'Desativar' : 'Ativar'" @click="togglePeer(p)" x-text="p.enabled ? '⏸️' : '▶️'"></button>
                             <button class="btn-ghost" title="Corrigir no MikroTik" x-show="p.enabled && p.live && (!p.live.exists || p.live.router_disabled)" @click="reapplyPeer(p)">🔁</button>
@@ -224,7 +251,7 @@
                       </td>
                     </tr>
                   </template>
-                  <tr x-show="!filteredPeers.length"><td colspan="8" class="text-center text-slate-500 py-8">Nenhum cliente VPN ainda. Clique em "Novo cliente".</td></tr>
+                  <tr x-show="!filteredPeers.length"><td colspan="8" class="text-center text-slate-500 py-8">Nenhum cliente nesta interface. Use "＋ Novo dispositivo" ou "🖧 Outro MikroTik".</td></tr>
                 </tbody>
               </table>
             </div>
@@ -499,11 +526,8 @@
               <label class="block"><span class="label">Endereço local (IP do MikroTik na rede)</span>
                 <input class="input mono" x-model="settings.endpoint_local" placeholder="192.168.88.1">
                 <p class="hint">Usado por dispositivos dentro da mesma rede do MikroTik.</p></label>
-              <label class="block"><span class="label">Redes acessíveis no modo "Só rede local"</span>
-                <input class="input mono" x-model="settings.wg_lan_networks" placeholder="192.168.88.0/24">
-                <p class="hint">Separe por vírgula. A rede da VPN é incluída automaticamente.</p></label>
-              <div class="grid grid-cols-3 gap-3">
-                <label class="block"><span class="label">DNS</span><input class="input mono" x-model="settings.wg_dns"></label>
+              <p class="hint">DNS e redes acessíveis ficam em cada interface: VPN WireGuard → ⚙️ ao lado da interface.</p>
+              <div class="grid grid-cols-2 gap-3">
                 <label class="block"><span class="label">Keepalive (s)</span><input class="input" type="number" x-model.number="settings.wg_keepalive"></label>
                 <label class="block"><span class="label">MTU (0 = auto)</span><input class="input" type="number" x-model.number="settings.wg_mtu"></label>
               </div>
@@ -649,6 +673,8 @@
               <tr><td>✏️</td><td>Editar nome, responsável e modo.</td></tr>
               <tr><td>⏸️ / ▶️</td><td>Bloquear / liberar o acesso sem apagar.</td></tr>
               <tr><td>🔑</td><td>Gerar chaves novas (ex.: celular perdido). O QR antigo para de funcionar.</td></tr>
+              <tr><td>🖧 Outro MikroTik</td><td>Túnel com o roteador de um cliente (site-to-site). Você informa a rede local dele e escolhe <b>➡️ Só eu acesso</b> (padrão) ou <b>↔️ Mão dupla</b>. O painel cria o peer e as rotas no seu MikroTik e gera um <b>script 📜</b> para colar no terminal do MikroTik do cliente. Depois você acessa o Winbox dele e os equipamentos da rede dele pelo túnel, e recebe alerta se ele cair.</td></tr>
+              <tr><td>Interfaces</td><td>As abas no topo da tela são as interfaces WireGuard. Use <b>＋ Nova interface</b> para separar propósitos (ex.: <span class="mono">wg-casa</span> e <span class="mono">wg-clientes</span>) ou para adotar uma interface que já existe no MikroTik. ⚙️ reconfigura e 🗑️ exclui (só sem clientes).</td></tr>
               <tr><td>⬇️ Importar do MikroTik</td><td>Traz para o painel peers criados fora dele (Winbox, VPN antiga). Se a chave privada estiver guardada no MikroTik (opção ligada por padrão em Configurações), vêm completos, com QR Code. Senão, aparecem como <span class="badge b-gray">importado</span>, com monitoramento e alertas mas sem QR Code — a chave só existe no dispositivo.</td></tr>
               <tr><td>🗑️</td><td>Remover o cliente de vez.</td></tr>
             </table>
@@ -800,21 +826,26 @@
     <!-- Configuração inicial do WireGuard -->
     <template x-if="modal === 'setup' && setup">
       <div class="p-6 space-y-4">
-        <h2 class="text-lg font-semibold text-white">⚙️ Configuração do WireGuard no MikroTik</h2>
-        <p x-show="wg.status?.configured && !setupResult" class="text-sm text-slate-400 -mt-2">
+        <h2 class="text-lg font-semibold text-white" x-text="setup.editing ? '⚙️ Reconfigurar ' + setup.interface : '＋ Nova interface WireGuard'"></h2>
+        <p x-show="setup.editing && !setupResult" class="text-sm text-slate-400 -mt-2">
           Esta tela ajusta o <b>servidor</b> VPN no MikroTik. Para mudar se um dispositivo navega na internet pela VPN
           ("Só rede local" × "Toda a internet"), use <b>✏️ Editar</b> na linha do cliente.</p>
+        <p x-show="!setup.editing && wgIfaces.length && !setupResult" class="text-sm text-slate-400 -mt-2">
+          Use interfaces separadas para propósitos diferentes — por exemplo <span class="mono">wg-casa</span> para seus dispositivos
+          e <span class="mono">wg-clientes</span> para MikroTiks de clientes. Cada uma tem sua porta e sua faixa de IPs.</p>
         <template x-if="!setupResult">
           <form class="space-y-4" @submit.prevent="runSetup()">
-            <div x-show="suggest?.existing_interfaces?.length" class="text-sm bg-blue-950/50 border border-blue-900 rounded-lg p-3 text-blue-200">
-              Já existem interfaces WireGuard no MikroTik:
-              <template x-for="i in suggest?.existing_interfaces || []"><button type="button" class="badge b-blue ml-1" @click="setup.interface = i.name; setup.listen_port = Number(i.listen_port)" x-text="i.name + ' (' + i.listen_port + ')'"></button></template>
-              — clique para reaproveitar.
+            <div x-show="!setup.editing && suggest?.existing_interfaces?.length" class="text-sm bg-blue-950/50 border border-blue-900 rounded-lg p-3 text-blue-200">
+              Interfaces WireGuard no MikroTik que ainda não estão no painel:
+              <template x-for="i in suggest?.existing_interfaces || []"><button type="button" class="badge b-blue ml-1" @click="adoptIface(i)" x-text="i.name + ' (' + i.listen_port + ')'"></button></template>
+              — clique para adotar.
             </div>
             <div class="grid grid-cols-2 gap-3">
-              <label class="block"><span class="label">Nome da interface</span><input class="input mono" x-model="setup.interface" required></label>
+              <label class="block"><span class="label">Nome da interface</span><input class="input mono" x-model="setup.interface" required :disabled="setup.editing" placeholder="ex.: wg-clientes"></label>
               <label class="block"><span class="label">Porta UDP</span><input class="input" type="number" x-model.number="setup.listen_port" required></label>
             </div>
+            <label class="block"><span class="label">Descrição</span>
+              <input class="input" x-model="setup.description" placeholder="ex.: Meus dispositivos, MikroTiks de clientes"></label>
             <label class="block"><span class="label">IP do MikroTik na VPN / faixa da VPN</span>
               <input class="input mono" x-model="setup.address" required>
               <p class="hint">Use uma faixa que não exista na sua rede. Ex.: 10.10.0.1/24 → clientes recebem 10.10.0.2, .3, .4…</p></label>
@@ -825,14 +856,15 @@
             <label class="block"><span class="label">Endereço local (IP do MikroTik na sua rede)</span>
               <input class="input mono" x-model="setup.endpoint_local" list="sug-local">
               <datalist id="sug-local"><template x-for="s in suggest?.local || []"><option :value="s"></option></template></datalist></label>
-            <label class="block"><span class="label">Redes locais acessíveis pela VPN</span>
-              <input class="input mono" x-model="setup.lan_networks" placeholder="192.168.88.0/24"></label>
+            <label class="block"><span class="label">Redes daqui acessíveis pela VPN</span>
+              <input class="input mono" x-model="setup.lan_networks" placeholder="192.168.88.0/24">
+              <p class="hint">Vão no modo "Só rede local" dos dispositivos e nas rotas do script dos MikroTiks de clientes.</p></label>
             <label class="block"><span class="label">DNS para os clientes (vazio = o próprio MikroTik)</span>
               <input class="input mono" x-model="setup.dns" placeholder="ex.: 1.1.1.1"></label>
             <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-1" x-model="setup.open_firewall">
               <span>Liberar a porta UDP no firewall do MikroTik <span class="hint block">Cria uma regra "accept" no topo da chain input.</span></span></label>
             <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-1" x-model="setup.add_to_lan_list">
-              <span>Tratar a VPN como rede interna (lista LAN) <span class="hint block">Permite que os clientes acessem a rede local, o DNS do MikroTik e a internet.</span></span></label>
+              <span>Tratar a VPN como rede interna (lista LAN) <span class="hint block">Permite que os clientes acessem a rede local, o DNS do MikroTik e a internet. Para uma interface só de MikroTiks de clientes, pode desmarcar — o acesso de cada um é controlado no próprio cliente (➡️ só eu acesso / ↔️ mão dupla).</span></span></label>
             <div class="flex justify-end gap-2 pt-2">
               <button type="button" class="btn" @click="modal = null">Cancelar</button>
               <button class="btn-primary" :disabled="busy" x-text="busy ? 'Aplicando…' : 'Aplicar no MikroTik'"></button>
@@ -844,7 +876,8 @@
             <ul class="space-y-1 text-sm"><template x-for="s in setupResult"><li>✅ <span x-text="s"></span></li></template></ul>
             <div class="flex justify-end gap-2">
               <button class="btn" @click="modal = null">Fechar</button>
-              <button class="btn-primary" @click="newPeer()">＋ Criar primeiro cliente</button>
+              <button class="btn" @click="newPeer('site')">🖧 Outro MikroTik</button>
+              <button class="btn-primary" @click="newPeer()">＋ Novo dispositivo</button>
             </div>
           </div>
         </template>
@@ -871,7 +904,8 @@
                   <td><input type="checkbox" :value="p.id" x-model="importSel"></td>
                   <td class="text-white"><span x-text="p.name"></span>
                     <span class="badge ml-1" :class="p.has_key ? 'b-green' : 'b-gray'" x-text="p.has_key ? '🔑 com chave' : 'sem chave'"></span></td>
-                  <td class="mono text-xs" x-text="p.interface"></td>
+                  <td class="mono text-xs"><span x-text="p.interface"></span>
+                    <span class="badge b-amber" x-show="!p.interface_managed" title="Adote esta interface em '+ Nova interface' antes de importar">fora do painel</span></td>
                   <td class="mono text-xs" x-text="p.allowed_address"></td>
                   <td class="text-xs" x-text="p.last_handshake ? p.last_handshake + ' atrás' : 'nunca'"></td>
                 </tr>
@@ -890,15 +924,38 @@
     <!-- Cliente VPN -->
     <template x-if="modal === 'peer'">
       <form class="p-6 space-y-4" @submit.prevent="savePeer()">
-        <h2 class="text-lg font-semibold text-white" x-text="form.id ? 'Editar cliente' : 'Novo cliente VPN'"></h2>
-        <label class="block"><span class="label">Nome do dispositivo *</span>
-          <input class="input" x-model="form.name" required placeholder="Ex.: Celular do João, Notebook trabalho"></label>
+        <h2 class="text-lg font-semibold text-white"
+            x-text="(form.id ? 'Editar ' : 'Novo ') + (form.kind === 'site' ? 'MikroTik remoto' : 'dispositivo') + (curIface && !form.id ? ' em ' + curIface.name : '')"></h2>
+        <div class="grid grid-cols-2 gap-2" x-show="!form.id">
+          <button type="button" class="btn justify-center" :class="form.kind === 'device' && '!bg-blue-600 !border-blue-600'" @click="form.kind = 'device'">📱 Dispositivo</button>
+          <button type="button" class="btn justify-center" :class="form.kind === 'site' && '!bg-blue-600 !border-blue-600'" @click="form.kind = 'site'">🖧 Outro MikroTik</button>
+        </div>
+        <label class="block"><span class="label" x-text="form.kind === 'site' ? 'Nome do cliente / local *' : 'Nome do dispositivo *'"></span>
+          <input class="input" x-model="form.name" required :placeholder="form.kind === 'site' ? 'Ex.: Padaria Central, Escritório João' : 'Ex.: Celular do João, Notebook trabalho'"></label>
         <div class="grid grid-cols-2 gap-3">
           <label class="block"><span class="label">Responsável</span><input class="input" x-model="form.owner"></label>
-          <label class="block" x-show="!form.id"><span class="label">IP fixo (opcional)</span><input class="input mono" x-model="form.ip" placeholder="automático"></label>
+          <label class="block" x-show="!form.id"><span class="label">IP no túnel (opcional)</span><input class="input mono" x-model="form.ip" placeholder="automático"></label>
         </div>
         <label class="block"><span class="label">Descrição</span><input class="input" x-model="form.description"></label>
-        <div>
+
+        <template x-if="form.kind === 'site'">
+          <div class="space-y-4">
+            <label class="block"><span class="label">Rede local do MikroTik do cliente *</span>
+              <input class="input mono" x-model="form.remote_networks" required placeholder="192.168.10.0/24">
+              <p class="hint">A rede atrás do roteador dele (veja em IP → Addresses no MikroTik do cliente). Mais de uma? Separe por vírgula. Precisa ser diferente da sua rede.</p></label>
+            <div>
+              <span class="label">Quem acessa quem?</span>
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" class="card text-left !p-3" :class="form.site_access === 'one_way' && '!border-blue-600'" @click="form.site_access = 'one_way'">
+                  <div class="font-medium text-white">➡️ Só eu acesso a rede dele</div><div class="text-xs text-slate-400 mt-1">Você entra no roteador e na rede do cliente. O cliente não abre conexões para a sua rede. Recomendado.</div></button>
+                <button type="button" class="card text-left !p-3" :class="form.site_access === 'two_way' && '!border-amber-600'" @click="form.site_access = 'two_way'">
+                  <div class="font-medium text-white">↔️ Mão dupla</div><div class="text-xs text-slate-400 mt-1">Você acessa a rede do cliente <b>e</b> o cliente acessa a sua rede. Use só se for realmente necessário.</div></button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div x-show="form.kind !== 'site'">
           <span class="label">O que passa pela VPN?</span>
           <div class="grid grid-cols-2 gap-3">
             <button type="button" class="card text-left !p-3" :class="form.tunnel_mode === 'split' && '!border-blue-600'" @click="form.tunnel_mode = 'split'">
@@ -910,9 +967,31 @@
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" class="btn" @click="modal = null">Cancelar</button>
-          <button class="btn-primary" :disabled="busy" x-text="form.id ? 'Salvar' : 'Criar e gerar QR Code'"></button>
+          <button class="btn-primary" :disabled="busy" x-text="form.id ? 'Salvar' : (form.kind === 'site' ? 'Criar e gerar script' : 'Criar e gerar QR Code')"></button>
         </div>
       </form>
+    </template>
+
+    <!-- Script para o MikroTik do cliente -->
+    <template x-if="modal === 'script'">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">🖧 <span x-text="script.peer.name"></span>
+          <span class="badge ml-1" :class="script.peer.site_access === 'two_way' ? 'b-amber' : 'b-blue'" x-text="script.peer.site_access === 'two_way' ? '↔️ Mão dupla' : '➡️ Só eu acesso'"></span></h2>
+        <div x-show="script.notice" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="script.notice"></div>
+        <div x-show="script.error" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="script.error"></div>
+        <ol class="text-sm text-slate-400 space-y-1 list-decimal pl-5">
+          <li>Abra o <b>Winbox do MikroTik do cliente</b> → <b>New Terminal</b>.</li>
+          <li>Cole o script abaixo e aperte Enter (rode <b>uma única vez</b>).</li>
+          <li>Em instantes ele aparece como <span class="badge b-green">Online</span> aqui, e você acessa a rede dele e o roteador pelo IP <span class="mono text-slate-200" x-text="script.peer.ip"></span>.</li>
+        </ol>
+        <textarea x-ref="scriptBox" readonly class="input mono !text-xs h-64 whitespace-pre" x-show="script.text" :value="script.text" @focus="$event.target.select()"></textarea>
+        <p class="hint">O script contém a chave do túnel: envie ao cliente por um canal seguro.</p>
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <button class="btn" x-show="script.text" @click="copyScript()">📋 Copiar</button>
+          <a class="btn" x-show="script.text" :href="configUrl(script.peer, 'remote')">⬇️ Baixar .rsc</a>
+          <button class="btn-primary" @click="modal = null">Concluir</button>
+        </div>
+      </div>
     </template>
 
     <!-- QR Code -->

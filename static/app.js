@@ -97,7 +97,8 @@ function panel() {
     busy: false,
     loading: {},
 
-    wg: { status: null, peers: [], filter: '' },
+    wg: { info: null, peers: [], filter: '', ifaceId: null },
+    script: { peer: null, text: '', error: '', notice: '' },
     setup: null,
     suggest: null,
     setupResult: null,
@@ -202,9 +203,11 @@ function panel() {
       this.navClosed[e.group] = this.isGroupOpen(e);
       try { localStorage.setItem('wgpanel_nav_closed', JSON.stringify(this.navClosed)); } catch {}
     },
+    get wgIfaces() { return this.wg.info?.interfaces || []; },
+    get curIface() { return this.wgIfaces.find(i => i.id === this.wg.ifaceId) || this.wgIfaces[0]; },
     get filteredPeers() {
       const q = this.wg.filter.toLowerCase();
-      return this.wg.peers.filter(p => !q || [p.name, p.owner, p.ip, p.description].join(' ').toLowerCase().includes(q));
+      return this.wg.peers.filter(p => p.interface_id === this.curIface?.id).filter(p => !q || [p.name, p.owner, p.ip, p.description].join(' ').toLowerCase().includes(q));
     },
     get filteredRules() {
       const q = this.nat.filter.toLowerCase();
@@ -220,7 +223,7 @@ function panel() {
     async init() {
       try { this.me = await api('GET', '/api/auth/me'); } catch { return; }
       try { this.navClosed = JSON.parse(localStorage.getItem('wgpanel_nav_closed')) || {}; } catch {}
-      await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWgStatus(),
+      await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWg(),
         this.loadEvents(), api('GET', '/api/nat/templates').then(t => this.nat.templates = t)]);
       const hash = location.hash.slice(1);
       if (this.visibleTabs.some(t => t.id === hash)) this.tab = hash;
@@ -324,7 +327,7 @@ function panel() {
 
     async onTab(t) {
       if (t === 'dashboard') this.$nextTick(() => this.drawDashboard());
-      if (t === 'vpn' && !this.wg.status?.configured && this.isAdmin) this.openSetup();
+      if (t === 'vpn' && this.wg.info && !this.wgIfaces.length && this.isAdmin) this.openSetup();
       if (t === 'monitor') { this.loadUsage(); this.$nextTick(() => this.drawChart()); }
       if (t === 'events') this.loadEvents();
       if (t === 'audit') this.audit = await api('GET', '/api/monitor/audit');
@@ -352,7 +355,12 @@ function panel() {
     loadOverview() { return api('GET', '/api/monitor/overview').then(o => this.overview = o).catch(() => {}); },
     loadPeers() { return api('GET', '/api/wireguard/peers').then(p => this.wg.peers = p).catch(() => {}); },
     loadRules() { return api('GET', '/api/nat/rules').then(r => this.nat.rules = r).catch(() => {}); },
-    loadWgStatus() { return api('GET', '/api/wireguard/status').then(s => this.wg.status = s).catch(() => {}); },
+    loadWg() {
+      return api('GET', '/api/wireguard/interfaces').then(info => {
+        this.wg.info = info;
+        if (!info.interfaces.some(i => i.id === this.wg.ifaceId)) this.wg.ifaceId = info.interfaces[0]?.id ?? null;
+      }).catch(() => {});
+    },
     loadEvents() { return api('GET', '/api/monitor/events?limit=200').then(e => this.events = e).catch(() => {}); },
     async loadUsage() { this.usage = await api('GET', `/api/monitor/usage?days=${this.usageDays}`); },
 
@@ -399,58 +407,105 @@ function panel() {
     levelCls(l) { return { success: 'b-green', warn: 'b-amber', error: 'b-red', info: 'b-blue' }[l] || 'b-gray'; },
 
     // ---------- WireGuard: configuração inicial ----------
-    async openSetup() {
-      const st = this.wg.status || {};
+    // iface = null: nova interface (ou adotar uma existente); senão, reconfigurar
+    async openSetup(iface = null) {
+      const info = this.wg.info || {};
       this.setup = {
-        interface: st.interface || 'wg-panel', listen_port: st.listen_port || 13231,
-        address: st.address || '10.10.0.1/24', dns: st.dns || '', lan_networks: st.lan_networks || '',
-        endpoint_remote: st.endpoint_remote || '', endpoint_local: st.endpoint_local || '',
+        editing: !!iface, interface: iface?.name || (this.wgIfaces.length ? '' : 'wg-panel'),
+        description: iface?.description || '', listen_port: iface?.listen_port || 13231,
+        address: iface?.address || '10.10.0.1/24', dns: iface?.dns || '', lan_networks: iface?.lan_networks || '',
+        endpoint_remote: info.endpoint_remote || '', endpoint_local: info.endpoint_local || '',
         add_to_lan_list: true, open_firewall: true,
       };
       this.setupResult = null;
+      this.modal = 'setup';
       try {
         this.suggest = await api('GET', '/api/wireguard/suggest');
         if (!this.setup.endpoint_remote) this.setup.endpoint_remote = this.suggest.remote[0] || '';
         if (!this.setup.endpoint_local) this.setup.endpoint_local = this.suggest.local[0] || '';
-        if (!this.setup.lan_networks) this.setup.lan_networks = this.suggest.lan_networks.join(', ');
+        if (!iface) {
+          this.setup.listen_port = this.suggest.next_port;
+          this.setup.address = this.suggest.next_address;
+          this.setup.lan_networks = this.suggest.lan_networks.join(', ');
+        }
       } catch (e) {
         this.toast(e.message, 'err');
       }
-      this.modal = 'setup';
+    },
+    adoptIface(i) {
+      this.setup.interface = i.name;
+      this.setup.listen_port = Number(i.listen_port);
+      if (i.address) this.setup.address = i.address;
     },
     async runSetup() {
-      const r = await this.run(() => api('POST', '/api/wireguard/setup', this.setup), 'WireGuard configurado!');
+      const { editing, ...body } = this.setup;
+      const r = await this.run(() => api('POST', '/api/wireguard/interfaces', body), 'Interface configurada!');
       this.setupResult = r.steps;
-      await this.loadWgStatus();
+      this.wg.ifaceId = r.id;
+      await this.loadWg();
       this.loadOverview();
+    },
+    async deleteIface(i) {
+      if (i.peers_total) return this.toast('Remova os clientes desta interface antes de excluí-la.', 'err');
+      if (!confirm(`Excluir a interface ${i.name} do painel?`)) return;
+      const fromRouter = confirm(`Remover também a interface ${i.name} do MikroTik (com o IP e a regra de firewall criados pelo painel)?\n\nOK = remover do MikroTik também\nCancelar = só tirar do painel`);
+      await this.run(() => api('DELETE', `/api/wireguard/interfaces/${i.id}?remove_from_router=${fromRouter}`), 'Interface excluída');
+      this.wg.ifaceId = null;
+      this.loadWg();
     },
 
     // ---------- WireGuard: clientes ----------
-    newPeer() {
-      this.form = { name: '', owner: '', description: '', tunnel_mode: 'split', ip: '' };
+    newPeer(kind = 'device') {
+      this.form = { interface_id: this.curIface?.id, kind, name: '', owner: '', description: '', tunnel_mode: 'split',
+        ip: '', remote_networks: '', site_access: 'one_way' };
       this.modal = 'peer';
     },
     editPeer(p) {
-      this.form = { id: p.id, name: p.name, owner: p.owner, description: p.description, tunnel_mode: p.tunnel_mode,
-        original_mode: p.tunnel_mode };
+      this.form = { id: p.id, kind: p.kind, name: p.name, owner: p.owner, description: p.description,
+        tunnel_mode: p.tunnel_mode, original_mode: p.tunnel_mode, remote_networks: p.remote_networks.join(', '),
+        site_access: p.site_access };
       this.modal = 'peer';
     },
     async savePeer() {
       const { id, original_mode, ...data } = this.form;
       if (!data.ip) delete data.ip;
+      if (data.kind !== 'site') { delete data.remote_networks; delete data.site_access; }
       if (id) {
+        delete data.kind;
         const peer = await this.run(() => api('PATCH', `/api/wireguard/peers/${id}`, data), 'Cliente atualizado');
         this.modal = null;
-        if (original_mode !== data.tunnel_mode) {
+        if (peer.kind === 'device' && original_mode !== data.tunnel_mode) {
           // o modo fica no arquivo do dispositivo: precisa importar de novo
           this.openQr(peer, 'O modo de navegação mudou. Escaneie este QR Code (ou importe o .conf) de novo no dispositivo — a configuração antiga continua no modo anterior.');
         }
       } else {
-        const peer = await this.run(() => api('POST', '/api/wireguard/peers', data), 'Cliente criado');
+        const peer = await this.run(() => api('POST', '/api/wireguard/peers', data),
+          data.kind === 'site' ? 'MikroTik remoto criado' : 'Cliente criado');
         await this.loadPeers();
-        this.openQr(peer);
+        this.openPeerConfig(peer);
       }
       this.loadPeers();
+      this.loadWg();
+    },
+    openPeerConfig(p, notice = '') { return p.kind === 'site' ? this.openScript(p, notice) : this.openQr(p, notice); },
+    async openScript(p, notice = '') {
+      this.script = { peer: p, text: '', error: '', notice };
+      this.modal = 'script';
+      try {
+        this.script.text = await api('GET', `/api/wireguard/peers/${p.id}/script?endpoint=remote`);
+      } catch (e) {
+        this.script.error = e.message;
+      }
+    },
+    async copyScript() {
+      try {
+        await navigator.clipboard.writeText(this.script.text);
+      } catch {
+        // http sem HTTPS (ex.: painel no container do MikroTik): clipboard API indisponível
+        this.$refs.scriptBox.select();
+        document.execCommand('copy');
+      }
+      this.toast('Script copiado! Cole no Terminal do MikroTik do cliente.');
     },
     async togglePeer(p) {
       await this.run(() => api('PATCH', `/api/wireguard/peers/${p.id}`, { enabled: !p.enabled }),
@@ -485,10 +540,10 @@ function panel() {
       if (!confirm(`Gerar novas chaves para "${p.name}"? A configuração atual do dispositivo deixará de funcionar e será preciso importar a nova.`)) return;
       const peer = await this.run(() => api('POST', `/api/wireguard/peers/${p.id}/regenerate`), 'Novas chaves geradas');
       this.loadPeers();
-      this.openQr(peer);
+      this.openPeerConfig(peer, p.kind === 'site' ? 'Chaves novas: no MikroTik do cliente, remova a interface wg-central antiga e rode este script de novo.' : '');
     },
     async openQr(p, notice = '') {
-      this.qr = { peer: p, endpoint: this.wg.status?.endpoint_remote ? 'remote' : 'local', svg: '', error: '', notice };
+      this.qr = { peer: p, endpoint: this.wg.info?.endpoint_remote ? 'remote' : 'local', svg: '', error: '', notice };
       this.modal = 'qr';
       await this.loadQr();
     },
@@ -671,7 +726,7 @@ function panel() {
     },
     async saveSettings() {
       await this.run(() => api('PUT', '/api/settings', this.settings), 'Configurações salvas');
-      this.loadWgStatus();
+      this.loadWg();
     },
   };
 }

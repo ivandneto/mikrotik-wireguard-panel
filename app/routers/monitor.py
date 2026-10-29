@@ -4,10 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..config import config
-from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, SystemSample, User, iso, utcnow
+from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, SystemSample, User, WgInterface, iso, utcnow
 from ..security import current_user, get_db, require_admin
 from ..services import collector
-from ..settings_store import get_settings
 
 router = APIRouter(prefix="/api/monitor", tags=["monitor"])
 
@@ -54,7 +53,7 @@ def overview(_: User = Depends(current_user), db: Session = Depends(get_db)):
         "mikrotik_url": config.MIKROTIK_URL,
         "poll_interval": config.POLL_INTERVAL,
         "vpn": {
-            "configured": get_settings(db)["wg_configured"],
+            "configured": db.query(WgInterface).count() > 0,
             "total": len(peers),
             "enabled": sum(p.enabled for p in peers),
             "online": sum(1 for p in peers if live_peers.get(p.id, {}).get("online")),

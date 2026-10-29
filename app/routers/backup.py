@@ -6,16 +6,16 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..db import NatRule, Peer, User, audit, iso, utcnow
+from ..db import NatRule, Peer, User, WgInterface, _migrate, audit, iso, utcnow
 from ..mikrotik import MikroTikError, mt
 from ..security import decrypt, encrypt, get_db, require_admin
 from ..services import collector, nat_ops
 from ..settings_store import get_settings, save_settings
-from .wireguard import PEERS_PATH, _create_on_router
+from .wireguard import PEERS_PATH, _create_on_router, _sync_site
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
-BACKUP_VERSION = 1
+BACKUP_VERSION = 2  # 2: várias interfaces e peers do tipo site
 
 
 class ImportIn(BaseModel):
@@ -27,6 +27,7 @@ class ImportIn(BaseModel):
 def export_backup(include_alert_secrets: bool = True, user: User = Depends(require_admin),
                   db: Session = Depends(get_db)):
     settings = get_settings(db)
+    iface_names = {i.id: i.name for i in db.query(WgInterface).all()}
     if not include_alert_secrets:
         settings["alerts"].update(telegram_token="", discord_webhook="")
     data = {
@@ -34,12 +35,17 @@ def export_backup(include_alert_secrets: bool = True, user: User = Depends(requi
         "version": BACKUP_VERSION,
         "exported_at": iso(utcnow()),
         "settings": settings,
+        "interfaces": [{
+            "name": i.name, "description": i.description, "listen_port": i.listen_port, "address": i.address,
+            "public_key": i.public_key, "dns": i.dns, "lan_networks": i.lan_networks,
+        } for i in db.query(WgInterface).all()],
         "peers": [{
             "name": p.name, "description": p.description, "owner": p.owner, "ip": p.ip,
             "public_key": p.public_key,
             "private_key": decrypt(p.private_key_enc) if p.private_key_enc else "",
             "preshared_key": decrypt(p.preshared_key_enc) if p.preshared_key_enc else "",
-            "tunnel_mode": p.tunnel_mode,
+            "tunnel_mode": p.tunnel_mode, "kind": p.kind, "remote_networks": p.remote_networks,
+            "site_access": p.site_access, "interface": iface_names.get(p.interface_id, ""),
             "enabled": p.enabled, "created_by": p.created_by, "created_at": iso(p.created_at),
         } for p in db.query(Peer).all()],
         "nat_rules": [{
@@ -70,6 +76,16 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
     save_settings(db, data.get("settings", {}))
     settings = get_settings(db)
 
+    for item in data.get("interfaces", []):
+        if not db.query(WgInterface).filter(WgInterface.name == item["name"]).first():
+            db.add(WgInterface(**{k: item.get(k, "") for k in ("name", "description", "address", "public_key",
+                                                                 "dns", "lan_networks")},
+                               listen_port=int(item["listen_port"])))
+    db.commit()
+    _migrate()  # backup antigo (versão 1): cria a interface a partir das configurações
+    ifaces = {i.name: i for i in db.query(WgInterface).all()}
+    default_iface = next(iter(ifaces.values()), None)
+
     router_peers = {}
     if body.apply_to_router:
         router_peers = {r.get("public-key"): r for r in await mt.get(PEERS_PATH)}
@@ -89,11 +105,21 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
         peer.private_key_enc = encrypt(item["private_key"]) if item.get("private_key") else ""
         peer.preshared_key_enc = encrypt(item["preshared_key"]) if item.get("preshared_key") else ""
         peer.tunnel_mode, peer.enabled = item.get("tunnel_mode", "split"), item.get("enabled", True)
+        peer.kind, peer.remote_networks = item.get("kind", "device"), item.get("remote_networks", "")
+        peer.site_access = item.get("site_access", "one_way")
+        iface = ifaces.get(item.get("interface")) or default_iface
+        peer.interface_id = iface.id if iface else None
         peer.created_by = item.get("created_by", user.username)
-        if body.apply_to_router and settings["wg_configured"]:
+        db.flush()
+        if body.apply_to_router and iface:
             existing = router_peers.get(peer.public_key)
             try:
-                peer.mikrotik_id = existing[".id"] if existing else await _create_on_router(peer, settings)
+                if existing:
+                    peer.mikrotik_id = existing[".id"]
+                else:
+                    peer.mikrotik_id = await _create_on_router(peer, iface, settings)
+                    if peer.kind == "site":
+                        await _sync_site(peer, iface)
             except MikroTikError as exc:
                 report["errors"].append(f"Cliente {peer.name}: {exc}")
         db.commit()

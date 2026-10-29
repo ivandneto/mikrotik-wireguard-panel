@@ -182,12 +182,13 @@ async def _collect_peers(db, settings: dict, now):
         }
 
         previous = _prev["peer_online"].get(peer.id)
+        label = "Site" if peer.kind == "site" else "VPN"
         if previous is not None and previous != online and peer.enabled:
             if online:
-                _queue("peer_connect", f"VPN: {peer.name} conectou",
+                _queue("peer_connect", f"{label}: {peer.name} conectou",
                              f"IP na VPN {peer.ip} · origem {endpoint or 'desconhecida'}", "success")
             else:
-                _queue("peer_disconnect", f"VPN: {peer.name} desconectou",
+                _queue("peer_disconnect", f"{label}: {peer.name} desconectou",
                              f"Último handshake há {fmt_duration(handshake)}", "warn")
         _prev["peer_online"][peer.id] = online
 
