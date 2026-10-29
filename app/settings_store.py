@@ -15,6 +15,9 @@ DEFAULTS = {
     "wg_lan_networks": "192.168.88.0/24",
     "wg_keepalive": 25,
     "wg_mtu": 0,
+    # guarda a chave privada dos clientes também no peer do MikroTik (campo private-key, RouterOS 7.15+):
+    # o roteador vira a fonte de tudo e qualquer painel importa os clientes com QR Code
+    "wg_store_keys_on_router": True,
     # Endereços que os clientes usam para chegar no MikroTik
     "endpoint_remote": "",  # IP fixo ou DDNS (ex.: xxxx.sn.mynetname.net)
     "endpoint_local": "",   # IP do MikroTik na rede local (ex.: 192.168.88.1)

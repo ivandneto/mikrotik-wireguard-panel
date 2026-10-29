@@ -185,6 +185,7 @@
               <input class="input max-w-xs" placeholder="Buscar cliente…" x-model="wg.filter">
               <div class="ml-auto flex gap-2" x-show="isAdmin">
                 <button class="btn" @click="openSetup()">⚙️ Reconfigurar</button>
+                <button class="btn" @click="openImport()" title="Trazer peers que já existem no MikroTik">⬇️ Importar do MikroTik</button>
                 <button class="btn-primary" data-tour="vpn-new" @click="newPeer()">＋ Novo cliente</button>
               </div>
             </div>
@@ -199,7 +200,8 @@
                     <tr>
                       <td><span class="badge" :class="peerStatus(p).cls"><span class="dot" :class="p.live?.online && 'pulse'"></span><span x-text="peerStatus(p).label"></span></span></td>
                       <td>
-                        <div class="font-medium text-white" x-text="p.name"></div>
+                        <div class="font-medium text-white"><span x-text="p.name"></span>
+                          <span class="badge b-gray ml-1" x-show="!p.has_config" title="Criado fora do painel: monitorado, mas sem QR/arquivo (use 🔑 para gerar chaves novas)">importado</span></div>
                         <div class="text-xs text-slate-500" x-text="[p.owner, p.description].filter(Boolean).join(' · ')"></div>
                       </td>
                       <td class="mono" x-text="p.ip"></td>
@@ -211,7 +213,7 @@
                         <button class="btn-ghost" title="Gráfico" @click="showPeerChart(p)">📈</button>
                         <template x-if="isAdmin">
                           <span>
-                            <button class="btn-ghost" title="QR Code / baixar configuração" @click="openQr(p)">📱</button>
+                            <button class="btn-ghost" :title="p.has_config ? 'QR Code / baixar configuração' : 'Sem QR: cliente importado (use 🔑 para gerar chaves novas)'" :disabled="!p.has_config" @click="openQr(p)">📱</button>
                             <button class="btn-ghost" title="Editar" @click="editPeer(p)">✏️</button>
                             <button class="btn-ghost" :title="p.enabled ? 'Desativar' : 'Ativar'" @click="togglePeer(p)" x-text="p.enabled ? '⏸️' : '▶️'"></button>
                             <button class="btn-ghost" title="Corrigir no MikroTik" x-show="p.enabled && p.live && (!p.live.exists || p.live.router_disabled)" @click="reapplyPeer(p)">🔁</button>
@@ -505,6 +507,11 @@
                 <label class="block"><span class="label">Keepalive (s)</span><input class="input" type="number" x-model.number="settings.wg_keepalive"></label>
                 <label class="block"><span class="label">MTU (0 = auto)</span><input class="input" type="number" x-model.number="settings.wg_mtu"></label>
               </div>
+              <label class="flex items-start gap-3 text-sm cursor-pointer">
+                <button type="button" class="toggle mt-0.5" :class="settings.wg_store_keys_on_router && 'on'" @click="settings.wg_store_keys_on_router = !settings.wg_store_keys_on_router"></button>
+                <span>Guardar a chave privada dos clientes no MikroTik
+                  <span class="hint block">O roteador passa a ter tudo da VPN: um painel novo importa os clientes <b>com QR Code</b>, sem precisar de backup. Quem for admin do MikroTik consegue ver as chaves, e elas vão junto nos backups do roteador.</span></span>
+              </label>
               <p class="hint">Alterações aqui valem para configurações/QR codes gerados a partir de agora.</p>
             </div>
 
@@ -642,6 +649,7 @@
               <tr><td>✏️</td><td>Editar nome, responsável e modo.</td></tr>
               <tr><td>⏸️ / ▶️</td><td>Bloquear / liberar o acesso sem apagar.</td></tr>
               <tr><td>🔑</td><td>Gerar chaves novas (ex.: celular perdido). O QR antigo para de funcionar.</td></tr>
+              <tr><td>⬇️ Importar do MikroTik</td><td>Traz para o painel peers criados fora dele (Winbox, VPN antiga). Se a chave privada estiver guardada no MikroTik (opção ligada por padrão em Configurações), vêm completos, com QR Code. Senão, aparecem como <span class="badge b-gray">importado</span>, com monitoramento e alertas mas sem QR Code — a chave só existe no dispositivo.</td></tr>
               <tr><td>🗑️</td><td>Remover o cliente de vez.</td></tr>
             </table>
             <h3>Como instalar no dispositivo</h3>
@@ -840,6 +848,42 @@
             </div>
           </div>
         </template>
+      </div>
+    </template>
+
+    <!-- Importar peers do MikroTik -->
+    <template x-if="modal === 'import'">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">⬇️ Importar do MikroTik</h2>
+        <p class="text-sm text-slate-400">Peers WireGuard que existem no roteador mas ainda não estão no painel. Importar <b>não altera nada</b> no MikroTik.</p>
+        <div class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3">
+          Peers marcados com <span class="badge b-green">🔑 com chave</span> têm a chave privada guardada no MikroTik e vêm <b>completos, com QR Code</b>.
+          Os outros ganham monitoramento, alertas e gráficos, mas <b>sem QR Code</b> (a chave só existe no dispositivo) — se precisar, use 🔑 para gerar chaves novas.</div>
+        <p x-show="importList && !importList.length" class="text-sm text-slate-400 py-4 text-center">✅ Todos os peers do MikroTik já estão no painel.</p>
+        <div x-show="importList?.length" class="max-h-80 overflow-y-auto border border-slate-800 rounded-lg">
+          <table class="table">
+            <thead><tr>
+              <th><input type="checkbox" :checked="importSel.length === importList?.length" @change="importSel = $event.target.checked ? importList.map(p => p.id) : []"></th>
+              <th>Nome</th><th>Interface</th><th>Endereço</th><th>Último contato</th></tr></thead>
+            <tbody>
+              <template x-for="p in importList || []" :key="p.id">
+                <tr :class="p.disabled && 'opacity-50'">
+                  <td><input type="checkbox" :value="p.id" x-model="importSel"></td>
+                  <td class="text-white"><span x-text="p.name"></span>
+                    <span class="badge ml-1" :class="p.has_key ? 'b-green' : 'b-gray'" x-text="p.has_key ? '🔑 com chave' : 'sem chave'"></span></td>
+                  <td class="mono text-xs" x-text="p.interface"></td>
+                  <td class="mono text-xs" x-text="p.allowed_address"></td>
+                  <td class="text-xs" x-text="p.last_handshake ? p.last_handshake + ' atrás' : 'nunca'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="btn" @click="modal = null">Fechar</button>
+          <button class="btn-primary" x-show="importList?.length" :disabled="busy || !importSel.length" @click="runImport()"
+                  x-text="`Importar ${importSel.length} selecionado(s)`"></button>
+        </div>
       </div>
     </template>
 

@@ -118,6 +118,8 @@ function panel() {
 
     modal: null,
     form: {},
+    importList: null,
+    importSel: [],
     qr: { peer: null, endpoint: 'remote', svg: '', error: '', notice: '' },
 
     tabs: [
@@ -458,6 +460,20 @@ function panel() {
     async deletePeer(p) {
       if (!confirm(`Remover o cliente "${p.name}"? Ele perde o acesso imediatamente.`)) return;
       await this.run(() => api('DELETE', `/api/wireguard/peers/${p.id}`), 'Cliente removido');
+      this.loadPeers();
+    },
+    async openImport() {
+      this.importList = null;
+      this.importSel = [];
+      this.modal = 'import';
+      this.importList = await this.run(() => api('GET', '/api/wireguard/importable'));
+      this.importSel = this.importList.map(p => p.id);
+    },
+    async runImport() {
+      const r = await this.run(() => api('POST', '/api/wireguard/import', { ids: this.importSel }));
+      if (r.imported.length) this.toast(`Importado(s): ${r.imported.join(', ')}`);
+      r.errors.forEach(e => this.toast(e, 'err'));
+      this.modal = null;
       this.loadPeers();
     },
     async reapplyPeer(p) {

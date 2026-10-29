@@ -21,6 +21,7 @@ class SettingsIn(BaseModel):
     wg_lan_networks: str = ""
     wg_keepalive: int = Field(25, ge=0, le=600)
     wg_mtu: int = Field(0, ge=0, le=9000)
+    wg_store_keys_on_router: bool = True
     nat_match_mode: Literal["wan_list", "interface", "dst_local"] = "wan_list"
     nat_in_target: str = "WAN"
     wan_interface: str = ""

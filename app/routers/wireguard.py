@@ -42,6 +42,10 @@ class PeerIn(BaseModel):
     ip: str | None = None
 
 
+class ImportIn(BaseModel):
+    ids: list[str] = Field(min_length=1)
+
+
 class PeerUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=64)
     description: str | None = None
@@ -64,6 +68,8 @@ def peer_out(peer: Peer) -> dict:
         "public_key": peer.public_key,
         "tunnel_mode": peer.tunnel_mode,
         "enabled": peer.enabled,
+        # importado do MikroTik: a chave privada só existe no dispositivo, então não há QR/.conf
+        "has_config": bool(peer.private_key_enc),
         "created_at": iso(peer.created_at),
         "created_by": peer.created_by,
         "live": collector.state["peers"].get(peer.id),
@@ -90,14 +96,18 @@ async def _router_peer(peer: Peer) -> dict | None:
 
 
 async def _create_on_router(peer: Peer, settings: dict) -> str:
-    result = await mt.add(PEERS_PATH, {
+    data = {
         "interface": settings["wg_interface"],
         "public-key": peer.public_key,
-        "preshared-key": decrypt(peer.preshared_key_enc),
-        "allowed-address": f"{peer.ip}/32",
+        "allowed-address": peer.ip if "/" in peer.ip else f"{peer.ip}/32",
         "comment": peer_comment(peer.name),
         "disabled": peer.enabled is False,  # None (ainda não salvo) = ativo
-    })
+    }
+    if peer.preshared_key_enc:
+        data["preshared-key"] = decrypt(peer.preshared_key_enc)
+    if settings["wg_store_keys_on_router"] and peer.private_key_enc:
+        data["private-key"] = decrypt(peer.private_key_enc)
+    result = await mt.add(PEERS_PATH, data)
     return result[".id"]
 
 
@@ -241,6 +251,70 @@ def list_peers(_: User = Depends(current_user), db: Session = Depends(get_db)):
     return [peer_out(p) for p in db.query(Peer).order_by(Peer.name).all()]
 
 
+@router.get("/importable")
+async def importable_peers(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Peers que existem no MikroTik mas ainda não estão no painel (criados pelo Winbox, por exemplo)."""
+    known = {p.public_key for p in db.query(Peer).all()}
+    out = []
+    for row in await mt.get(PEERS_PATH):
+        if row.get("public-key") in known:
+            continue
+        out.append({
+            "id": row[".id"],
+            "interface": row.get("interface"),
+            "name": _imported_name(row),
+            "allowed_address": row.get("allowed-address", ""),
+            "endpoint": row.get("current-endpoint-address") or row.get("endpoint-address") or "",
+            "last_handshake": row.get("last-handshake"),
+            "disabled": row.get("disabled") == "true",
+            "has_key": bool(row.get("private-key")),
+        })
+    return out
+
+
+def _imported_name(row: dict) -> str:
+    comment = (row.get("comment") or "").removeprefix(TAG).strip()
+    return (comment or row.get("name") or f"peer {row['.id']}")[:64]
+
+
+@router.post("/import")
+async def import_peers(body: ImportIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Traz peers existentes para o painel sem alterar nada no MikroTik."""
+    rows = {r[".id"]: r for r in await mt.get(PEERS_PATH)}
+    known_keys = {p.public_key for p in db.query(Peer).all()}
+    used_ips = {p.ip for p in db.query(Peer).all()}
+    imported, errors = [], []
+    for item_id in body.ids:
+        row = rows.get(item_id)
+        if not row or row.get("public-key") in known_keys:
+            continue
+        name = _imported_name(row)
+        first = (row.get("allowed-address") or "").split(",")[0].strip()
+        ip = first.removesuffix("/32")
+        if not ip:
+            errors.append(f"{name}: sem allowed-address, ignorado")
+            continue
+        if ip in used_ips:
+            errors.append(f"{name}: IP {ip} já usado por outro cliente do painel")
+            continue
+        psk = row.get("preshared-key") or ""
+        peer = Peer(
+            name=name, description=f"Importado do MikroTik (interface {row.get('interface')})",
+            ip=ip, public_key=row["public-key"],
+            private_key_enc=encrypt(row["private-key"]) if row.get("private-key") else "",
+            preshared_key_enc=encrypt(psk) if psk else "", tunnel_mode="split",
+            enabled=row.get("disabled") != "true", mikrotik_id=item_id, created_by=user.username,
+        )
+        db.add(peer)
+        used_ips.add(ip)
+        imported.append(name)
+    db.commit()
+    if imported:
+        audit(db, user.username, "clientes VPN importados do MikroTik", ", ".join(imported))
+    collector.trigger()
+    return {"imported": imported, "errors": errors}
+
+
 @router.post("/peers")
 async def create_peer(body: PeerIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     s = get_settings(db)
@@ -347,7 +421,10 @@ async def regenerate_keys(peer_id: int, user: User = Depends(require_admin), db:
     private_key, public_key = generate_keypair()
     psk = generate_psk()
     if row:
-        await mt.set(PEERS_PATH, row[".id"], {"public-key": public_key, "preshared-key": psk})
+        changes = {"public-key": public_key, "preshared-key": psk}
+        if get_settings(db)["wg_store_keys_on_router"]:
+            changes["private-key"] = private_key
+        await mt.set(PEERS_PATH, row[".id"], changes)
     peer.public_key, peer.private_key_enc, peer.preshared_key_enc = public_key, encrypt(private_key), encrypt(psk)
     if not row:
         peer.mikrotik_id = await _create_on_router(peer, get_settings(db))
@@ -358,6 +435,9 @@ async def regenerate_keys(peer_id: int, user: User = Depends(require_admin), db:
 
 
 def build_client_config(peer: Peer, s: dict, endpoint: str) -> str:
+    if not peer.private_key_enc:
+        raise HTTPException(400, "Cliente importado do MikroTik: a chave privada fica só no dispositivo, "
+                                 "então não dá para gerar o QR/arquivo. Use 🔑 Gerar novas chaves para criar um novo.")
     host = s["endpoint_remote"] if endpoint == "remote" else s["endpoint_local"]
     if not host:
         label = "remoto (IP público/DDNS)" if endpoint == "remote" else "local (IP do MikroTik na rede)"
@@ -380,7 +460,7 @@ def build_client_config(peer: Peer, s: dict, endpoint: str) -> str:
         "",
         "[Peer]",
         f"PublicKey = {s['wg_server_public_key']}",
-        f"PresharedKey = {decrypt(peer.preshared_key_enc)}",
+        *([f"PresharedKey = {decrypt(peer.preshared_key_enc)}"] if peer.preshared_key_enc else []),
         f"AllowedIPs = {allowed}",
         f"Endpoint = {host}:{s['wg_listen_port']}",
         f"PersistentKeepalive = {s['wg_keepalive']}",

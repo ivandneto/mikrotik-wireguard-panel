@@ -36,8 +36,10 @@ def export_backup(include_alert_secrets: bool = True, user: User = Depends(requi
         "settings": settings,
         "peers": [{
             "name": p.name, "description": p.description, "owner": p.owner, "ip": p.ip,
-            "public_key": p.public_key, "private_key": decrypt(p.private_key_enc),
-            "preshared_key": decrypt(p.preshared_key_enc), "tunnel_mode": p.tunnel_mode,
+            "public_key": p.public_key,
+            "private_key": decrypt(p.private_key_enc) if p.private_key_enc else "",
+            "preshared_key": decrypt(p.preshared_key_enc) if p.preshared_key_enc else "",
+            "tunnel_mode": p.tunnel_mode,
             "enabled": p.enabled, "created_by": p.created_by, "created_at": iso(p.created_at),
         } for p in db.query(Peer).all()],
         "nat_rules": [{
@@ -84,8 +86,8 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
             db.add(peer)
             report["peers_created"] += 1
         peer.name, peer.description, peer.owner = item["name"], item.get("description", ""), item.get("owner", "")
-        peer.private_key_enc = encrypt(item["private_key"])
-        peer.preshared_key_enc = encrypt(item["preshared_key"])
+        peer.private_key_enc = encrypt(item["private_key"]) if item.get("private_key") else ""
+        peer.preshared_key_enc = encrypt(item["preshared_key"]) if item.get("preshared_key") else ""
         peer.tunnel_mode, peer.enabled = item.get("tunnel_mode", "split"), item.get("enabled", True)
         peer.created_by = item.get("created_by", user.username)
         if body.apply_to_router and settings["wg_configured"]:

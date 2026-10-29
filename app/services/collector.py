@@ -7,6 +7,7 @@ from datetime import timedelta
 from ..config import config
 from ..db import Event, NatRule, NatSample, Peer, PeerSample, SessionLocal, SystemSample, iso, utcnow
 from ..mikrotik import MikroTikError, mt
+from ..security import decrypt, encrypt
 from ..settings_store import get_settings
 from ..utils import fmt_duration, parse_duration, to_int
 from . import nat_ops
@@ -113,7 +114,11 @@ async def _router_up():
 
 async def _detect_wan() -> str | None:
     """Interface de saída da rota padrão ativa (ex.: pppoe-out1, ether1)."""
-    for route in await mt.get("/ip/route", **{"dst-address": "0.0.0.0/0"}):
+    try:
+        routes = await mt.get("/ip/route", **{"dst-address": "0.0.0.0/0"})
+    except MikroTikError:
+        return None  # sem permissão/menu: o gráfico WAN não pode derrubar a coleta inteira
+    for route in routes:
         if route.get("active") != "true":
             continue
         immediate = route.get("immediate-gw", "")
@@ -163,6 +168,8 @@ async def _collect_peers(db, settings: dict, now):
             endpoint = f"{row['current-endpoint-address']}:{row.get('current-endpoint-port', '')}"
         if row and row[".id"] != peer.mikrotik_id:
             peer.mikrotik_id = row[".id"]
+        if row:
+            await _sync_private_key(peer, row, settings)
 
         new_state[peer.id] = {
             "exists": row is not None,
@@ -187,6 +194,18 @@ async def _collect_peers(db, settings: dict, now):
         if row:
             db.add(PeerSample(ts=now, peer_id=peer.id, rx=rx, tx=tx, online=online))
     state["peers"] = new_state
+
+
+async def _sync_private_key(peer: Peer, row: dict, settings: dict):
+    """Painel -> roteador (se a opção estiver ligada) e roteador -> painel (peer importado sem chave)."""
+    try:
+        if not peer.private_key_enc and row.get("private-key"):
+            peer.private_key_enc = encrypt(row["private-key"])
+        elif settings["wg_store_keys_on_router"] and peer.private_key_enc and not row.get("private-key"):
+            await mt.set("/interface/wireguard/peers", row[".id"], {"private-key": decrypt(peer.private_key_enc)})
+            logger.info("Chave privada de %s guardada no MikroTik", peer.name)
+    except MikroTikError as exc:
+        logger.warning("Não foi possível sincronizar a chave de %s: %s", peer.name, exc)
 
 
 async def _tcp_check(host: str, port: int) -> bool:

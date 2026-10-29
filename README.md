@@ -4,7 +4,7 @@ Painel web para **criar e gerenciar VPN WireGuard**, **liberar portas (NAT)** pa
 
 | Módulo | O que faz |
 |---|---|
-| 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf**, endereço **remoto** (IP fixo/DDNS) ou **local** (IP na LAN), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves |
+| 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf**, endereço **remoto** (IP fixo/DDNS) ou **local** (IP na LAN), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves, **importar peers que já existem no MikroTik** (chaves guardadas no roteador → QR funciona em qualquer painel) |
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
 | 📈 **Monitoramento** | Quem está online, último handshake, IP de origem, tráfego por cliente, consumo por período, tráfego por porta liberada, **teste se o servidor está no ar**, CPU/memória/WAN do roteador, gráficos com histórico |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline |
@@ -212,7 +212,7 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm
 /container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
-Acesse **http://172.20.0.2:8080**. Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Desligue o antigo para não receber alertas em dobro.
+Acesse **http://172.20.0.2:8080**. Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Se só precisar dos clientes VPN, use **VPN → ⬇️ Importar do MikroTik** (com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code). Desligue o antigo para não receber alertas em dobro.
 
 **Atualizar:** gere a imagem nova, envie, e rode `/container stop wgpanel`, `/container remove wgpanel` e o `/container add …` de novo (os dados ficam em `usb1/wgpanel/data`).
 
