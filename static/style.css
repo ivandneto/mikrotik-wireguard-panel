@@ -1,0 +1,79 @@
+[x-cloak] { display: none !important; }
+
+.label { display: block; font-size: .8rem; color: #94a3b8; margin-bottom: .3rem; }
+.hint { font-size: .75rem; color: #64748b; margin-top: .25rem; }
+.input {
+  width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: .5rem;
+  padding: .5rem .75rem; color: #e2e8f0; font-size: .9rem; outline: none;
+}
+.input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.25); }
+.input:disabled { opacity: .6; }
+
+.btn, .btn-primary, .btn-danger, .btn-ghost {
+  display: inline-flex; align-items: center; gap: .4rem; border-radius: .5rem;
+  padding: .45rem .9rem; font-size: .85rem; font-weight: 500; transition: background .15s, opacity .15s;
+  white-space: nowrap;
+}
+.btn { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; }
+.btn:hover { background: #273449; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-danger { background: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; }
+.btn-danger:hover { background: #991b1b; }
+.btn-ghost { color: #94a3b8; padding: .3rem .5rem; }
+.btn-ghost:hover { background: #1e293b; color: #e2e8f0; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.card { background: #0f172a; border: 1px solid #1e293b; border-radius: .9rem; padding: 1.1rem; }
+.card-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 600; }
+
+.table { width: 100%; font-size: .85rem; border-collapse: collapse; }
+.table th { text-align: left; font-weight: 500; color: #64748b; font-size: .75rem; text-transform: uppercase;
+  letter-spacing: .04em; padding: .6rem .7rem; border-bottom: 1px solid #1e293b; white-space: nowrap; }
+.table td { padding: .65rem .7rem; border-bottom: 1px solid #172033; vertical-align: middle; }
+.table tr:hover td { background: #0b1324; }
+
+.badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .72rem; font-weight: 500;
+  padding: .15rem .55rem; border-radius: 999px; white-space: nowrap; }
+.b-green { background: rgba(34,197,94,.12); color: #4ade80; }
+.b-red { background: rgba(239,68,68,.12); color: #f87171; }
+.b-amber { background: rgba(245,158,11,.12); color: #fbbf24; }
+.b-gray { background: rgba(148,163,184,.12); color: #94a3b8; }
+.b-blue { background: rgba(59,130,246,.12); color: #60a5fa; }
+.dot { width: .5rem; height: .5rem; border-radius: 999px; background: currentColor; display: inline-block; }
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.nav-item { display: flex; align-items: center; gap: .6rem; padding: .55rem .8rem; border-radius: .5rem;
+  color: #94a3b8; font-size: .9rem; width: 100%; text-align: left; }
+.nav-item:hover { background: #111c30; color: #e2e8f0; }
+.nav-item.active { background: #1e3a8a55; color: #fff; }
+
+.toggle { position: relative; width: 2.4rem; height: 1.35rem; background: #334155; border-radius: 999px;
+  transition: background .15s; flex-shrink: 0; }
+.toggle::after { content: ''; position: absolute; top: .18rem; left: .2rem; width: 1rem; height: 1rem;
+  background: #fff; border-radius: 999px; transition: transform .15s; }
+.toggle.on { background: #2563eb; }
+.toggle.on::after { transform: translateX(1.02rem); }
+
+.qr svg { width: 100%; height: auto; background: #fff; border-radius: .5rem; }
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+/* Tour guiado */
+.tour-spot { position: fixed; border-radius: .8rem; box-shadow: 0 0 0 9999px rgba(2, 6, 23, .75);
+  outline: 2px solid #3b82f6; transition: all .25s ease; pointer-events: none; }
+.tour-box { position: fixed; width: min(380px, calc(100vw - 32px)); background: #0f172a; border: 1px solid #334155;
+  border-radius: .9rem; padding: 1rem 1.1rem; box-shadow: 0 20px 50px rgba(0,0,0,.6); transition: top .25s, left .25s; }
+
+/* Manual */
+.help h2 { font-size: 1.15rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: .5rem; }
+.help h3 { font-size: .95rem; font-weight: 600; color: #cbd5e1; margin-top: .75rem; }
+.help p, .help li, .help dd { color: #cbd5e1; font-size: .9rem; line-height: 1.6; }
+.help ul { list-style: disc; padding-left: 1.25rem; }
+.help ul li { margin: .25rem 0; }
+.help dt { color: #fff; font-weight: 500; font-size: .9rem; }
+.help a { color: #60a5fa; cursor: pointer; }
+.help a:hover { text-decoration: underline; }
+.help .table td { font-size: .85rem; color: #cbd5e1; }
+.help .table td:first-child { white-space: nowrap; width: 1%; }
+.help > div { scroll-margin-top: 5rem; }

@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MikroTik WG Panel</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen" x-data="panel()" x-cloak>
+
+<div class="flex min-h-screen">
+  <!-- ===== Menu lateral ===== -->
+  <aside data-tour="nav" class="w-60 shrink-0 bg-slate-925 border-r border-slate-800 p-4 hidden md:flex flex-col gap-1" style="background:#0a1120">
+    <div class="flex items-center gap-2 px-2 pb-5">
+      <span class="text-2xl">🛡️</span>
+      <div>
+        <div class="font-semibold text-white leading-tight">WG Panel</div>
+        <div class="text-xs text-slate-500">MikroTik</div>
+      </div>
+    </div>
+    <template x-for="t in visibleTabs" :key="t.id">
+      <button class="nav-item" :class="tab === t.id && 'active'" @click="tab = t.id">
+        <span x-text="t.icon"></span><span x-text="t.label"></span>
+      </button>
+    </template>
+    <div class="mt-auto pt-4 border-t border-slate-800 text-sm space-y-2">
+      <div class="px-2 text-slate-400">
+        <span x-text="me?.username"></span>
+        <span class="badge ml-1" :class="isAdmin ? 'b-blue' : 'b-gray'" x-text="isAdmin ? 'admin' : 'leitura'"></span>
+      </div>
+      <button class="nav-item" @click="changeMyPassword()">🔑 Trocar senha</button>
+      <button class="nav-item" @click="logout()">🚪 Sair</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <!-- ===== Barra superior ===== -->
+    <header class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 flex items-center gap-3">
+      <select class="input md:hidden w-auto" x-model="tab">
+        <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="t.icon + ' ' + t.label"></option></template>
+      </select>
+      <h1 class="hidden md:block text-lg font-semibold text-white" x-text="tabs.find(t => t.id === tab)?.label"></h1>
+      <div class="ml-auto flex items-center gap-3 text-sm" data-tour="status">
+        <template x-if="router.online === true">
+          <span class="badge b-green"><span class="dot pulse"></span> MikroTik online</span>
+        </template>
+        <template x-if="router.online === false">
+          <span class="badge b-red" :title="router.error"><span class="dot"></span> MikroTik offline</span>
+        </template>
+        <template x-if="router.online == null">
+          <span class="badge b-gray"><span class="dot"></span> Conectando…</span>
+        </template>
+        <span class="text-slate-500 hidden lg:inline" x-show="router.updated" x-text="'atualizado ' + fmtAgo(router.updated)"></span>
+        <button class="btn" @click="forceRefresh()" :disabled="busy" title="Coletar agora">⟳</button>
+        <button class="btn" data-tour="help-btns" @click="startTour()" title="Tour guiado pelo painel">🎓 <span class="hidden sm:inline">Tour</span></button>
+        <button class="btn" @click="openHelp(tab)" title="Manual desta tela">❓ <span class="hidden sm:inline">Ajuda</span></button>
+      </div>
+    </header>
+
+    <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+
+      <!-- Aviso de MikroTik offline -->
+      <div x-show="router.online === false" class="card border-red-900 bg-red-950/40 text-red-200 text-sm">
+        <b>Não foi possível falar com o MikroTik.</b> <span x-text="router.error"></span>
+        <div class="text-red-300/70 mt-1">Verifique MIKROTIK_URL, usuário/senha no arquivo <code>.env</code> e se o serviço www/www-ssl está ativo no roteador (veja o README).</div>
+      </div>
+
+      <!-- ===================== PAINEL ===================== -->
+      <section x-show="tab === 'dashboard'" class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" data-tour="dash-cards">
+          <div class="card">
+            <div class="card-title">Roteador</div>
+            <div class="text-xl font-semibold text-white mt-2" x-text="router.resource?.board || '—'"></div>
+            <div class="text-sm text-slate-400 mt-1">RouterOS <span x-text="router.resource?.version || '—'"></span></div>
+            <div class="text-sm text-slate-400">Ligado há <span x-text="fmtDur(router.resource?.uptime)"></span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">CPU / Memória</div>
+            <div class="flex items-end gap-4 mt-2">
+              <div><div class="text-2xl font-semibold text-white" x-text="(router.resource?.cpu ?? '—') + '%'"></div><div class="text-xs text-slate-500">CPU</div></div>
+              <div><div class="text-2xl font-semibold text-white" x-text="(router.resource?.mem_pct ?? '—') + '%'"></div><div class="text-xs text-slate-500">Memória</div></div>
+            </div>
+            <div class="h-1.5 bg-slate-800 rounded mt-3"><div class="h-1.5 rounded bg-amber-500" :style="`width:${router.resource?.cpu || 0}%`"></div></div>
+          </div>
+          <div class="card cursor-pointer hover:border-slate-700" @click="tab = 'vpn'">
+            <div class="card-title">VPN WireGuard</div>
+            <template x-if="overview?.vpn.configured">
+              <div>
+                <div class="text-2xl font-semibold text-white mt-2"><span class="text-green-400" x-text="overview.vpn.online"></span> <span class="text-slate-500 text-lg">/ <span x-text="overview.vpn.enabled"></span></span></div>
+                <div class="text-sm text-slate-400">clientes conectados agora</div>
+              </div>
+            </template>
+            <template x-if="overview && !overview.vpn.configured">
+              <div class="text-sm text-amber-300 mt-2">Ainda não configurada — clique para configurar</div>
+            </template>
+          </div>
+          <div class="card cursor-pointer hover:border-slate-700" @click="tab = 'nat'">
+            <div class="card-title">Portas liberadas</div>
+            <div class="text-2xl font-semibold text-white mt-2" x-text="overview?.nat.enabled ?? '—'"></div>
+            <div class="text-sm flex flex-wrap gap-2 mt-1">
+              <span class="badge b-green" x-show="overview?.nat.healthy" x-text="overview?.nat.healthy + ' respondendo'"></span>
+              <span class="badge b-red" x-show="overview?.nat.unhealthy" x-text="overview?.nat.unhealthy + ' fora do ar'"></span>
+              <span class="badge b-red" x-show="overview?.nat.missing" x-text="overview?.nat.missing + ' ausentes'"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="card xl:col-span-2" data-tour="dash-chart">
+            <div class="flex items-center justify-between mb-3">
+              <div class="card-title">Tráfego da internet (WAN)
+                <span class="normal-case text-slate-400" x-show="router.wan" x-text="'· agora ↓ ' + fmtBps(router.wan?.rx_bps) + ' ↑ ' + fmtBps(router.wan?.tx_bps)"></span>
+              </div>
+              <select class="input w-auto py-1 text-xs" x-model.number="dashHours" @change="drawDashboard()">
+                <option value="6">6h</option><option value="24">24h</option><option value="168">7 dias</option><option value="720">30 dias</option>
+              </select>
+            </div>
+            <div class="h-56"><canvas x-ref="dashChart"></canvas></div>
+            <p class="hint" x-show="!router.wan">Defina a interface WAN em Configurações para ver este gráfico.</p>
+            <div class="h-40 mt-4"><canvas x-ref="cpuChart"></canvas></div>
+          </div>
+          <div class="card" data-tour="dash-events">
+            <div class="card-title mb-3">Eventos recentes</div>
+            <div class="space-y-2 max-h-[30rem] overflow-y-auto pr-1">
+              <template x-for="e in events.slice(0, 25)" :key="e.ts + e.message">
+                <div class="text-sm border-l-2 pl-3 py-0.5" :class="{'border-green-500': e.level==='success','border-amber-500': e.level==='warn','border-red-500': e.level==='error','border-blue-500': e.level==='info'}">
+                  <div x-text="e.message"></div>
+                  <div class="text-xs text-slate-500" x-text="fmtDate(e.ts)"></div>
+                </div>
+              </template>
+              <p class="text-sm text-slate-500" x-show="!events.length">Nenhum evento ainda.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== VPN ===================== -->
+      <section data-tour="sec-vpn" x-show="tab === 'vpn'" class="space-y-4">
+        <template x-if="wg.status && !wg.status.configured">
+          <div class="card text-center py-10 space-y-3">
+            <div class="text-4xl">🔐</div>
+            <h2 class="text-lg font-semibold text-white">A VPN ainda não foi configurada</h2>
+            <p class="text-slate-400 text-sm max-w-lg mx-auto">O assistente cria a interface WireGuard no MikroTik, define a faixa de IPs da VPN e libera a porta no firewall. Leva menos de um minuto.</p>
+            <button class="btn-primary" x-show="isAdmin" @click="openSetup()">Iniciar configuração</button>
+            <p class="text-sm text-slate-500" x-show="!isAdmin">Peça a um administrador para configurar.</p>
+          </div>
+        </template>
+
+        <template x-if="wg.status?.configured">
+          <div class="space-y-4">
+            <div class="card grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+              <div><div class="card-title">Interface</div><div class="mt-1 text-white mono" x-text="wg.status.interface"></div>
+                <span class="badge mt-1" :class="wg.status.router_interface?.running ? 'b-green' : 'b-red'" x-text="wg.status.router_interface ? (wg.status.router_interface.running ? 'rodando' : 'parada') : 'não encontrada'"></span></div>
+              <div><div class="card-title">Porta UDP</div><div class="mt-1 text-white mono" x-text="wg.status.listen_port"></div></div>
+              <div><div class="card-title">Rede da VPN</div><div class="mt-1 text-white mono" x-text="wg.status.address"></div></div>
+              <div><div class="card-title">Endereço remoto</div><div class="mt-1 mono" :class="wg.status.endpoint_remote ? 'text-white' : 'text-amber-400'" x-text="wg.status.endpoint_remote || 'não definido'"></div></div>
+              <div><div class="card-title">Endereço local</div><div class="mt-1 mono" :class="wg.status.endpoint_local ? 'text-white' : 'text-amber-400'" x-text="wg.status.endpoint_local || 'não definido'"></div></div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <input class="input max-w-xs" placeholder="Buscar cliente…" x-model="wg.filter">
+              <div class="ml-auto flex gap-2" x-show="isAdmin">
+                <button class="btn" @click="openSetup()">⚙️ Reconfigurar</button>
+                <button class="btn-primary" data-tour="vpn-new" @click="newPeer()">＋ Novo cliente</button>
+              </div>
+            </div>
+
+            <div class="card p-0 overflow-x-auto" data-tour="vpn-table">
+              <table class="table">
+                <thead><tr>
+                  <th>Status</th><th>Cliente</th><th>IP VPN</th><th>Modo</th><th>Último contato</th><th>Origem</th><th>Tráfego</th><th class="text-right">Ações</th>
+                </tr></thead>
+                <tbody>
+                  <template x-for="p in filteredPeers" :key="p.id">
+                    <tr>
+                      <td><span class="badge" :class="peerStatus(p).cls"><span class="dot" :class="p.live?.online && 'pulse'"></span><span x-text="peerStatus(p).label"></span></span></td>
+                      <td>
+                        <div class="font-medium text-white" x-text="p.name"></div>
+                        <div class="text-xs text-slate-500" x-text="[p.owner, p.description].filter(Boolean).join(' · ')"></div>
+                      </td>
+                      <td class="mono" x-text="p.ip"></td>
+                      <td><span class="badge" :class="p.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="p.tunnel_mode === 'full' ? 'Toda internet' : 'Só rede local'"></span></td>
+                      <td x-text="p.live?.last_handshake != null ? fmtDur(p.live.last_handshake) + ' atrás' : 'nunca'"></td>
+                      <td class="mono text-xs text-slate-400" x-text="p.live?.endpoint || '—'"></td>
+                      <td class="text-xs whitespace-nowrap"><div>↓ <span x-text="fmtBytes(p.live?.tx)"></span></div><div>↑ <span x-text="fmtBytes(p.live?.rx)"></span></div></td>
+                      <td class="text-right whitespace-nowrap">
+                        <button class="btn-ghost" title="Gráfico" @click="showPeerChart(p)">📈</button>
+                        <template x-if="isAdmin">
+                          <span>
+                            <button class="btn-ghost" title="QR Code / baixar configuração" @click="openQr(p)">📱</button>
+                            <button class="btn-ghost" title="Editar" @click="editPeer(p)">✏️</button>
+                            <button class="btn-ghost" :title="p.enabled ? 'Desativar' : 'Ativar'" @click="togglePeer(p)" x-text="p.enabled ? '⏸️' : '▶️'"></button>
+                            <button class="btn-ghost" title="Recriar no MikroTik" x-show="p.live && !p.live.exists" @click="reapplyPeer(p)">🔁</button>
+                            <button class="btn-ghost" title="Gerar novas chaves" @click="regeneratePeer(p)">🔑</button>
+                            <button class="btn-ghost" title="Remover" @click="deletePeer(p)">🗑️</button>
+                          </span>
+                        </template>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!filteredPeers.length"><td colspan="8" class="text-center text-slate-500 py-8">Nenhum cliente VPN ainda. Clique em "Novo cliente".</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="hint">"Online" = handshake nos últimos <span x-text="Math.round((settings?.online_threshold || 180) / 60)"></span> min. Clientes sem tráfego podem aparecer offline mesmo conectados se o keepalive estiver desligado.</p>
+          </div>
+        </template>
+      </section>
+
+      <!-- ===================== NAT ===================== -->
+      <section x-show="tab === 'nat'" class="space-y-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <input class="input max-w-xs" placeholder="Buscar liberação…" x-model="nat.filter">
+          <div class="ml-auto flex gap-2">
+            <button class="btn" data-tour="nat-all" @click="loadRouterRules()">🔍 Ver todas as regras do MikroTik</button>
+            <button class="btn-primary" data-tour="nat-new" x-show="isAdmin" @click="newRule()">＋ Liberar porta</button>
+          </div>
+        </div>
+
+        <div class="card p-0 overflow-x-auto" data-tour="nat-table">
+          <table class="table">
+            <thead><tr>
+              <th>Status</th><th>Serviço</th><th>Porta externa</th><th>Destino interno</th><th>Serviço interno</th><th>Tráfego</th><th>Expira</th><th class="text-right">Ações</th>
+            </tr></thead>
+            <tbody>
+              <template x-for="r in filteredRules" :key="r.id">
+                <tr>
+                  <td><span class="badge" :class="ruleStatus(r).cls"><span class="dot"></span><span x-text="ruleStatus(r).label"></span></span></td>
+                  <td>
+                    <div class="font-medium text-white" x-text="r.name"></div>
+                    <div class="text-xs text-slate-500" x-show="r.whitelist.length" x-text="'🔒 só de: ' + r.whitelist.join(', ')"></div>
+                  </td>
+                  <td class="mono"><span class="badge b-blue mr-1" x-text="protoLabel(r.protocol)"></span><span x-text="r.external_port"></span></td>
+                  <td class="mono" x-text="r.internal_ip + ':' + r.internal_port"></td>
+                  <td>
+                    <template x-if="healthBadge(r)"><span class="badge" :class="healthBadge(r).cls" x-text="healthBadge(r).label"></span></template>
+                    <span class="text-xs text-slate-500" x-show="!healthBadge(r)" x-text="r.protocol === 'udp' ? 'UDP (sem teste)' : '—'"></span>
+                  </td>
+                  <td class="text-xs whitespace-nowrap">
+                    <div x-text="fmtBytes(r.live?.bytes)"></div>
+                    <div class="text-slate-500" x-show="r.live?.bps != null" x-text="'agora ' + fmtBps(r.live?.bps)"></div>
+                  </td>
+                  <td class="text-xs" x-text="r.expires_at ? fmtDate(r.expires_at) : (r.expired ? 'expirou' : 'nunca')"></td>
+                  <td class="text-right whitespace-nowrap">
+                    <button class="btn-ghost" title="Gráfico" @click="showRuleChart(r)">📈</button>
+                    <template x-if="isAdmin">
+                      <span>
+                        <button class="btn-ghost" :title="r.enabled ? 'Desativar' : 'Ativar'" @click="toggleRule(r)" x-text="r.enabled ? '⏸️' : '▶️'"></button>
+                        <button class="btn-ghost" title="Alterar expiração" @click="extendRule(r)">⏱️</button>
+                        <button class="btn-ghost" title="Recriar no MikroTik" x-show="r.live?.missing" @click="reapplyRule(r)">🔁</button>
+                        <button class="btn-ghost" title="Remover" @click="deleteRule(r)">🗑️</button>
+                      </span>
+                    </template>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!filteredRules.length"><td colspan="8" class="text-center text-slate-500 py-8">Nenhuma porta liberada pelo painel ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">"Serviço interno" testa a cada coleta se a porta TCP do servidor está aceitando conexões. UDP não tem como ser testado dessa forma — acompanhe pelo tráfego.</p>
+
+        <template x-if="nat.routerRules">
+          <div class="card p-0 overflow-x-auto">
+            <div class="flex items-center justify-between p-4 pb-2">
+              <div class="card-title">Todas as regras dstnat no MikroTik</div>
+              <button class="btn-ghost" @click="nat.routerRules = null">✕</button>
+            </div>
+            <table class="table">
+              <thead><tr><th>Origem</th><th>Comentário</th><th>Proto</th><th>Porta</th><th>Destino</th><th>Pacotes</th><th>Tráfego</th></tr></thead>
+              <tbody>
+                <template x-for="r in nat.routerRules" :key="r.id">
+                  <tr :class="r.disabled && 'opacity-50'">
+                    <td><span class="badge" :class="r.managed ? 'b-blue' : 'b-gray'" x-text="r.managed ? 'painel' : 'manual'"></span></td>
+                    <td x-text="r.comment || '—'"></td>
+                    <td x-text="r.protocol || '—'"></td>
+                    <td class="mono" x-text="r.dst_port || '—'"></td>
+                    <td class="mono" x-text="(r.to_addresses || '—') + (r.to_ports ? ':' + r.to_ports : '')"></td>
+                    <td x-text="r.packets.toLocaleString('pt-BR')"></td>
+                    <td x-text="fmtBytes(r.bytes)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <p class="hint px-4 pb-4">Regras "manual" foram criadas fora do painel e nunca são alteradas por ele.</p>
+          </div>
+        </template>
+      </section>
+
+      <!-- ===================== MONITORAMENTO ===================== -->
+      <section data-tour="sec-monitor" x-show="tab === 'monitor'" class="space-y-4">
+        <div class="card space-y-4" data-tour="mon-chart">
+          <div class="flex flex-wrap gap-2 items-center">
+            <select class="input w-auto" x-model="chart.target" @change="drawChart()">
+              <optgroup label="Clientes VPN">
+                <template x-for="p in wg.peers" :key="'p' + p.id"><option :value="'peer:' + p.id" x-text="'🔐 ' + p.name"></option></template>
+              </optgroup>
+              <optgroup label="Portas liberadas">
+                <template x-for="r in nat.rules" :key="'n' + r.id"><option :value="'nat:' + r.id" x-text="'🎮 ' + r.name"></option></template>
+              </optgroup>
+            </select>
+            <select class="input w-auto" x-model.number="chart.hours" @change="drawChart()">
+              <option value="1">1 hora</option><option value="6">6 horas</option><option value="24">24 horas</option>
+              <option value="168">7 dias</option><option value="720">30 dias</option>
+            </select>
+            <div class="ml-auto flex flex-wrap gap-4 text-sm" x-show="chart.info">
+              <template x-if="chart.info?.kind === 'peer'">
+                <div class="flex gap-4">
+                  <span>↓ <b x-text="fmtBytes(chart.info.total_tx)"></b></span>
+                  <span>↑ <b x-text="fmtBytes(chart.info.total_rx)"></b></span>
+                  <span>Online <b x-text="chart.info.online_pct + '%'"></b> do tempo</span>
+                </div>
+              </template>
+              <template x-if="chart.info?.kind === 'nat'">
+                <div class="flex gap-4">
+                  <span>Tráfego <b x-text="fmtBytes(chart.info.total_bytes)"></b></span>
+                  <span>Pacotes <b x-text="chart.info.total_packets.toLocaleString('pt-BR')"></b></span>
+                  <span x-show="chart.info.uptime_pct != null">Disponibilidade <b x-text="chart.info.uptime_pct + '%'"></b></span>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="h-72"><canvas x-ref="monChart"></canvas></div>
+          <p class="text-sm text-slate-500" x-show="!wg.peers.length && !nat.rules.length">Crie um cliente VPN ou uma liberação de porta para ver gráficos.</p>
+        </div>
+
+        <div class="card p-0 overflow-x-auto">
+          <div class="flex items-center justify-between p-4 pb-2">
+            <div class="card-title">Consumo por cliente VPN</div>
+            <select class="input w-auto py-1 text-xs" x-model.number="usageDays" @change="loadUsage()">
+              <option value="1">Hoje (24h)</option><option value="7">7 dias</option><option value="30">30 dias</option><option value="90">90 dias</option>
+            </select>
+          </div>
+          <table class="table">
+            <thead><tr><th>Cliente</th><th>Responsável</th><th>Download</th><th>Upload</th><th>Total</th><th>Visto por último</th></tr></thead>
+            <tbody>
+              <template x-for="u in usage" :key="u.peer_id">
+                <tr>
+                  <td class="font-medium text-white" x-text="u.name"></td>
+                  <td x-text="u.owner || '—'"></td>
+                  <td x-text="fmtBytes(u.tx)"></td>
+                  <td x-text="fmtBytes(u.rx)"></td>
+                  <td class="font-medium" x-text="fmtBytes(u.rx + u.tx)"></td>
+                  <td x-text="u.last_seen ? fmtAgo(u.last_seen) : 'sem registro'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== EVENTOS ===================== -->
+      <section data-tour="sec-events" x-show="tab === 'events'">
+        <div class="card p-0 overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Quando</th><th>Nível</th><th>Evento</th></tr></thead>
+            <tbody>
+              <template x-for="e in events" :key="e.ts + e.message">
+                <tr>
+                  <td class="whitespace-nowrap text-slate-400" x-text="fmtDate(e.ts)"></td>
+                  <td><span class="badge" :class="levelCls(e.level)" x-text="e.level"></span></td>
+                  <td x-text="e.message"></td>
+                </tr>
+              </template>
+              <tr x-show="!events.length"><td colspan="3" class="text-center text-slate-500 py-8">Nenhum evento registrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== ALERTAS ===================== -->
+      <section data-tour="sec-alerts" x-show="tab === 'alerts'" class="space-y-4">
+        <template x-if="alerts">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="card space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="font-semibold text-white">✈️ Telegram</div>
+                <button class="toggle" :class="alerts.config.telegram_enabled && 'on'" @click="alerts.config.telegram_enabled = !alerts.config.telegram_enabled"></button>
+              </div>
+              <label class="block"><span class="label">Token do bot</span>
+                <input class="input mono" type="password" x-model="alerts.config.telegram_token" placeholder="123456789:AA...">
+                <p class="hint">Crie um bot falando com <b>@BotFather</b> no Telegram (comando /newbot).</p></label>
+              <label class="block"><span class="label">Chat ID</span>
+                <input class="input mono" x-model="alerts.config.telegram_chat_id" placeholder="123456789 ou -100... para grupos">
+                <p class="hint">Mande uma mensagem para o bot e abra <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span> para ver o "chat":{"id"}.</p></label>
+            </div>
+            <div class="card space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="font-semibold text-white">🎮 Discord</div>
+                <button class="toggle" :class="alerts.config.discord_enabled && 'on'" @click="alerts.config.discord_enabled = !alerts.config.discord_enabled"></button>
+              </div>
+              <label class="block"><span class="label">URL do Webhook</span>
+                <input class="input mono" type="password" x-model="alerts.config.discord_webhook" placeholder="https://discord.com/api/webhooks/...">
+                <p class="hint">No Discord: Configurações do canal → Integrações → Webhooks → Novo webhook → Copiar URL.</p></label>
+            </div>
+            <div class="card lg:col-span-2 space-y-3">
+              <div class="font-semibold text-white">Quando avisar</div>
+              <div class="grid sm:grid-cols-2 gap-3">
+                <template x-for="(label, key) in alerts.labels" :key="key">
+                  <label class="flex items-center gap-3 cursor-pointer">
+                    <button type="button" class="toggle" :class="alerts.config.events[key] && 'on'" @click="alerts.config.events[key] = !alerts.config.events[key]"></button>
+                    <span class="text-sm" x-text="label"></span>
+                  </label>
+                </template>
+              </div>
+              <p class="hint">Todos os eventos ficam registrados na aba Eventos, mesmo os que não geram alerta.</p>
+              <div class="flex gap-2 pt-2">
+                <button class="btn-primary" @click="saveAlerts()" :disabled="busy">Salvar</button>
+                <button class="btn" @click="testAlerts()" :disabled="busy">Salvar e enviar teste</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </section>
+
+      <!-- ===================== USUÁRIOS ===================== -->
+      <section data-tour="sec-users" x-show="tab === 'users'" class="space-y-4">
+        <div class="flex"><button class="btn-primary ml-auto" @click="newUser()">＋ Novo usuário</button></div>
+        <div class="card p-0 overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Usuário</th><th>Permissão</th><th>Criado em</th><th class="text-right">Ações</th></tr></thead>
+            <tbody>
+              <template x-for="u in users" :key="u.id">
+                <tr>
+                  <td class="font-medium text-white" x-text="u.username"></td>
+                  <td>
+                    <select class="input w-auto py-1 text-xs" :value="u.role" @change="setRole(u, $event.target.value)">
+                      <option value="admin">Administrador</option><option value="viewer">Somente leitura</option>
+                    </select>
+                  </td>
+                  <td x-text="fmtDate(u.created_at)"></td>
+                  <td class="text-right">
+                    <button class="btn-ghost" @click="resetPassword(u)">🔑 Senha</button>
+                    <button class="btn-ghost" x-show="u.id !== me.id" @click="deleteUser(u)">🗑️</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint"><b>Administrador</b>: cria/remove clientes VPN e portas, vê configurações e QR codes. <b>Somente leitura</b>: vê status, gráficos e eventos.</p>
+      </section>
+
+      <!-- ===================== BACKUP ===================== -->
+      <section data-tour="sec-backup" x-show="tab === 'backup'" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card space-y-3">
+          <div class="font-semibold text-white">⬇️ Exportar dados do painel</div>
+          <p class="text-sm text-slate-400">Arquivo JSON com clientes VPN (incluindo chaves), portas liberadas, configurações, alertas e usuários.</p>
+          <p class="text-sm text-amber-300">⚠️ O arquivo contém as chaves privadas da VPN. Guarde em local seguro.</p>
+          <a class="btn-primary" href="/api/backup/export" download>Baixar backup</a>
+        </div>
+        <div class="card space-y-3">
+          <div class="font-semibold text-white">⬆️ Restaurar backup</div>
+          <p class="text-sm text-slate-400">Importa um backup do painel. Itens que já existem são atualizados; nada é apagado.</p>
+          <label class="btn cursor-pointer">Escolher arquivo…<input type="file" accept=".json" class="hidden" @change="importBackup($event)"></label>
+        </div>
+        <div class="card space-y-3">
+          <div class="font-semibold text-white">🗄️ Backup do MikroTik</div>
+          <p class="text-sm text-slate-400">Salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do roteador, dentro do próprio MikroTik (menu Files no Winbox).</p>
+          <button class="btn" @click="mikrotikBackup()" :disabled="busy">Criar backup no roteador</button>
+        </div>
+      </section>
+
+      <!-- ===================== CONFIGURAÇÕES ===================== -->
+      <section data-tour="sec-settings" x-show="tab === 'settings'">
+        <template x-if="settings">
+          <form class="grid grid-cols-1 lg:grid-cols-2 gap-4" @submit.prevent="saveSettings()">
+            <div class="card space-y-4">
+              <div class="font-semibold text-white">🔐 VPN — como os clientes chegam até o MikroTik</div>
+              <label class="block"><span class="label">Endereço remoto (IP fixo ou DDNS)</span>
+                <input class="input mono" x-model="settings.endpoint_remote" placeholder="meuserver.ddns.net ou xxxx.sn.mynetname.net">
+                <p class="hint">Usado quando o cliente está fora de casa/empresa (4G, outra rede).</p></label>
+              <label class="block"><span class="label">Endereço local (IP do MikroTik na rede)</span>
+                <input class="input mono" x-model="settings.endpoint_local" placeholder="192.168.88.1">
+                <p class="hint">Usado por dispositivos dentro da mesma rede do MikroTik.</p></label>
+              <label class="block"><span class="label">Redes acessíveis no modo "Só rede local"</span>
+                <input class="input mono" x-model="settings.wg_lan_networks" placeholder="192.168.88.0/24">
+                <p class="hint">Separe por vírgula. A rede da VPN é incluída automaticamente.</p></label>
+              <div class="grid grid-cols-3 gap-3">
+                <label class="block"><span class="label">DNS</span><input class="input mono" x-model="settings.wg_dns"></label>
+                <label class="block"><span class="label">Keepalive (s)</span><input class="input" type="number" x-model.number="settings.wg_keepalive"></label>
+                <label class="block"><span class="label">MTU (0 = auto)</span><input class="input" type="number" x-model.number="settings.wg_mtu"></label>
+              </div>
+              <p class="hint">Alterações aqui valem para configurações/QR codes gerados a partir de agora.</p>
+            </div>
+
+            <div class="space-y-4">
+              <div class="card space-y-4">
+                <div class="font-semibold text-white">🎮 Liberação de portas (NAT)</div>
+                <label class="block"><span class="label">Tráfego vindo da internet é identificado por</span>
+                  <select class="input" x-model="settings.nat_match_mode">
+                    <option value="wan_list">Lista de interfaces (padrão do MikroTik: WAN)</option>
+                    <option value="interface">Interface específica (ex.: ether1, pppoe-out1)</option>
+                    <option value="dst_local">Destino = IP do próprio roteador (funciona também de dentro da rede)</option>
+                  </select></label>
+                <label class="block" x-show="settings.nat_match_mode !== 'dst_local'"><span class="label" x-text="settings.nat_match_mode === 'wan_list' ? 'Nome da lista' : 'Nome da interface'"></span>
+                  <input class="input mono" x-model="settings.nat_in_target" list="nat-targets">
+                  <datalist id="nat-targets">
+                    <template x-for="o in (settings.nat_match_mode === 'wan_list' ? routerOptions.interface_lists : routerOptions.interfaces)" :key="o">
+                      <option :value="o"></option>
+                    </template>
+                  </datalist></label>
+                <p class="hint">Vale para novas liberações. Use "🔁 Recriar" nas existentes para aplicar.</p>
+              </div>
+
+              <div class="card space-y-4">
+                <div class="font-semibold text-white">📈 Monitoramento</div>
+                <label class="block"><span class="label">Interface WAN (para gráfico de internet)</span>
+                  <input class="input mono" x-model="settings.wan_interface" list="wan-ifaces" placeholder="ex.: ether1 ou pppoe-out1 (vazio = não monitorar)">
+                  <datalist id="wan-ifaces">
+                    <template x-for="o in routerOptions.interfaces" :key="o"><option :value="o"></option></template>
+                  </datalist></label>
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="block"><span class="label">Considerar offline após (s)</span><input class="input" type="number" x-model.number="settings.online_threshold"></label>
+                  <label class="block"><span class="label">Guardar histórico (dias)</span><input class="input" type="number" x-model.number="settings.retention_days"></label>
+                </div>
+              </div>
+
+              <div class="card text-sm text-slate-400 space-y-1">
+                <div class="font-semibold text-white mb-2">🔌 Conexão com o MikroTik</div>
+                <div>URL: <span class="mono text-slate-200" x-text="settings.mikrotik_url"></span></div>
+                <div>Usuário: <span class="mono text-slate-200" x-text="settings.mikrotik_user"></span></div>
+                <div>Coleta a cada <span x-text="settings.poll_interval"></span>s</div>
+                <p class="hint">Altere no arquivo <span class="mono">.env</span> e reinicie o container.</p>
+              </div>
+              <button class="btn-primary" :disabled="busy">Salvar configurações</button>
+            </div>
+          </form>
+        </template>
+      </section>
+
+      <!-- ===================== AUDITORIA ===================== -->
+      <section data-tour="sec-audit" x-show="tab === 'audit'">
+        <div class="card p-0 overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>Quando</th><th>Usuário</th><th>Ação</th><th>Detalhes</th></tr></thead>
+            <tbody>
+              <template x-for="a in audit" :key="a.ts + a.action + a.detail">
+                <tr>
+                  <td class="whitespace-nowrap text-slate-400" x-text="fmtDate(a.ts)"></td>
+                  <td x-text="a.username"></td>
+                  <td class="font-medium" x-text="a.action"></td>
+                  <td class="text-slate-400 text-xs" x-text="a.detail"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- ===================== MANUAL ===================== -->
+      <section x-show="tab === 'help'" class="grid grid-cols-1 lg:grid-cols-[14rem_1fr] gap-6">
+        <nav class="hidden lg:block">
+          <div class="sticky top-20 space-y-1 text-sm">
+            <button class="btn-primary w-full justify-center mb-3" @click="startTour()">🎓 Fazer o tour guiado</button>
+            <template x-for="h in helpIndex" :key="h.id">
+              <a :href="'#help-' + h.id" class="block px-3 py-1.5 rounded-md text-slate-400 hover:bg-slate-900 hover:text-white"
+                 @click.prevent="scrollHelp(h.id)" x-text="h.label"></a>
+            </template>
+          </div>
+        </nav>
+
+        <article class="help space-y-6 min-w-0">
+          <div id="help-start" class="card space-y-3">
+            <h2>🚀 Primeiros passos</h2>
+            <p>Siga esta ordem na primeira vez. Cada item mostra se já está feito:</p>
+            <ol class="space-y-2">
+              <li class="flex gap-2"><span x-text="router.online ? '✅' : '⬜'"></span><span><b>Conectar ao MikroTik</b> — o selo no topo deve estar <span class="badge b-green">MikroTik online</span>. Se não estiver, veja <a href="#help-problems" @click.prevent="scrollHelp('problems')">Problemas comuns</a>.</span></li>
+              <li class="flex gap-2"><span x-text="router.wan ? '✅' : '⬜'"></span><span><b>Informar a interface de internet</b> — em <a @click="tab='settings'">Configurações</a> → Interface WAN (ex.: <span class="mono">pppoe-out1</span>). Ativa o gráfico de internet.</span></li>
+              <li class="flex gap-2"><span x-text="overview?.vpn.configured ? '✅' : '⬜'"></span><span><b>Configurar a VPN</b> — em <a @click="tab='vpn'">VPN WireGuard</a> → Iniciar configuração. Feito uma única vez.</span></li>
+              <li class="flex gap-2"><span x-text="overview?.vpn.total ? '✅' : '⬜'"></span><span><b>Criar o primeiro cliente</b> — VPN WireGuard → Novo cliente → escaneie o QR Code com o app WireGuard.</span></li>
+              <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "enviar teste".</span></li>
+              <li class="flex gap-2"><span>⬜</span><span><b>Trocar a senha do admin</b> — menu lateral → 🔑 Trocar senha.</span></li>
+            </ol>
+          </div>
+
+          <div id="help-dashboard" class="card space-y-3">
+            <h2>📊 Painel</h2>
+            <p>Visão geral do que está acontecendo agora. Atualiza sozinho a cada 15 segundos (o botão <b>⟳</b> no topo força uma coleta imediata).</p>
+            <ul>
+              <li><b>Roteador</b> — modelo, versão do RouterOS e há quanto tempo está ligado.</li>
+              <li><b>CPU / Memória</b> — uso atual. CPU alta por muito tempo pode deixar a internet lenta.</li>
+              <li><b>VPN WireGuard</b> — quantos clientes estão conectados agora, do total ativo.</li>
+              <li><b>Portas liberadas</b> — quantas liberações estão ativas e se os servidores estão respondendo.</li>
+              <li><b>Tráfego da internet</b> — velocidade de download/upload do seu link ao longo do tempo (precisa da Interface WAN configurada).</li>
+              <li><b>Eventos recentes</b> — últimos acontecimentos: alguém conectou, servidor caiu, porta expirou…</li>
+            </ul>
+            <button class="btn" @click="tab='dashboard'">Ir para o Painel →</button>
+          </div>
+
+          <div id="help-vpn" class="card space-y-3">
+            <h2>🔐 VPN WireGuard</h2>
+            <p>Uma VPN cria um "túnel" seguro entre um dispositivo (celular, notebook) e sua rede. Com ela você acessa de qualquer lugar as coisas de casa/empresa — câmeras, NAS, servidores, impressoras — como se estivesse lá.</p>
+            <h3>Configuração inicial (uma vez só)</h3>
+            <ul>
+              <li><b>Nome da interface / Porta UDP</b> — pode deixar o padrão.</li>
+              <li><b>Faixa da VPN</b> — os endereços que os clientes da VPN recebem. Precisa ser diferente da sua rede (ex.: sua rede é 192.168.88.x → use 10.10.0.x).</li>
+              <li><b>Endereço remoto</b> — por onde os clientes te encontram na internet. Prefira o DDNS (<span class="mono">….sn.mynetname.net</span>), pois o IP pode mudar.</li>
+              <li><b>Endereço local</b> — IP do MikroTik na sua rede, para usar a VPN de dentro de casa.</li>
+            </ul>
+            <h3>Clientes</h3>
+            <p>Cada dispositivo deve ter <b>seu próprio cliente</b> (não compartilhe o mesmo QR entre aparelhos). Ao criar, escolha:</p>
+            <ul>
+              <li><b>🏠 Só rede local</b> — acessa sua rede; a internet do aparelho continua normal. Recomendado na maioria dos casos.</li>
+              <li><b>🌐 Toda a internet</b> — toda a navegação passa pelo seu MikroTik. Útil em Wi-Fi público ou para "parecer" que está em casa.</li>
+            </ul>
+            <h3>Status</h3>
+            <table class="table">
+              <tr><td><span class="badge b-green">Online</span></td><td>Conectado — houve comunicação nos últimos minutos.</td></tr>
+              <tr><td><span class="badge b-amber">Offline</span></td><td>Cadastrado, mas o dispositivo não está conectado agora.</td></tr>
+              <tr><td><span class="badge b-gray">Desativado</span></td><td>Você bloqueou o acesso (⏸️). Ative de novo com ▶️.</td></tr>
+              <tr><td><span class="badge b-red">Ausente no MikroTik</span></td><td>Alguém apagou o cliente direto no Winbox. Use 🔁 para recriar.</td></tr>
+            </table>
+            <h3>Botões de ação</h3>
+            <table class="table">
+              <tr><td>📈</td><td>Gráfico de uso desse cliente.</td></tr>
+              <tr><td>📱</td><td>QR Code e download do arquivo <span class="mono">.conf</span> — escolha <b>Acesso remoto</b> (fora de casa) ou <b>Acesso local</b> (dentro de casa).</td></tr>
+              <tr><td>✏️</td><td>Editar nome, responsável e modo.</td></tr>
+              <tr><td>⏸️ / ▶️</td><td>Bloquear / liberar o acesso sem apagar.</td></tr>
+              <tr><td>🔑</td><td>Gerar chaves novas (ex.: celular perdido). O QR antigo para de funcionar.</td></tr>
+              <tr><td>🗑️</td><td>Remover o cliente de vez.</td></tr>
+            </table>
+            <h3>Como instalar no dispositivo</h3>
+            <ul>
+              <li><b>Celular</b> — app "WireGuard" (Play Store / App Store) → <b>+</b> → Escanear QR code → ativar.</li>
+              <li><b>Windows/Mac/Linux</b> — instale em wireguard.com/install → "Importar túnel de arquivo" → selecione o <span class="mono">.conf</span> → Ativar.</li>
+            </ul>
+            <button class="btn" @click="tab='vpn'">Ir para VPN →</button>
+          </div>
+
+          <div id="help-nat" class="card space-y-3">
+            <h2>🎮 Liberação de portas</h2>
+            <p>Também chamado de <b>port forward</b> ou <b>redirecionamento de porta</b>. Permite que pessoas na internet acessem um serviço da sua rede — por exemplo, amigos entrando no seu servidor de Minecraft.</p>
+            <h3>Antes de liberar</h3>
+            <ul>
+              <li><b>Fixe o IP do servidor</b>: no Winbox, IP → DHCP Server → Leases → clique no servidor → <b>Make Static</b>. Se o IP mudar, a liberação para de funcionar.</li>
+              <li>Libere também o <b>firewall do próprio servidor</b> (ex.: Firewall do Windows).</li>
+            </ul>
+            <h3>Campos</h3>
+            <ul>
+              <li><b>Modelo pronto</b> — preenche as portas certas de jogos e apps conhecidos.</li>
+              <li><b>Porta externa</b> — a porta que as pessoas usam na internet. Aceita <span class="mono">25565</span>, faixa <span class="mono">2456-2458</span> ou lista <span class="mono">80,443</span>.</li>
+              <li><b>IP do servidor / Porta interna</b> — para onde o tráfego vai. Porta interna em branco = mesma da externa.</li>
+              <li><b>Permitir apenas destes IPs</b> — só esses endereços conseguem acessar. Ótimo para jogar só com amigos ou para RDP/SSH.</li>
+              <li><b>Fechar automaticamente</b> — a porta fecha sozinha no horário escolhido (ex.: liberar só no fim de semana).</li>
+              <li><b>Monitorar se está no ar</b> — o painel testa a porta do servidor e avisa se ele cair (apenas TCP).</li>
+            </ul>
+            <h3>Status</h3>
+            <table class="table">
+              <tr><td><span class="badge b-green">Ativa</span></td><td>Porta aberta no MikroTik.</td></tr>
+              <tr><td><span class="badge b-gray">Desativada / Expirada</span></td><td>Porta fechada (por você ou pelo prazo). Pode reativar com ▶️.</td></tr>
+              <tr><td><span class="badge b-red">Ausente no MikroTik</span></td><td>Regra apagada direto no Winbox. Use 🔁 para recriar.</td></tr>
+              <tr><td><span class="badge b-green">Respondendo</span> / <span class="badge b-red">Fora do ar</span></td><td>Resultado do teste no servidor interno. "Fora do ar" = servidor desligado, programa fechado ou firewall bloqueando.</td></tr>
+            </table>
+            <p><b>⏱️</b> muda o prazo de expiração · <b>🔍 Ver todas as regras do MikroTik</b> mostra também as liberações feitas fora do painel (o painel nunca mexe nelas).</p>
+            <p class="text-amber-300">⚠️ Só abra portas que realmente precisa. Evite expor RDP (3389) e SSH (22) para a internet toda — prefira acessar pela VPN.</p>
+            <button class="btn" @click="tab='nat'">Ir para Liberação de portas →</button>
+          </div>
+
+          <div id="help-monitor" class="card space-y-3">
+            <h2>📈 Monitoramento</h2>
+            <ul>
+              <li><b>Gráfico</b> — escolha um cliente VPN ou uma porta liberada e o período (1 hora a 30 dias).
+                Para VPN: <b>Download</b> = o que o dispositivo recebeu; <b>Upload</b> = o que enviou. "Online X% do tempo" mostra quanto ficou conectado.
+                Para portas: tráfego que entrou e a <b>disponibilidade</b> do servidor.</li>
+              <li><b>Consumo por cliente</b> — quanto cada dispositivo usou no período e quando foi visto por último.</li>
+            </ul>
+            <p>O histórico é guardado pelo tempo definido em Configurações (padrão 30 dias).</p>
+            <button class="btn" @click="tab='monitor'">Ir para Monitoramento →</button>
+          </div>
+
+          <div id="help-events" class="card space-y-3">
+            <h2>🔔 Eventos</h2>
+            <p>Linha do tempo automática do sistema: conexões e desconexões da VPN, servidores que caíram/voltaram, portas que expiraram e quedas do MikroTik. Tudo é registrado aqui, mesmo o que não gera alerta.</p>
+            <p>Cores: <span class="badge b-green">success</span> algo bom · <span class="badge b-blue">info</span> informativo · <span class="badge b-amber">warn</span> atenção · <span class="badge b-red">error</span> problema.</p>
+          </div>
+
+          <div id="help-alerts" class="card space-y-3">
+            <h2>📣 Alertas <span class="badge b-blue">admin</span></h2>
+            <p>Envia os eventos para o seu celular via Discord e/ou Telegram.</p>
+            <ul>
+              <li><b>Discord</b> — no canal desejado: Editar canal → Integrações → Webhooks → Novo webhook → Copiar URL. Cole no painel e ative.</li>
+              <li><b>Telegram</b> — crie um bot com o <b>@BotFather</b> (/newbot), mande uma mensagem para o bot e pegue o Chat ID em <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span>.</li>
+              <li><b>Quando avisar</b> — escolha quais eventos geram mensagem.</li>
+              <li>Use <b>Salvar e enviar teste</b> para confirmar que chegou.</li>
+            </ul>
+          </div>
+
+          <div id="help-users" class="card space-y-3">
+            <h2>👥 Usuários <span class="badge b-blue">admin</span></h2>
+            <ul>
+              <li><b>Administrador</b> — pode tudo: criar/remover clientes e portas, ver QR codes, mudar configurações.</li>
+              <li><b>Somente leitura</b> — vê status, gráficos e eventos, mas não altera nada nem vê QR codes/chaves. Ideal para quem só precisa acompanhar.</li>
+            </ul>
+            <p>Estes usuários são só do painel — não têm relação com os usuários do MikroTik.</p>
+          </div>
+
+          <div id="help-backup" class="card space-y-3">
+            <h2>💾 Backup <span class="badge b-blue">admin</span></h2>
+            <ul>
+              <li><b>Baixar backup</b> — arquivo com tudo do painel (clientes e chaves, portas, configurações, usuários). Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN.</li>
+              <li><b>Restaurar</b> — importa um backup (ex.: ao trocar de computador). Pode recriar no MikroTik o que estiver faltando.</li>
+              <li><b>Backup do MikroTik</b> — salva a configuração inteira do roteador dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
+            </ul>
+          </div>
+
+          <div id="help-settings" class="card space-y-3">
+            <h2>⚙️ Configurações <span class="badge b-blue">admin</span></h2>
+            <ul>
+              <li><b>Endereço remoto / local</b> — usados nos QR codes e arquivos da VPN. Mudou o DDNS? Atualize aqui e gere os QR codes de novo.</li>
+              <li><b>Redes acessíveis</b> — o que o modo "Só rede local" alcança.</li>
+              <li><b>DNS / Keepalive / MTU</b> — avançado; os padrões funcionam na maioria dos casos.</li>
+              <li><b>Identificação do tráfego da internet (NAT)</b> — mantenha "Lista de interfaces WAN" se o seu MikroTik usa a configuração padrão.</li>
+              <li><b>Interface WAN</b> — a interface da internet (ex.: <span class="mono">pppoe-out1</span>) para o gráfico do Painel.</li>
+              <li><b>Considerar offline após</b> — quanto tempo sem comunicação até um cliente aparecer como offline.</li>
+            </ul>
+          </div>
+
+          <div id="help-audit" class="card space-y-3">
+            <h2>📜 Auditoria <span class="badge b-blue">admin</span></h2>
+            <p>Registro de quem fez o quê e quando: logins, clientes criados/removidos, portas abertas, QR codes visualizados, configurações alteradas.</p>
+          </div>
+
+          <div id="help-glossary" class="card space-y-3">
+            <h2>📚 Glossário</h2>
+            <dl class="grid sm:grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt>WireGuard</dt><dd>Tecnologia de VPN moderna, rápida e segura, já embutida no MikroTik (RouterOS 7).</dd>
+              <dt>Peer / Cliente</dt><dd>Cada dispositivo autorizado a conectar na VPN.</dd>
+              <dt>Handshake</dt><dd>"Aperto de mão" periódico entre o dispositivo e o MikroTik. Se aconteceu há pouco, o cliente está conectado.</dd>
+              <dt>Endpoint</dt><dd>Endereço (IP ou DDNS + porta) onde o cliente encontra o MikroTik.</dd>
+              <dt>DDNS</dt><dd>Um nome fixo (ex.: <span class="mono">xxxx.sn.mynetname.net</span>) que sempre aponta para seu IP, mesmo que ele mude.</dd>
+              <dt>NAT / Port forward</dt><dd>Regra que encaminha quem chega da internet numa porta para um aparelho da sua rede.</dd>
+              <dt>TCP / UDP</dt><dd>Tipos de comunicação. Cada jogo/app usa um (ou ambos) — os modelos prontos já sabem qual.</dd>
+              <dt>WAN / LAN</dt><dd>WAN = lado da internet. LAN = sua rede interna.</dd>
+              <dt>CGNAT</dt><dd>Quando a operadora não te dá um IP público próprio. Impede liberar portas e receber VPN — peça IP público à operadora.</dd>
+              <dt>Split / Full tunnel</dt><dd>"Só rede local" / "Toda a internet" pela VPN.</dd>
+              <dt>Whitelist</dt><dd>Lista de IPs permitidos; todos os outros são bloqueados.</dd>
+            </dl>
+          </div>
+
+          <div id="help-problems" class="card space-y-3">
+            <h2>🛠️ Problemas comuns</h2>
+            <table class="table">
+              <tr><td><b>MikroTik offline</b></td><td>Confira IP e senha no arquivo <span class="mono">.env</span>, se o serviço <span class="mono">www-ssl</span> está ativo (IP → Services) e se o computador do painel está na rede permitida. Após editar o <span class="mono">.env</span>, rode <span class="mono">docker compose up -d</span>.</td></tr>
+              <tr><td><b>VPN conecta mas não acessa nada</b></td><td>Em VPN → Reconfigurar, deixe marcado "Tratar a VPN como rede interna" e aplique de novo.</td></tr>
+              <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Use o QR de <b>Acesso remoto</b> fora de casa. Verifique se o endereço remoto (DDNS) está certo em Configurações.</td></tr>
+              <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
+              <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>
+              <tr><td><b>"Fora do ar" no serviço</b></td><td>O painel não conseguiu conectar no servidor interno: ele está desligado, o programa não está rodando ou a porta interna está errada.</td></tr>
+              <tr><td><b>Esqueci a senha do painel</b></td><td>Outro admin pode redefinir em Usuários. Sem nenhum admin: apague a pasta <span class="mono">data/</span> (perde os dados do painel — faça backup antes) e reinicie.</td></tr>
+            </table>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== MODAIS ===================== -->
+<div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start md:items-center justify-center p-4 overflow-y-auto"
+     @keydown.escape.window="modal = null" @mousedown.self="if (modal !== 'setup') modal = null">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl my-8">
+
+    <!-- Configuração inicial do WireGuard -->
+    <template x-if="modal === 'setup' && setup">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">⚙️ Configuração do WireGuard no MikroTik</h2>
+        <template x-if="!setupResult">
+          <form class="space-y-4" @submit.prevent="runSetup()">
+            <div x-show="suggest?.existing_interfaces?.length" class="text-sm bg-blue-950/50 border border-blue-900 rounded-lg p-3 text-blue-200">
+              Já existem interfaces WireGuard no MikroTik:
+              <template x-for="i in suggest?.existing_interfaces || []"><button type="button" class="badge b-blue ml-1" @click="setup.interface = i.name; setup.listen_port = Number(i.listen_port)" x-text="i.name + ' (' + i.listen_port + ')'"></button></template>
+              — clique para reaproveitar.
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block"><span class="label">Nome da interface</span><input class="input mono" x-model="setup.interface" required></label>
+              <label class="block"><span class="label">Porta UDP</span><input class="input" type="number" x-model.number="setup.listen_port" required></label>
+            </div>
+            <label class="block"><span class="label">IP do MikroTik na VPN / faixa da VPN</span>
+              <input class="input mono" x-model="setup.address" required>
+              <p class="hint">Use uma faixa que não exista na sua rede. Ex.: 10.10.0.1/24 → clientes recebem 10.10.0.2, .3, .4…</p></label>
+            <label class="block"><span class="label">Endereço remoto (IP público ou DDNS)</span>
+              <input class="input mono" x-model="setup.endpoint_remote" list="sug-remote" placeholder="xxxx.sn.mynetname.net">
+              <datalist id="sug-remote"><template x-for="s in suggest?.remote || []"><option :value="s"></option></template></datalist>
+              <p class="hint">Dica: ative o DDNS grátis do MikroTik em IP → Cloud → "DDNS Enabled".</p></label>
+            <label class="block"><span class="label">Endereço local (IP do MikroTik na sua rede)</span>
+              <input class="input mono" x-model="setup.endpoint_local" list="sug-local">
+              <datalist id="sug-local"><template x-for="s in suggest?.local || []"><option :value="s"></option></template></datalist></label>
+            <label class="block"><span class="label">Redes locais acessíveis pela VPN</span>
+              <input class="input mono" x-model="setup.lan_networks" placeholder="192.168.88.0/24"></label>
+            <label class="block"><span class="label">DNS para os clientes (vazio = o próprio MikroTik)</span>
+              <input class="input mono" x-model="setup.dns" placeholder="ex.: 1.1.1.1"></label>
+            <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-1" x-model="setup.open_firewall">
+              <span>Liberar a porta UDP no firewall do MikroTik <span class="hint block">Cria uma regra "accept" no topo da chain input.</span></span></label>
+            <label class="flex items-start gap-3 text-sm"><input type="checkbox" class="mt-1" x-model="setup.add_to_lan_list">
+              <span>Tratar a VPN como rede interna (lista LAN) <span class="hint block">Permite que os clientes acessem a rede local, o DNS do MikroTik e a internet.</span></span></label>
+            <div class="flex justify-end gap-2 pt-2">
+              <button type="button" class="btn" @click="modal = null">Cancelar</button>
+              <button class="btn-primary" :disabled="busy" x-text="busy ? 'Aplicando…' : 'Aplicar no MikroTik'"></button>
+            </div>
+          </form>
+        </template>
+        <template x-if="setupResult">
+          <div class="space-y-3">
+            <ul class="space-y-1 text-sm"><template x-for="s in setupResult"><li>✅ <span x-text="s"></span></li></template></ul>
+            <div class="flex justify-end gap-2">
+              <button class="btn" @click="modal = null">Fechar</button>
+              <button class="btn-primary" @click="newPeer()">＋ Criar primeiro cliente</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Cliente VPN -->
+    <template x-if="modal === 'peer'">
+      <form class="p-6 space-y-4" @submit.prevent="savePeer()">
+        <h2 class="text-lg font-semibold text-white" x-text="form.id ? 'Editar cliente' : 'Novo cliente VPN'"></h2>
+        <label class="block"><span class="label">Nome do dispositivo *</span>
+          <input class="input" x-model="form.name" required placeholder="Ex.: Celular do João, Notebook trabalho"></label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block"><span class="label">Responsável</span><input class="input" x-model="form.owner"></label>
+          <label class="block" x-show="!form.id"><span class="label">IP fixo (opcional)</span><input class="input mono" x-model="form.ip" placeholder="automático"></label>
+        </div>
+        <label class="block"><span class="label">Descrição</span><input class="input" x-model="form.description"></label>
+        <div>
+          <span class="label">O que passa pela VPN?</span>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" class="card text-left !p-3" :class="form.tunnel_mode === 'split' && '!border-blue-600'" @click="form.tunnel_mode = 'split'">
+              <div class="font-medium text-white">🏠 Só rede local</div><div class="text-xs text-slate-400 mt-1">Acessa os aparelhos da rede. A internet continua saindo pela conexão do cliente.</div></button>
+            <button type="button" class="card text-left !p-3" :class="form.tunnel_mode === 'full' && '!border-blue-600'" @click="form.tunnel_mode = 'full'">
+              <div class="font-medium text-white">🌐 Toda a internet</div><div class="text-xs text-slate-400 mt-1">Todo o tráfego sai pelo seu MikroTik (útil em Wi-Fi público).</div></button>
+          </div>
+          <p class="hint" x-show="form.id">Ao trocar o modo, gere o QR/arquivo de novo no dispositivo.</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn" @click="modal = null">Cancelar</button>
+          <button class="btn-primary" :disabled="busy" x-text="form.id ? 'Salvar' : 'Criar e gerar QR Code'"></button>
+        </div>
+      </form>
+    </template>
+
+    <!-- QR Code -->
+    <template x-if="modal === 'qr'">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">📱 <span x-text="qr.peer.name"></span></h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="btn justify-center" :class="qr.endpoint === 'remote' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'remote'; loadQr()">🌍 Acesso remoto</button>
+          <button class="btn justify-center" :class="qr.endpoint === 'local' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'local'; loadQr()">🏠 Acesso local</button>
+        </div>
+        <p class="text-xs text-slate-400" x-text="qr.endpoint === 'remote' ? 'Conecta pelo IP público/DDNS — use fora da rede.' : 'Conecta pelo IP interno do MikroTik — use dentro da rede.'"></p>
+        <div x-show="qr.error" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="qr.error"></div>
+        <div class="qr max-w-xs mx-auto" x-show="qr.svg" x-html="qr.svg"></div>
+        <ol class="text-sm text-slate-400 space-y-1 list-decimal pl-5">
+          <li><b>Celular:</b> instale o app <b>WireGuard</b> → "+" → "Escanear QR code".</li>
+          <li><b>Computador:</b> instale o WireGuard (wireguard.com/install) → "Importar túnel de arquivo" → escolha o .conf.</li>
+          <li>Ative o túnel. O status aqui muda para <span class="badge b-green">Online</span> em poucos segundos.</li>
+        </ol>
+        <div class="flex flex-wrap justify-end gap-2 pt-2">
+          <a class="btn" :href="configUrl(qr.peer, qr.endpoint)" x-show="!qr.error">⬇️ Baixar .conf</a>
+          <button class="btn-primary" @click="modal = null">Concluir</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Liberação de porta -->
+    <template x-if="modal === 'nat'">
+      <form class="p-6 space-y-4" @submit.prevent="saveRule()">
+        <h2 class="text-lg font-semibold text-white">🎮 Liberar porta</h2>
+        <label class="block"><span class="label">Modelo pronto (opcional)</span>
+          <select class="input" x-model="form.template" @change="applyTemplate()">
+            <option value="">— personalizado —</option>
+            <template x-for="(items, cat) in templateGroups" :key="cat">
+              <optgroup :label="cat">
+                <template x-for="t in items" :key="t.id"><option :value="t.id" x-text="`${t.name} (${protoLabel(t.protocol)} ${t.port})`"></option></template>
+              </optgroup>
+            </template>
+          </select></label>
+        <div x-show="selectedTemplate?.warning" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="selectedTemplate?.warning"></div>
+        <label class="block"><span class="label">Nome *</span><input class="input" x-model="form.name" required placeholder="Ex.: Minecraft do servidor"></label>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="block"><span class="label">Protocolo</span>
+            <select class="input" x-model="form.protocol"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="both">TCP + UDP</option></select></label>
+          <label class="block col-span-2"><span class="label">Porta externa (internet) *</span>
+            <input class="input mono" x-model="form.external_port" required placeholder="25565 ou 2456-2458 ou 80,443"></label>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="block col-span-2"><span class="label">IP do servidor na rede *</span>
+            <input class="input mono" x-model="form.internal_ip" required placeholder="192.168.88.50"></label>
+          <label class="block"><span class="label">Porta interna</span>
+            <input class="input mono" x-model="form.internal_port" placeholder="mesma"></label>
+        </div>
+        <p class="hint -mt-2">💡 Fixe o IP do servidor em IP → DHCP Server → Leases → "Make Static", senão a regra para de funcionar quando o IP mudar.</p>
+        <label class="block"><span class="label">Permitir apenas destes IPs (opcional)</span>
+          <textarea class="input mono" rows="2" x-model="form.whitelist" placeholder="Vazio = qualquer pessoa na internet. Ex.: 200.150.10.20, 177.0.0.0/16"></textarea></label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block"><span class="label">Fechar automaticamente</span>
+            <select class="input" x-model="form.expires">
+              <option value="">Nunca</option><option value="1">Em 1 hora</option><option value="6">Em 6 horas</option>
+              <option value="24">Em 24 horas</option><option value="72">Em 3 dias</option><option value="168">Em 7 dias</option>
+              <option value="custom">Data/hora específica…</option>
+            </select></label>
+          <label class="block" x-show="form.expires === 'custom'"><span class="label">Fechar em</span>
+            <input class="input" type="datetime-local" x-model="form.expires_custom"></label>
+        </div>
+        <label class="flex items-start gap-3 text-sm" x-show="form.protocol !== 'udp'"><input type="checkbox" class="mt-1" x-model="form.health_check">
+          <span>Monitorar se o serviço está no ar <span class="hint block">Testa a conexão TCP no servidor interno e alerta se cair.</span></span></label>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn" @click="modal = null">Cancelar</button>
+          <button class="btn-primary" :disabled="busy">Liberar porta</button>
+        </div>
+      </form>
+    </template>
+
+    <!-- Novo usuário -->
+    <template x-if="modal === 'user'">
+      <form class="p-6 space-y-4" @submit.prevent="saveUser()">
+        <h2 class="text-lg font-semibold text-white">Novo usuário</h2>
+        <label class="block"><span class="label">Usuário</span><input class="input" x-model="form.username" required minlength="3"></label>
+        <label class="block"><span class="label">Senha (mín. 8)</span><input class="input" type="password" x-model="form.password" required minlength="8"></label>
+        <label class="block"><span class="label">Permissão</span>
+          <select class="input" x-model="form.role"><option value="viewer">Somente leitura</option><option value="admin">Administrador</option></select></label>
+        <div class="flex justify-end gap-2"><button type="button" class="btn" @click="modal = null">Cancelar</button><button class="btn-primary" :disabled="busy">Criar</button></div>
+      </form>
+    </template>
+
+    <!-- Trocar a própria senha -->
+    <template x-if="modal === 'password'">
+      <form class="p-6 space-y-4" @submit.prevent="saveMyPassword()">
+        <h2 class="text-lg font-semibold text-white">Trocar minha senha</h2>
+        <label class="block"><span class="label">Senha atual</span><input class="input" type="password" x-model="form.current_password" required></label>
+        <label class="block"><span class="label">Nova senha (mín. 8)</span><input class="input" type="password" x-model="form.new_password" required minlength="8"></label>
+        <div class="flex justify-end gap-2"><button type="button" class="btn" @click="modal = null">Cancelar</button><button class="btn-primary" :disabled="busy">Salvar</button></div>
+      </form>
+    </template>
+  </div>
+</div>
+
+<!-- Tour guiado -->
+<template x-if="tour.active">
+  <div class="fixed inset-0 z-[60]" @keydown.escape.window="endTour()" @keydown.arrow-right.window="tourNext()" @keydown.arrow-left.window="tourPrev()">
+    <div class="absolute inset-0" :class="!tour.rect && 'bg-black/70'"></div>
+    <div x-show="tour.rect" class="tour-spot" :style="tour.rect && `top:${tour.rect.top - 6}px;left:${tour.rect.left - 6}px;width:${tour.rect.width + 12}px;height:${tour.rect.height + 12}px`"></div>
+    <div class="tour-box" :style="tour.boxStyle">
+      <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+        <span x-text="`Passo ${tour.i + 1} de ${tour.steps.length}`"></span>
+        <button class="btn-ghost !p-1" @click="endTour()" title="Fechar (Esc)">✕</button>
+      </div>
+      <div class="h-1 bg-slate-800 rounded mb-3"><div class="h-1 bg-blue-500 rounded transition-all" :style="`width:${(tour.i + 1) * 100 / tour.steps.length}%`"></div></div>
+      <h3 class="text-white font-semibold mb-2" x-text="tour.steps[tour.i].title"></h3>
+      <p class="text-sm text-slate-300 leading-relaxed" x-html="tour.steps[tour.i].text"></p>
+      <div class="flex items-center gap-2 mt-4">
+        <button class="btn-ghost text-xs" @click="endTour()">Pular tour</button>
+        <button class="btn ml-auto" x-show="tour.i > 0" @click="tourPrev()">← Voltar</button>
+        <button class="btn-primary" @click="tourNext()" x-text="tour.i === tour.steps.length - 1 ? 'Concluir ✓' : 'Próximo →'"></button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Notificações -->
+<div class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+  <template x-for="t in toasts" :key="t.id">
+    <div class="rounded-lg px-4 py-3 text-sm shadow-xl border" :class="t.type === 'err' ? 'bg-red-950 border-red-800 text-red-100' : 'bg-slate-800 border-slate-700 text-slate-100'" x-text="t.msg"></div>
+  </template>
+</div>
+
+</body>
+</html>
