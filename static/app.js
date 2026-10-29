@@ -160,6 +160,7 @@ function panel() {
       { id: 'settings', label: '⚙️ Configurações' },
       { id: 'audit', label: '📜 Auditoria' },
       { id: 'glossary', label: '📚 Glossário' },
+      { id: 'about', label: '💬 Ideias e suporte' },
       { id: 'problems', label: '🛠️ Problemas comuns' },
     ],
 
@@ -174,7 +175,7 @@ function panel() {
       { tab: 'dashboard', sel: 'dash-cards', title: 'Resumo', text: 'Saúde do roteador escolhido, quantos clientes VPN dele estão conectados agora e o estado das portas liberadas. Com vários MikroTiks, acima aparece <b>Seus roteadores</b> com o status de todos. Clique nos cartões para ir direto às telas.' },
       { tab: 'dashboard', sel: 'dash-chart', title: 'Gráficos', text: 'Velocidade da internet e uso de CPU/memória ao longo do tempo. A interface de internet é <b>detectada sozinha</b> — o nome aparece embaixo do gráfico.' },
       { tab: 'dashboard', sel: 'dash-events', title: 'Eventos recentes', text: 'Tudo que acontece aparece aqui: alguém conectou na VPN, um cliente caiu, um servidor parou, uma porta temporária fechou…' },
-      { tab: 'routers', sel: 'sec-routers', title: '🖧 Roteadores', text: 'Todos os MikroTiks gerenciados, com status, recursos e clientes. O jeito mais fácil de adicionar o de um cliente é pelo <b>🖧 Outro MikroTik</b> na VPN: o script cria um <b>usuário limitado</b> que só entra pelo túnel, e o roteador aparece aqui sozinho.' },
+      { tab: 'routers', sel: 'sec-routers', title: '🖧 Roteadores', text: 'Todos os MikroTiks gerenciados, com status, recursos e clientes. <b>🌐 WebFig</b> abre a página do roteador (com o Terminal dele) numa aba nova, com o seu próprio login. O jeito mais fácil de adicionar o de um cliente é pelo <b>🖧 Outro MikroTik</b> na VPN: o script cria um <b>usuário limitado</b> que só entra pelo túnel, e o roteador aparece aqui sozinho.' },
       { tab: 'vpn', sel: 'sec-vpn', title: '🔐 VPN WireGuard', text: 'Acesse sua rede de qualquer lugar com segurança. Dois tipos de cliente: <b>📱 Dispositivo</b> (celular, notebook — via QR Code) e <b>🖧 Outro MikroTik</b> (o roteador de um cliente e a rede dele — via script). Na primeira vez, clique em <b>Iniciar configuração</b>.' },
       { tab: 'vpn', sel: 'vpn-ifaces', title: 'Interfaces', text: 'Cada aba é uma interface WireGuard com porta e faixa próprias (ex.: <span class="mono">wg-casa</span> para seus aparelhos, <span class="mono">wg-clientes</span> para MikroTiks de clientes). O número mostra <b>online/total</b>. <b>＋ Nova interface</b> cria outra ou adota uma que já existe no MikroTik.' },
       { tab: 'vpn', sel: 'vpn-actions', admin: true, title: 'Adicionar clientes', text: '<b>＋ Novo dispositivo</b>: um por aparelho, depois é só escanear o QR Code. <b>🖧 Outro MikroTik</b>: informe a rede do cliente, escolha <b>➡️ só eu acesso</b> ou <b>↔️ mão dupla</b> e cole o script gerado no MikroTik dele. <b>⬇️ Importar</b>: traz peers criados pelo Winbox.' },
@@ -200,6 +201,8 @@ function panel() {
     get routerList() { return this.overview?.routers || []; },
     get curRouter() { return this.routerList.find(r => r.id === this.routerId) || this.routerList[0]; },
     routerDot(r) { return r.online === true ? '🟢' : r.online === false ? '🔴' : '⚪'; },
+    // WebFig fica na raiz do mesmo serviço www/www-ssl que a API usa
+    webfigUrl(url) { return (url || '').replace(/\/+$/, '') + '/'; },
     // menu lateral: itens soltos e grupos, na ordem de `tabs`
     get navTree() {
       const out = [];

@@ -69,6 +69,8 @@
           <option :value="r.id" :selected="r.id === routerId" x-text="routerDot(r) + ' ' + r.name"></option>
         </template>
       </select>
+      <a class="btn hidden sm:inline-flex" x-show="overview?.mikrotik_url" :href="webfigUrl(overview?.mikrotik_url)" target="_blank" rel="noopener noreferrer"
+         :title="'Abrir o WebFig de ' + (curRouter?.name || '') + ' (página do MikroTik, com Terminal) numa nova aba'">🌐 <span class="hidden lg:inline">WebFig</span></a>
       <div class="ml-auto flex items-center gap-3 text-sm" data-tour="status">
         <template x-if="router.online === true">
           <span class="badge b-green"><span class="dot pulse"></span> MikroTik online</span>
@@ -220,6 +222,7 @@
                 <template x-if="isAdmin">
                   <span class="flex gap-2">
                     <button class="btn" @click="testRouter(r)">🔌 Testar</button>
+                    <a class="btn" :href="webfigUrl(r.url)" target="_blank" rel="noopener noreferrer" title="Abrir a página do MikroTik (com Terminal) numa nova aba">🌐 WebFig</a>
                     <button class="btn" @click="editRouter(r)">✏️ Editar</button>
                     <button class="btn" x-show="!r.is_main" @click="deleteRouter(r)">🗑️</button>
                   </span>
@@ -733,10 +736,13 @@
             <p>Túneis criados antes desta opção: use 🛠️ na linha do cliente (VPN) — o painel gera só o trecho de gerenciamento.</p>
             <h3>Por que um usuário limitado (e não o admin do Winbox)?</h3>
             <p>Se o painel fosse invadido, senhas de admin dariam controle total sobre os roteadores dos clientes. O usuário <span class="mono">wgpanel</span> não muda senhas nem usuários e <b>só consegue entrar pelo túnel</b> — pela internet ele não funciona.</p>
+            <h3>Terminal</h3>
+            <p>Para comandos, use <b>🌐 WebFig → Terminal</b>. O painel não tem um terminal próprio de propósito: isso exigiria dar a ele acesso total aos roteadores, e o usuário <span class="mono">wgpanel</span> é limitado justamente para que, se o painel fosse invadido, ninguém controlasse os seus MikroTiks.</p>
             <h3>Na tela Roteadores</h3>
             <ul>
               <li>🟢 / 🔴 status, modelo, versão, CPU, memória e quantos clientes VPN e portas cada um tem.</li>
               <li><b>🔌 Testar</b> — confere a conexão; para roteadores via túnel, procura sozinho a porta certa da API.</li>
+              <li><b>🌐 WebFig</b> — abre a página do próprio MikroTik numa nova aba (também no topo, ao lado do seletor). Lá você entra com o <b>seu</b> usuário e tem o <b>Terminal</b>, igual ao do Winbox. Para clientes, funciona pelo túnel. Se o navegador avisar de certificado (https autoassinado), é esperado: avance.</li>
               <li><b>✏️ Editar</b> — nome, endereços da VPN e (exceto o principal) URL, usuário e senha.</li>
               <li><b>🗑️</b> — tira o roteador do painel (não mexe na configuração dele).</li>
               <li><b>＋ Adicionar manualmente</b> — para roteadores que o painel já alcança sem o script.</li>
@@ -957,6 +963,18 @@
               <dt>Whitelist</dt><dd>Lista de IPs permitidos; todos os outros são bloqueados.</dd>
               <dt>Chave privada / pública</dt><dd>O par de chaves de cada cliente. A pública fica no MikroTik (o "cadeado"); a privada prova quem é o cliente. Pode ficar guardada também no MikroTik (ver Configurações).</dd>
             </dl>
+          </div>
+
+          <div id="help-about" class="card space-y-3">
+            <h2>💬 Ideias e suporte</h2>
+            <p>O painel é um projeto aberto no GitHub: <a href="https://github.com/ivandneto/mikrotik-wireguard-panel" target="_blank" rel="noopener">github.com/ivandneto/mikrotik-wireguard-panel</a>.</p>
+            <ul>
+              <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/discussions" target="_blank" rel="noopener">Discussions</a></b> — ideias, dúvidas de instalação e uso, troca de experiências.</li>
+              <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/issues/new/choose" target="_blank" rel="noopener">Issues</a></b> — formulários para 💡 sugerir uma função ou 🐛 relatar um problema.</li>
+              <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">Releases</a></b> — versões novas (Docker e container no MikroTik) e o que mudou em cada uma.</li>
+            </ul>
+            <p class="text-amber-300">⚠️ Ao relatar algo, nunca cole senhas, chaves da VPN, o arquivo <span class="mono">.env</span> nem backups. Falhas de segurança: relate em privado (Security → Report a vulnerability).</p>
+            <p class="hint">Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
           </div>
 
           <div id="help-problems" class="card space-y-3">

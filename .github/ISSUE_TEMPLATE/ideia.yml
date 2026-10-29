@@ -1,0 +1,28 @@
+name: 💡 Ideia / sugestão
+description: Sugira uma função nova ou uma melhoria
+title: "[Ideia] "
+labels: ["ideia"]
+body:
+  - type: markdown
+    attributes:
+      value: "Obrigado pela sugestão! Para conversas mais abertas, use também a aba **Discussions**."
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isso resolveria?
+      description: Conte a situação do dia a dia em que você sentiu falta disso.
+      placeholder: "Ex.: tenho 10 clientes e queria ver todos os túneis numa tela só..."
+    validations:
+      required: true
+  - type: textarea
+    id: ideia
+    attributes:
+      label: Como você imagina a solução?
+      placeholder: "Ex.: uma aba com um mapa dos roteadores..."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área do painel
+      options: ["VPN WireGuard", "Outro MikroTik / Roteadores", "Liberação de portas", "Monitoramento / Alertas", "Instalação (Docker / container)", "Outra"]

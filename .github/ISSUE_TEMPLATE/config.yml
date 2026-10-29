@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Dúvidas e conversa
+    url: https://github.com/ivandneto/mikrotik-wireguard-panel/discussions
+    about: Perguntas sobre instalação e uso, ideias em aberto e troca de experiências.
+  - name: 🔒 Falha de segurança
+    url: https://github.com/ivandneto/mikrotik-wireguard-panel/security/advisories/new
+    about: Relate vulnerabilidades em privado, não em Issues públicas.

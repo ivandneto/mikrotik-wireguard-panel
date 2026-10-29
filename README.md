@@ -1,6 +1,13 @@
-# 🛡️ MikroTik WG Panel
+# 🛡️ MikroTik WireGuard Panel
 
-Painel web para **criar e gerenciar VPN WireGuard**, **liberar portas (NAT)** para servidores de jogos e aplicações, e **monitorar tudo** no seu MikroTik, com alertas no **Telegram** e no **Discord**.
+[![Release](https://img.shields.io/github/v/release/ivandneto/mikrotik-wireguard-panel?label=vers%C3%A3o)](../../releases/latest)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
+![RouterOS 7](https://img.shields.io/badge/RouterOS-7.x-blue)
+![Docker](https://img.shields.io/badge/Docker-pronto-2496ED)
+
+Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e gerenciar MikroTiks de clientes**, **liberar portas (NAT)** para servidores de jogos e aplicações, e **monitorar tudo**, com alertas no **Telegram** e no **Discord**. Roda em **Docker** ou como **container dentro do próprio MikroTik**.
+
+> 💬 Tem uma ideia ou dúvida? Use a aba **[Discussions](../../discussions)**. Encontrou um problema? Abra uma **[Issue](../../issues/new/choose)**.
 
 | Módulo | O que faz |
 |---|---|
@@ -9,6 +16,8 @@ Painel web para **criar e gerenciar VPN WireGuard**, **liberar portas (NAT)** pa
 | 🖧 **Outro MikroTik (site-to-site)** | Várias interfaces WireGuard (ex.: `wg-casa` e `wg-clientes`); túnel com o MikroTik de um cliente informando a rede dele, com **➡️ só eu acesso** (padrão) ou **↔️ mão dupla**; o painel cria peer, rotas e regras no seu MikroTik e gera um **script .rsc** para colar no MikroTik do cliente; monitoramento e alerta se o cliente cair |
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
 | 📈 **Monitoramento** | Quem está online, último handshake, IP de origem, tráfego por cliente, consumo por período, tráfego por porta liberada, **teste se o servidor está no ar**, CPU/memória/WAN do roteador, gráficos com histórico |
+| 🌐 **WebFig e Terminal** | Botão **🌐 WebFig** em cada roteador (e no topo) abre a página do MikroTik — com o **Terminal** — numa nova aba, com o seu próprio login. Para clientes, funciona pelo túnel |
+| 📖 **Manual e tour** | Manual completo dentro do painel, tour guiado e ajuda contextual (❓) em cada tela |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline |
 | 👥 **Usuários** | Vários usuários: **administrador** ou **somente leitura** |
 | 💾 **Backup** | Exporta/importa tudo do painel (JSON) e cria backup `.backup`/`.rsc` dentro do MikroTik |
@@ -262,13 +271,38 @@ Documentação da API: `http://IP:8080/api/docs`
 
 ```
 app/
-  main.py              # aplicação FastAPI
-  mikrotik.py          # cliente da API REST do RouterOS
-  db.py                # modelos (SQLite)
-  routers/             # endpoints: wireguard, nat, monitor, alerts, users, backup, settings
-  services/collector.py   # coleta periódica + histórico + gatilhos de alerta
+  main.py                 # aplicação FastAPI
+  mikrotik.py             # cliente da API REST do RouterOS (um por roteador)
+  routerctx.py            # qual roteador a requisição está usando (seletor do painel)
+  db.py                   # modelos (SQLite) e migrações automáticas
+  routers/                # endpoints: mikrotiks (roteadores), wireguard, nat, monitor,
+                          #            alerts, users, backup, settings, auth
+  services/collector.py   # coleta periódica de todos os roteadores + histórico + alertas
   services/alerts.py      # Telegram / Discord
   services/nat_ops.py     # criação/remoção das regras de NAT
-static/                # interface web (Alpine.js + Tailwind + Chart.js)
-mikrotik-setup.rsc     # preparação do roteador
+  services/router_ops.py  # remoção de roteadores do painel
+static/                   # interface web (Alpine.js + Tailwind + Chart.js)
+Dockerfile                # imagem Docker (PC/servidor)
+Dockerfile.mikrotik       # imagem enxuta ARM64 para container no RouterOS
+mikrotik-setup.rsc        # preparação do roteador
 ```
+
+---
+
+## 🔒 Segurança
+
+O painel tem acesso de configuração aos seus MikroTiks. **Não o exponha na internet**: acesse pela rede local ou pela própria VPN. Veja as boas práticas e como relatar falhas em **[SECURITY.md](SECURITY.md)**.
+
+## 💬 Ideias, dúvidas e contribuições
+
+- **[Discussions](../../discussions)** — ideias, perguntas de instalação/uso e troca de experiências.
+- **[Issues](../../issues/new/choose)** — formulários para 💡 sugerir uma função ou 🐛 relatar um problema.
+- **Pull requests** são bem-vindos. Para mudanças grandes, abra uma discussão antes.
+
+Ao relatar algo, **nunca cole senhas, chaves da VPN, o `.env` ou backups**.
+
+## Licença e aviso
+
+Distribuído sob a licença **[MIT](LICENSE)**.
+
+Projeto independente, **não afiliado, patrocinado ou endossado pela MikroTik**. MikroTik, RouterOS, WebFig e Winbox são marcas da Mikrotīkls SIA. WireGuard é marca registrada de Jason A. Donenfeld. Use por sua conta e risco e faça backup do roteador antes de mudanças grandes.

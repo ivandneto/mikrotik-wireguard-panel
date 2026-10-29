@@ -1,0 +1,43 @@
+name: 🐛 Problema
+description: Algo não funcionou como deveria
+title: "[Problema] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "⚠️ **Não cole senhas, chaves da VPN, o arquivo .env nem backups.** Troque IPs públicos e DDNS por XXX."
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu?
+      placeholder: "Ex.: ao criar um Outro MikroTik, apareceu o erro..."
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como reproduzir
+      placeholder: "1. Fui em VPN → Outro MikroTik\n2. ...\n3. Apareceu o erro ..."
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do painel
+      placeholder: "Ex.: 1.2.0"
+  - type: dropdown
+    id: instalacao
+    attributes:
+      label: Como o painel está rodando
+      options: ["Docker (PC/servidor)", "Container no MikroTik", "Sem Docker (Python)"]
+  - type: input
+    id: routeros
+    attributes:
+      label: Modelo e versão do RouterOS
+      placeholder: "Ex.: RB5009, 7.24.4"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs ou mensagens de erro (opcional)
+      description: "docker compose logs, mensagem na tela ou do terminal do MikroTik — sem senhas."
+      render: text
