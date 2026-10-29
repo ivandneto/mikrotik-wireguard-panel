@@ -11,8 +11,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .config import config
 from .db import SessionLocal, User, init_db
-from .mikrotik import MikroTikError, mt
-from .routers import alerts, auth, backup, monitor, nat, settings, users, wireguard
+from .mikrotik import MikroTikError, close_all
+from .routers import alerts, auth, backup, mikrotiks, monitor, nat, settings, users, wireguard
 from .security import hash_password
 from .services import collector
 
@@ -49,7 +49,7 @@ async def lifespan(_app: FastAPI):
     task = asyncio.create_task(collector.run_forever())
     yield
     task.cancel()
-    await mt.close()
+    await close_all()
 
 
 app = FastAPI(title="MikroTik WG Panel", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
@@ -79,7 +79,7 @@ async def mikrotik_error_handler(_request: Request, exc: MikroTikError):
     return JSONResponse(status_code=502, content={"detail": f"MikroTik: {exc}"})
 
 
-for module in (auth, wireguard, nat, monitor, alerts, users, settings, backup):
+for module in (auth, mikrotiks, wireguard, nat, monitor, alerts, users, settings, backup):
     app.include_router(module.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -97,4 +97,4 @@ def login_page():
 
 @app.get("/health", include_in_schema=False)
 def health():
-    return {"ok": True, "router_online": collector.state["router"]["online"]}
+    return {"ok": True, "router_online": collector.state["routers"].get(1, {}).get("online")}

@@ -1,6 +1,7 @@
 // ---------- utilidades ----------
 async function api(method, url, body) {
   const opt = { method, headers: {}, credentials: 'same-origin' };
+  if (window.__routerId) opt.headers['X-Router-Id'] = String(window.__routerId);
   if (body !== undefined) {
     opt.headers['Content-Type'] = 'application/json';
     opt.body = JSON.stringify(body);
@@ -97,8 +98,11 @@ function panel() {
     busy: false,
     loading: {},
 
+    routerId: null,
+    routers: [],
+    rtForm: null,
     wg: { info: null, peers: [], filter: '', ifaceId: null },
-    script: { peer: null, text: '', error: '', notice: '' },
+    script: { peer: null, text: '', error: '', notice: '', part: 'all' },
     setup: null,
     suggest: null,
     setupResult: null,
@@ -125,6 +129,7 @@ function panel() {
 
     tabs: [
       { id: 'dashboard', label: 'Painel', icon: '📊' },
+      { id: 'routers', label: 'Roteadores', icon: '🖧', group: 'net' },
       { id: 'vpn', label: 'VPN WireGuard', icon: '🔐', group: 'net' },
       { id: 'nat', label: 'Liberação de portas', icon: '🎮', group: 'net' },
       { id: 'monitor', label: 'Gráficos e consumo', icon: '📈', group: 'mon' },
@@ -143,6 +148,7 @@ function panel() {
     helpIndex: [
       { id: 'start', label: '🚀 Primeiros passos' },
       { id: 'dashboard', label: '📊 Painel' },
+      { id: 'routers', label: '🖧 Roteadores' },
       { id: 'vpn', label: '🔐 VPN WireGuard' },
       { id: 'site', label: '🖧 Outro MikroTik' },
       { id: 'nat', label: '🎮 Liberação de portas' },
@@ -163,10 +169,12 @@ function panel() {
     tourSteps: [
       { title: '👋 Bem-vindo ao WG Panel!', text: 'Este tour mostra para que serve cada parte do painel: <b>VPN WireGuard</b> (seus aparelhos e MikroTiks de clientes), <b>liberação de portas</b> e <b>monitoramento</b> com alertas. Use <b>Próximo</b> ou as setas do teclado; refaça quando quiser pelo botão <b>🎓 Tour</b>.' },
       { tab: 'dashboard', sel: 'nav', title: 'Menu', text: 'As telas ficam agrupadas: <b>Rede</b> (VPN e portas), <b>Monitoramento</b> (gráficos, eventos, alertas) e <b>Administração</b> (usuários, backup, configurações, auditoria — só para administradores). Clique no nome do grupo para abrir/fechar.' },
+      { tab: 'dashboard', sel: 'router-select', title: '🖧 Qual roteador', text: 'O painel gerencia <b>vários MikroTiks</b>: o seu e os dos clientes. Escolha aqui qual você está vendo — VPN, portas, gráficos e configurações passam a ser desse roteador. 🟢 online · 🔴 offline.' },
       { tab: 'dashboard', sel: 'status', title: 'Status da conexão', text: 'Mostra se o painel está falando com o MikroTik. <b>⟳</b> força uma atualização, <b>🎓</b> abre este tour e <b>❓</b> abre o manual da tela atual.' },
       { tab: 'dashboard', sel: 'dash-cards', title: 'Resumo', text: 'Saúde do roteador, quantos clientes VPN estão conectados agora (somando todas as interfaces) e o estado das portas liberadas. Clique nos cartões para ir direto às telas.' },
       { tab: 'dashboard', sel: 'dash-chart', title: 'Gráficos', text: 'Velocidade da internet e uso de CPU/memória ao longo do tempo. A interface de internet é <b>detectada sozinha</b> — o nome aparece embaixo do gráfico.' },
       { tab: 'dashboard', sel: 'dash-events', title: 'Eventos recentes', text: 'Tudo que acontece aparece aqui: alguém conectou na VPN, um cliente caiu, um servidor parou, uma porta temporária fechou…' },
+      { tab: 'routers', sel: 'sec-routers', title: '🖧 Roteadores', text: 'Todos os MikroTiks gerenciados, com status, recursos e clientes. O jeito mais fácil de adicionar o de um cliente é pelo <b>🖧 Outro MikroTik</b> na VPN: o script cria um <b>usuário limitado</b> que só entra pelo túnel, e o roteador aparece aqui sozinho.' },
       { tab: 'vpn', sel: 'sec-vpn', title: '🔐 VPN WireGuard', text: 'Acesse sua rede de qualquer lugar com segurança. Dois tipos de cliente: <b>📱 Dispositivo</b> (celular, notebook — via QR Code) e <b>🖧 Outro MikroTik</b> (o roteador de um cliente e a rede dele — via script). Na primeira vez, clique em <b>Iniciar configuração</b>.' },
       { tab: 'vpn', sel: 'vpn-ifaces', title: 'Interfaces', text: 'Cada aba é uma interface WireGuard com porta e faixa próprias (ex.: <span class="mono">wg-casa</span> para seus aparelhos, <span class="mono">wg-clientes</span> para MikroTiks de clientes). O número mostra <b>online/total</b>. <b>＋ Nova interface</b> cria outra ou adota uma que já existe no MikroTik.' },
       { tab: 'vpn', sel: 'vpn-actions', admin: true, title: 'Adicionar clientes', text: '<b>＋ Novo dispositivo</b>: um por aparelho, depois é só escanear o QR Code. <b>🖧 Outro MikroTik</b>: informe a rede do cliente, escolha <b>➡️ só eu acesso</b> ou <b>↔️ mão dupla</b> e cole o script gerado no MikroTik dele. <b>⬇️ Importar</b>: traz peers criados pelo Winbox.' },
@@ -189,6 +197,9 @@ function panel() {
     get isAdmin() { return this.me?.role === 'admin'; },
     get visibleTabs() { return this.tabs.filter(t => !t.admin || this.isAdmin); },
     get router() { return this.overview?.router || {}; },
+    get routerList() { return this.overview?.routers || []; },
+    get curRouter() { return this.routerList.find(r => r.id === this.routerId) || this.routerList[0]; },
+    routerDot(r) { return r.online === true ? '🟢' : r.online === false ? '🔴' : '⚪'; },
     // menu lateral: itens soltos e grupos, na ordem de `tabs`
     get navTree() {
       const out = [];
@@ -224,6 +235,8 @@ function panel() {
 
     async init() {
       try { this.me = await api('GET', '/api/auth/me'); } catch { return; }
+      try { this.routerId = Number(localStorage.getItem('wgpanel_router')) || null; } catch {}
+      window.__routerId = this.routerId;
       try { this.navClosed = JSON.parse(localStorage.getItem('wgpanel_nav_closed')) || {}; } catch {}
       await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWg(),
         this.loadEvents(), api('GET', '/api/nat/templates').then(t => this.nat.templates = t)]);
@@ -336,6 +349,7 @@ function panel() {
       if (t === 'users') this.users = await api('GET', '/api/users');
       if (t === 'alerts') this.alerts = await api('GET', '/api/alerts');
       if (t === 'settings') this.loadSettings();
+      if (t === 'routers') this.loadRouters();
     },
 
     async refreshLive() {
@@ -354,7 +368,60 @@ function panel() {
       location.href = '/login';
     },
 
-    loadOverview() { return api('GET', '/api/monitor/overview').then(o => this.overview = o).catch(() => {}); },
+    loadOverview() {
+      return api('GET', '/api/monitor/overview').then(o => {
+        this.overview = o;
+        if (this.routerId !== o.router_id) {  // roteador salvo não existe mais: volta para o principal
+          this.routerId = o.router_id;
+          window.__routerId = o.router_id;
+        }
+      }).catch(() => {});
+    },
+    async switchRouter(id) {
+      this.routerId = id;
+      window.__routerId = id;
+      try { localStorage.setItem('wgpanel_router', String(id)); } catch {}
+      this.wg.ifaceId = null;
+      this.nat.routerRules = null;
+      this.chart.target = '';
+      this.rtForm = null;
+      await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWg()]);
+      this.onTab(this.tab);
+      this.toast(`Roteador: ${this.curRouter?.name || ''}`);
+    },
+    // ---------- roteadores ----------
+    async loadRouters() { this.routers = await api('GET', '/api/routers'); },
+    newRouter() {
+      this.form = { name: '', url: 'http://', username: 'wgpanel', password: '', verify_tls: false, enabled: true,
+        endpoint_remote: '', endpoint_local: '', nat_match_mode: 'wan_list', nat_in_target: 'WAN', wan_interface: '' };
+      this.modal = 'router';
+    },
+    editRouter(r) {
+      this.form = { ...r, password: '' };
+      this.modal = 'router';
+    },
+    async saveRouter() {
+      const { id, ...body } = this.form;
+      if (id) await this.run(() => api('PATCH', `/api/routers/${id}`, body), 'Roteador salvo');
+      else await this.run(() => api('POST', '/api/routers', body), 'Roteador adicionado');
+      this.modal = null;
+      await Promise.all([this.loadRouters(), this.loadOverview()]);
+    },
+    async testRouter(r) {
+      const res = await this.run(() => api('POST', `/api/routers/${r.id}/test`));
+      this.toast(res.message, res.ok ? 'ok' : 'err');
+      this.loadRouters();
+    },
+    async deleteRouter(r) {
+      if (!confirm(`Tirar "${r.name}" do painel?\n\nO painel apaga o que ele guardava desse roteador (interfaces, clientes, portas e histórico), mas NÃO mexe na configuração do MikroTik dele.`)) return;
+      await this.run(() => api('DELETE', `/api/routers/${r.id}`), 'Roteador removido do painel');
+      if (this.routerId === r.id) await this.switchRouter(this.routerList.find(x => x.is_main)?.id);
+      await Promise.all([this.loadRouters(), this.loadOverview()]);
+    },
+    openRouter(id, tab = 'dashboard') {
+      this.switchRouter(id);
+      this.tab = tab;
+    },
     loadPeers() { return api('GET', '/api/wireguard/peers').then(p => this.wg.peers = p).catch(() => {}); },
     loadRules() { return api('GET', '/api/nat/rules').then(r => this.nat.rules = r).catch(() => {}); },
     loadWg() {
@@ -459,7 +526,7 @@ function panel() {
     // ---------- WireGuard: clientes ----------
     newPeer(kind = 'device') {
       this.form = { interface_id: this.curIface?.id, kind, name: '', owner: '', description: '', tunnel_mode: 'split',
-        ip: '', remote_networks: '', site_access: 'one_way' };
+        ip: '', remote_networks: '', site_access: 'one_way', manage: true, api_port: 80 };
       this.modal = 'peer';
     },
     editPeer(p) {
@@ -490,14 +557,21 @@ function panel() {
       this.loadWg();
     },
     openPeerConfig(p, notice = '') { return p.kind === 'site' ? this.openScript(p, notice) : this.openQr(p, notice); },
-    async openScript(p, notice = '') {
-      this.script = { peer: p, text: '', error: '', notice };
+    async openScript(p, notice = '', part = 'all') {
+      this.script = { peer: p, text: '', error: '', notice, part };
       this.modal = 'script';
       try {
-        this.script.text = await api('GET', `/api/wireguard/peers/${p.id}/script?endpoint=remote`);
+        this.script.text = await api('GET', `/api/wireguard/peers/${p.id}/script?endpoint=remote&part=${part}`);
       } catch (e) {
         this.script.error = e.message;
       }
+    },
+    async manageSite(p) {
+      const port = prompt(`Gerenciar "${p.name}" pelo painel.\n\nPorta do WebFig (serviço www) do MikroTik do cliente — veja em IP → Services → www no Winbox dele:`, '80');
+      if (!port) return;
+      const peer = await this.run(() => api('POST', `/api/wireguard/peers/${p.id}/manage`, { api_port: Number(port) }));
+      this.loadPeers();
+      this.openScript(peer, 'Cole este trecho no Terminal do MikroTik do cliente: ele cria o usuário limitado "wgpanel" (que só entra pelo túnel) e libera a API. Depois o roteador aparece em Roteadores.', 'management');
     },
     async copyScript() {
       try {
@@ -724,10 +798,17 @@ function panel() {
     // ---------- configurações ----------
     async loadSettings() {
       this.settings = await api('GET', '/api/settings');
+      const list = await api('GET', '/api/routers');
+      this.routers = list;
+      this.rtForm = { ...(list.find(r => r.id === this.routerId) || list[0]), password: '' };
       api('GET', '/api/settings/router-options').then(o => this.routerOptions = o).catch(() => {});
     },
     async saveSettings() {
-      await this.run(() => api('PUT', '/api/settings', this.settings), 'Configurações salvas');
+      await this.run(async () => {
+        await api('PUT', '/api/settings', this.settings);
+        const { id, ...rt } = this.rtForm;
+        await api('PATCH', `/api/routers/${id}`, rt);
+      }, 'Configurações salvas');
       this.loadWg();
     },
   };

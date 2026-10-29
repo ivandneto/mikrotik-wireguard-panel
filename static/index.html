@@ -63,6 +63,12 @@
         <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="(t.group ? navGroups[t.group] + ' › ' : '') + t.icon + ' ' + t.label"></option></template>
       </select>
       <h1 class="hidden md:block text-lg font-semibold text-white" x-text="tabs.find(t => t.id === tab)?.label"></h1>
+      <select class="input w-auto max-w-[14rem] py-1.5 text-sm" data-tour="router-select" title="Roteador que você está vendo"
+              x-show="routerList.length" :value="routerId" @change="switchRouter(Number($event.target.value))">
+        <template x-for="r in routerList" :key="r.id">
+          <option :value="r.id" :selected="r.id === routerId" x-text="routerDot(r) + ' ' + r.name"></option>
+        </template>
+      </select>
       <div class="ml-auto flex items-center gap-3 text-sm" data-tour="status">
         <template x-if="router.online === true">
           <span class="badge b-green"><span class="dot pulse"></span> MikroTik online</span>
@@ -84,12 +90,26 @@
 
       <!-- Aviso de MikroTik offline -->
       <div x-show="router.online === false" class="card border-red-900 bg-red-950/40 text-red-200 text-sm">
-        <b>Não foi possível falar com o MikroTik.</b> <span x-text="router.error"></span>
-        <div class="text-red-300/70 mt-1">Verifique MIKROTIK_URL, usuário/senha no arquivo <code>.env</code> e se o serviço www/www-ssl está ativo no roteador (veja o README).</div>
+        <b>Não foi possível falar com o MikroTik <span x-text="curRouter?.name"></span>.</b> <span x-text="router.error"></span>
+        <div class="text-red-300/70 mt-1" x-show="curRouter?.is_main">Verifique MIKROTIK_URL, usuário/senha no arquivo <code>.env</code> e se o serviço www/www-ssl está ativo no roteador (veja o README).</div>
+        <div class="text-red-300/70 mt-1" x-show="curRouter && !curRouter.is_main">Confira se o túnel dele está Online, se o script de gerenciamento foi colado no MikroTik dele e a porta da API em <a class="underline cursor-pointer" @click="tab = 'routers'">Roteadores → 🔌 Testar</a>.</div>
       </div>
 
       <!-- ===================== PAINEL ===================== -->
       <section x-show="tab === 'dashboard'" class="space-y-6">
+        <div x-show="routerList.length > 1" class="card">
+          <div class="card-title mb-3">Seus roteadores</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <template x-for="r in routerList" :key="r.id">
+              <button class="text-left rounded-lg border p-3 hover:border-slate-600" :class="r.id === routerId ? 'border-blue-600 bg-blue-950/20' : 'border-slate-800'" @click="switchRouter(r.id)">
+                <div class="flex items-center gap-2"><span x-text="routerDot(r)"></span><span class="font-medium text-white truncate" x-text="r.name"></span>
+                  <span class="badge b-blue ml-auto" x-show="r.is_main">principal</span></div>
+                <div class="text-xs text-slate-400 mt-1" x-show="r.resource" x-text="(r.resource?.board || '') + ' · CPU ' + (r.resource?.cpu ?? '—') + '% · ligado há ' + fmtDur(r.resource?.uptime)"></div>
+                <div class="text-xs text-red-300 mt-1 truncate" x-show="r.online === false" x-text="'offline: ' + (r.error || '')"></div>
+              </button>
+            </template>
+          </div>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" data-tour="dash-cards">
           <div class="card">
             <div class="card-title">Roteador</div>
@@ -155,6 +175,58 @@
               <p class="text-sm text-slate-500" x-show="!events.length">Nenhum evento ainda.</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ===================== ROTEADORES ===================== -->
+      <section data-tour="sec-routers" x-show="tab === 'routers'" class="space-y-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="text-sm text-slate-400 max-w-3xl">Os MikroTiks que este painel gerencia. Para adicionar o de um cliente, o caminho recomendado é
+            <a class="text-blue-400 cursor-pointer" @click="tab = 'vpn'">VPN → 🖧 Outro MikroTik</a>: o script cria um <b>usuário limitado</b> que só entra pelo túnel e o roteador aparece aqui sozinho.</p>
+          <button class="btn ml-auto" x-show="isAdmin" @click="newRouter()">＋ Adicionar manualmente</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <template x-for="r in routers" :key="r.id">
+            <div class="card space-y-3" :class="r.id === routerId && '!border-blue-700'">
+              <div class="flex items-start gap-2">
+                <span class="text-xl" x-text="routerDot(r.live || {})"></span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-white" x-text="r.name"></div>
+                  <div class="text-xs mono text-slate-500 truncate" x-text="r.url + ' · ' + r.username"></div>
+                </div>
+                <div class="ml-auto flex gap-1 shrink-0">
+                  <span class="badge b-blue" x-show="r.is_main">principal (.env)</span>
+                  <span class="badge b-gray" x-show="r.site_name" :title="'Gerenciado pelo túnel do Outro MikroTik ' + r.site_name">via túnel</span>
+                  <span class="badge b-gray" x-show="!r.enabled">desativado</span>
+                </div>
+              </div>
+              <template x-if="r.live?.resource">
+                <div class="grid grid-cols-4 gap-2 text-sm">
+                  <div><div class="card-title">Modelo</div><div class="text-white truncate" x-text="r.live.resource.board"></div></div>
+                  <div><div class="card-title">RouterOS</div><div class="text-white" x-text="r.live.resource.version"></div></div>
+                  <div><div class="card-title">CPU / Mem</div><div class="text-white" x-text="r.live.resource.cpu + '% / ' + r.live.resource.mem_pct + '%'"></div></div>
+                  <div><div class="card-title">Ligado há</div><div class="text-white" x-text="fmtDur(r.live.resource.uptime)"></div></div>
+                </div>
+              </template>
+              <div class="text-sm text-red-300" x-show="r.live?.online === false" x-text="'Sem conexão: ' + (r.live?.error || '')"></div>
+              <div class="text-sm text-slate-400" x-show="!r.live">Aguardando a primeira coleta…</div>
+              <div class="flex flex-wrap gap-2 text-xs">
+                <span class="badge b-gray" x-text="'VPN: ' + r.peers_online + '/' + r.peers_total + ' online'"></span>
+                <span class="badge b-gray" x-text="r.interfaces + ' interface(s)'"></span>
+                <span class="badge b-gray" x-text="r.nat_total + ' porta(s) liberada(s)'"></span>
+              </div>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <button class="btn-primary" @click="openRouter(r.id)" x-text="r.id === routerId ? 'Selecionado' : 'Abrir'" :disabled="r.id === routerId"></button>
+                <template x-if="isAdmin">
+                  <span class="flex gap-2">
+                    <button class="btn" @click="testRouter(r)">🔌 Testar</button>
+                    <button class="btn" @click="editRouter(r)">✏️ Editar</button>
+                    <button class="btn" x-show="!r.is_main" @click="deleteRouter(r)">🗑️</button>
+                  </span>
+                </template>
+              </div>
+            </div>
+          </template>
         </div>
       </section>
 
@@ -241,6 +313,8 @@
                         <template x-if="isAdmin">
                           <span>
                             <button class="btn-ghost" :title="!p.has_config ? 'Sem configuração: cliente importado sem chave (use 🔑)' : (p.kind === 'site' ? 'Script RouterOS para o MikroTik do cliente' : 'QR Code / baixar configuração')" :disabled="!p.has_config" @click="openPeerConfig(p)" x-text="p.kind === 'site' ? '📜' : '📱'"></button>
+                            <button class="btn-ghost" x-show="p.kind === 'site' && p.managed_router_id" title="Abrir este MikroTik no painel" @click="openRouter(p.managed_router_id)">🖥️</button>
+                            <button class="btn-ghost" x-show="p.kind === 'site' && !p.managed_router_id && curRouter?.is_main" title="Gerenciar este MikroTik pelo painel (usuário limitado)" @click="manageSite(p)">🛠️</button>
                             <button class="btn-ghost" title="Editar" @click="editPeer(p)">✏️</button>
                             <button class="btn-ghost" :title="p.enabled ? 'Desativar' : 'Ativar'" @click="togglePeer(p)" x-text="p.enabled ? '⏸️' : '▶️'"></button>
                             <button class="btn-ghost" title="Corrigir no MikroTik" x-show="p.enabled && p.live && (!p.live.exists || p.live.router_disabled)" @click="reapplyPeer(p)">🔁</button>
@@ -516,15 +590,16 @@
 
       <!-- ===================== CONFIGURAÇÕES ===================== -->
       <section data-tour="sec-settings" x-show="tab === 'settings'">
-        <template x-if="settings">
+        <template x-if="settings && rtForm">
           <form class="grid grid-cols-1 lg:grid-cols-2 gap-4" @submit.prevent="saveSettings()">
+            <p class="lg:col-span-2 text-sm text-slate-400 -mb-1">Itens marcados com <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span> valem só para o roteador selecionado; o resto vale para o painel todo.</p>
             <div class="card space-y-4">
-              <div class="font-semibold text-white">🔐 VPN — como os clientes chegam até o MikroTik</div>
+              <div class="font-semibold text-white">🔐 VPN — como os clientes chegam até o MikroTik <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span></div>
               <label class="block"><span class="label">Endereço remoto (IP fixo ou DDNS)</span>
-                <input class="input mono" x-model="settings.endpoint_remote" placeholder="meuserver.ddns.net ou xxxx.sn.mynetname.net">
+                <input class="input mono" x-model="rtForm.endpoint_remote" placeholder="meuserver.ddns.net ou xxxx.sn.mynetname.net">
                 <p class="hint">Usado quando o cliente está fora de casa/empresa (4G, outra rede).</p></label>
               <label class="block"><span class="label">Endereço local (IP do MikroTik na rede)</span>
-                <input class="input mono" x-model="settings.endpoint_local" placeholder="192.168.88.1">
+                <input class="input mono" x-model="rtForm.endpoint_local" placeholder="192.168.88.1">
                 <p class="hint">Usado por dispositivos dentro da mesma rede do MikroTik.</p></label>
               <p class="hint">DNS e redes acessíveis ficam em cada interface: VPN WireGuard → ⚙️ ao lado da interface.</p>
               <div class="grid grid-cols-2 gap-3">
@@ -541,17 +616,17 @@
 
             <div class="space-y-4">
               <div class="card space-y-4">
-                <div class="font-semibold text-white">🎮 Liberação de portas (NAT)</div>
+                <div class="font-semibold text-white">🎮 Liberação de portas (NAT) <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span></div>
                 <label class="block"><span class="label">Tráfego vindo da internet é identificado por</span>
-                  <select class="input" x-model="settings.nat_match_mode">
+                  <select class="input" x-model="rtForm.nat_match_mode">
                     <option value="wan_list">Lista de interfaces (padrão do MikroTik: WAN)</option>
                     <option value="interface">Interface específica (ex.: ether1, pppoe-out1)</option>
                     <option value="dst_local">Destino = IP do próprio roteador (funciona também de dentro da rede)</option>
                   </select></label>
-                <label class="block" x-show="settings.nat_match_mode !== 'dst_local'"><span class="label" x-text="settings.nat_match_mode === 'wan_list' ? 'Nome da lista' : 'Nome da interface'"></span>
-                  <input class="input mono" x-model="settings.nat_in_target" list="nat-targets">
+                <label class="block" x-show="rtForm.nat_match_mode !== 'dst_local'"><span class="label" x-text="rtForm.nat_match_mode === 'wan_list' ? 'Nome da lista' : 'Nome da interface'"></span>
+                  <input class="input mono" x-model="rtForm.nat_in_target" list="nat-targets">
                   <datalist id="nat-targets">
-                    <template x-for="o in (settings.nat_match_mode === 'wan_list' ? routerOptions.interface_lists : routerOptions.interfaces)" :key="o">
+                    <template x-for="o in (rtForm.nat_match_mode === 'wan_list' ? routerOptions.interface_lists : routerOptions.interfaces)" :key="o">
                       <option :value="o"></option>
                     </template>
                   </datalist></label>
@@ -560,8 +635,8 @@
 
               <div class="card space-y-4">
                 <div class="font-semibold text-white">📈 Monitoramento</div>
-                <label class="block"><span class="label">Interface WAN (para gráfico de internet)</span>
-                  <input class="input mono" x-model="settings.wan_interface" list="wan-ifaces" placeholder="vazio = detectar automaticamente (rota padrão)">
+                <label class="block"><span class="label">Interface WAN (para gráfico de internet) <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span></span>
+                  <input class="input mono" x-model="rtForm.wan_interface" list="wan-ifaces" placeholder="vazio = detectar automaticamente (rota padrão)">
                   <datalist id="wan-ifaces">
                     <template x-for="o in routerOptions.interfaces" :key="o"><option :value="o"></option></template>
                   </datalist></label>
@@ -572,11 +647,12 @@
               </div>
 
               <div class="card text-sm text-slate-400 space-y-1">
-                <div class="font-semibold text-white mb-2">🔌 Conexão com o MikroTik</div>
-                <div>URL: <span class="mono text-slate-200" x-text="settings.mikrotik_url"></span></div>
-                <div>Usuário: <span class="mono text-slate-200" x-text="settings.mikrotik_user"></span></div>
+                <div class="font-semibold text-white mb-2">🔌 Conexão com o MikroTik <span x-text="rtForm.name"></span></div>
+                <div>URL: <span class="mono text-slate-200" x-text="rtForm.url"></span></div>
+                <div>Usuário: <span class="mono text-slate-200" x-text="rtForm.username"></span></div>
                 <div>Coleta a cada <span x-text="settings.poll_interval"></span>s</div>
-                <p class="hint">Altere no arquivo <span class="mono">.env</span> e reinicie o container.</p>
+                <p class="hint" x-show="rtForm.is_main">Altere no arquivo <span class="mono">.env</span> e reinicie o container.</p>
+                <p class="hint" x-show="!rtForm.is_main">Altere em <a class="text-blue-400 cursor-pointer" @click="tab = 'routers'">Roteadores → ✏️ Editar</a>.</p>
               </div>
               <button class="btn-primary" :disabled="busy">Salvar configurações</button>
             </div>
@@ -641,6 +717,29 @@
               <li><b>Eventos recentes</b> — últimos acontecimentos: alguém conectou, servidor caiu, porta expirou…</li>
             </ul>
             <button class="btn" @click="tab='dashboard'">Ir para o Painel →</button>
+          </div>
+
+          <div id="help-routers" class="card space-y-3">
+            <h2>🖧 Roteadores (vários MikroTiks)</h2>
+            <p>O painel gerencia o <b>seu MikroTik</b> (o "principal", do arquivo <span class="mono">.env</span>) e também os <b>MikroTiks dos seus clientes</b>. O <b>seletor no topo</b> escolhe qual você está vendo: VPN, portas, gráficos e configurações passam a ser daquele roteador.</p>
+            <h3>Como adicionar o MikroTik de um cliente (recomendado)</h3>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li>Em <b>VPN → 🖧 Outro MikroTik</b>, crie o túnel com a opção <b>"Gerenciar este MikroTik pelo painel"</b> ligada (padrão).</li>
+              <li>Cole o script no terminal do MikroTik do cliente. Além do túnel, ele cria o usuário <span class="mono">wgpanel</span> com permissões limitadas, senha aleatória e <b>login só pelo túnel</b>, e libera a API.</li>
+              <li>Em instantes o roteador aparece em <b>Roteadores</b> e no seletor do topo.</li>
+            </ol>
+            <p>Túneis criados antes desta opção: use 🛠️ na linha do cliente (VPN) — o painel gera só o trecho de gerenciamento.</p>
+            <h3>Por que um usuário limitado (e não o admin do Winbox)?</h3>
+            <p>Se o painel fosse invadido, senhas de admin dariam controle total sobre os roteadores dos clientes. O usuário <span class="mono">wgpanel</span> não muda senhas nem usuários e <b>só consegue entrar pelo túnel</b> — pela internet ele não funciona.</p>
+            <h3>Na tela Roteadores</h3>
+            <ul>
+              <li>🟢 / 🔴 status, modelo, versão, CPU, memória e quantos clientes VPN e portas cada um tem.</li>
+              <li><b>🔌 Testar</b> — confere a conexão; para roteadores via túnel, procura sozinho a porta certa da API.</li>
+              <li><b>✏️ Editar</b> — nome, endereços da VPN e (exceto o principal) URL, usuário e senha.</li>
+              <li><b>🗑️</b> — tira o roteador do painel (não mexe na configuração dele).</li>
+              <li><b>＋ Adicionar manualmente</b> — para roteadores que o painel já alcança sem o script.</li>
+            </ul>
+            <p>Os alertas no Discord indicam de qual roteador é cada aviso (ex.: <span class="mono">[Padaria] MikroTik inacessível</span>).</p>
           </div>
 
           <div id="help-vpn" class="card space-y-3">
@@ -859,6 +958,7 @@
                 • <b>MikroTik (WebFig/Winbox)</b>: libere em IP → Services → <span class="mono">available-from</span> (ou <span class="mono">address</span> em versões antigas) incluindo <span class="mono">10.10.0.0/24</span>.<br>
                 • <b>PC Windows</b>: o Firewall do Windows só aceita a própria rede. Em PowerShell (admin): <span class="mono">New-NetFirewallRule -DisplayName "VPN WireGuard" -Direction Inbound -RemoteAddress 10.10.0.0/24 -Action Allow</span><br>
                 • <b>Use o IP</b>, não o nome (<span class="mono">\\192.168.88.61</span> em vez de <span class="mono">\\meu-pc</span>). Apps que "procuram aparelhos na rede" automaticamente não funcionam pela VPN.</td></tr>
+              <tr><td><b>Roteador de cliente "Sem conexão" em Roteadores</b></td><td>O túnel (VPN) dele precisa estar Online. Confira se o trecho de gerenciamento do script foi colado e use <b>🔌 Testar</b>, que procura a porta da API. Se o www dele aceitar só alguns IPs, o script avisa: inclua a faixa do túnel em IP → Services → www.</td></tr>
               <tr><td><b>MikroTik do cliente não fica Online</b></td><td>Confira no roteador do cliente se o script rodou sem erro (<span class="mono">/interface wireguard print</span> deve mostrar <span class="mono">wg-central</span>), se ele tem internet e se o seu endereço remoto (DDNS) está certo em Configurações. A porta UDP da interface precisa estar liberada no seu MikroTik (o painel faz isso ao criar a interface).</td></tr>
               <tr><td><b>Túnel Online, mas não abre a rede do cliente</b></td><td>Confira se a rede informada no cliente está certa (✏️) e se o aparelho de lá aceita conexões de outra rede (firewall do Windows, câmeras com restrição). Se o MikroTik do cliente não usa a lista LAN padrão, crie nele uma regra accept para a interface <span class="mono">wg-central</span>.</td></tr>
               <tr><td><b>"Conflita com a sua rede" ao criar Outro MikroTik</b></td><td>A rede do cliente é igual (ou se sobrepõe) à sua ou à de outro cliente. Mude a faixa da LAN do cliente (ex.: 192.168.10.0/24) antes de criar o túnel.</td></tr>
@@ -1002,6 +1102,16 @@
             <label class="block"><span class="label">Rede local do MikroTik do cliente *</span>
               <input class="input mono" x-model="form.remote_networks" required placeholder="192.168.10.0/24">
               <p class="hint">A rede atrás do roteador dele (veja em IP → Addresses no MikroTik do cliente). Mais de uma? Separe por vírgula. Precisa ser diferente da sua rede.</p></label>
+            <div x-show="!form.id && curRouter?.is_main" class="rounded-lg border border-slate-800 p-3 space-y-3">
+              <label class="flex items-start gap-3 text-sm cursor-pointer">
+                <button type="button" class="toggle mt-0.5" :class="form.manage && 'on'" @click="form.manage = !form.manage"></button>
+                <span>Gerenciar este MikroTik pelo painel
+                  <span class="hint block">O script cria um usuário <b>limitado</b> (<span class="mono">wgpanel</span>, senha aleatória) que só entra <b>pelo túnel</b>. O roteador aparece em Roteadores e você cria VPN, portas e vê gráficos dele aqui.</span></span>
+              </label>
+              <label class="block" x-show="form.manage"><span class="label">Porta do WebFig (serviço www) no MikroTik do cliente</span>
+                <input class="input w-32" type="number" x-model.number="form.api_port">
+                <p class="hint">Padrão 80. Veja em IP → Services → www no Winbox dele. Errou? Em Roteadores, 🔌 Testar procura a porta certa.</p></label>
+            </div>
             <div>
               <span class="label">Quem acessa quem?</span>
               <div class="grid grid-cols-2 gap-3">
@@ -1031,10 +1141,44 @@
       </form>
     </template>
 
+    <!-- Roteador (adicionar / editar) -->
+    <template x-if="modal === 'router'">
+      <form class="p-6 space-y-4" @submit.prevent="saveRouter()">
+        <h2 class="text-lg font-semibold text-white" x-text="form.id ? 'Editar ' + form.name : 'Adicionar roteador'"></h2>
+        <div x-show="!form.id" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3">
+          Prefira <b>VPN → 🖧 Outro MikroTik</b>: ele cria o túnel e um usuário limitado automaticamente. Aqui é para roteadores que o painel já alcança (na sua rede ou por um túnel feito à mão). <b>Não use o usuário admin</b>: crie um usuário com grupo limitado (veja o <span class="mono">mikrotik-setup.rsc</span>).</div>
+        <label class="block"><span class="label">Nome</span><input class="input" x-model="form.name" required></label>
+        <template x-if="!form.is_main">
+          <div class="space-y-4">
+            <label class="block"><span class="label">URL da API (www / www-ssl)</span>
+              <input class="input mono" x-model="form.url" required placeholder="http://10.20.0.2:80 ou https://192.168.10.1">
+              <p class="hint">http dentro de um túnel WireGuard já é criptografado. Fora de túnel, prefira https.</p></label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block"><span class="label">Usuário</span><input class="input mono" x-model="form.username" required></label>
+              <label class="block"><span class="label" x-text="form.id ? 'Senha (vazio = manter)' : 'Senha'"></span><input class="input" type="password" x-model="form.password" :required="!form.id"></label>
+            </div>
+            <label class="flex items-center gap-3 text-sm"><input type="checkbox" x-model="form.verify_tls"> Verificar certificado HTTPS</label>
+            <label class="flex items-center gap-3 text-sm"><input type="checkbox" x-model="form.enabled"> Monitorar este roteador</label>
+          </div>
+        </template>
+        <p class="hint" x-show="form.is_main">O roteador principal usa o endereço, usuário e senha do arquivo <span class="mono">.env</span>.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block"><span class="label">Endereço remoto (DDNS / IP público)</span><input class="input mono" x-model="form.endpoint_remote" placeholder="xxxx.sn.mynetname.net"></label>
+          <label class="block"><span class="label">Endereço local</span><input class="input mono" x-model="form.endpoint_local" placeholder="192.168.10.1"></label>
+        </div>
+        <p class="hint">Usados nos QR Codes de VPN criados neste roteador. NAT e WAN ficam em Configurações (com o roteador selecionado).</p>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn" @click="modal = null">Cancelar</button>
+          <button class="btn-primary" :disabled="busy">Salvar</button>
+        </div>
+      </form>
+    </template>
+
     <!-- Script para o MikroTik do cliente -->
     <template x-if="modal === 'script'">
       <div class="p-6 space-y-4">
         <h2 class="text-lg font-semibold text-white">🖧 <span x-text="script.peer.name"></span>
+          <span class="badge ml-1 b-gray" x-show="script.part === 'management'">só gerenciamento</span>
           <span class="badge ml-1" :class="script.peer.site_access === 'two_way' ? 'b-amber' : 'b-blue'" x-text="script.peer.site_access === 'two_way' ? '↔️ Mão dupla' : '➡️ Só eu acesso'"></span></h2>
         <div x-show="script.notice" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="script.notice"></div>
         <div x-show="script.error" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="script.error"></div>

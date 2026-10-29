@@ -1,8 +1,11 @@
 import io
 import ipaddress
 import re
+import secrets
+import socket
 import unicodedata
 from typing import Literal
+from urllib.parse import urlparse
 
 import qrcode
 import qrcode.image.svg
@@ -11,14 +14,18 @@ from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..db import Peer, PeerSample, User, WgInterface, audit, iso
+from ..config import config
+from ..db import Peer, PeerSample, Router, User, WgInterface, audit, iso
 from ..mikrotik import MikroTikError, mt
+from ..mikrotik import main as main_client
+from ..routerctx import current_router, use_router
 from ..security import current_user, decrypt, encrypt, get_db, require_admin
 from ..services import collector
+from ..services.router_ops import delete_router_records
 from ..settings_store import get_settings, save_settings
 from ..utils import TAG, generate_keypair, generate_psk, is_private, split_list, validate_networks
 
-router = APIRouter(prefix="/api/wireguard", tags=["wireguard"])
+router = APIRouter(prefix="/api/wireguard", tags=["wireguard"], dependencies=[Depends(use_router)])
 
 IFACE_PATH = "/interface/wireguard"
 PEERS_PATH = "/interface/wireguard/peers"
@@ -52,6 +59,12 @@ class PeerIn(BaseModel):
     ip: str | None = None
     remote_networks: str = ""
     site_access: Literal["one_way", "two_way"] = "one_way"
+    manage: bool = True  # site: gerenciar o MikroTik do cliente pelo painel (usuário limitado, só pelo túnel)
+    api_port: int = Field(80, ge=1, le=65535)  # porta do serviço www (WebFig) no MikroTik do cliente
+
+
+class ManageIn(BaseModel):
+    api_port: int = Field(80, ge=1, le=65535)
 
 
 class ImportIn(BaseModel):
@@ -72,7 +85,7 @@ def peer_comment(name: str) -> str:
     return f"{TAG} {name}"
 
 
-def peer_out(peer: Peer) -> dict:
+def peer_out(peer: Peer, managed_router_id: int | None = None) -> dict:
     return {
         "id": peer.id,
         "interface_id": peer.interface_id,
@@ -85,6 +98,7 @@ def peer_out(peer: Peer) -> dict:
         "tunnel_mode": peer.tunnel_mode,
         "remote_networks": split_list(peer.remote_networks),
         "site_access": peer.site_access,
+        "managed_router_id": managed_router_id,
         "enabled": peer.enabled,
         # importado sem chave: a chave privada só existe no dispositivo, então não há QR/.conf/script
         "has_config": bool(peer.private_key_enc),
@@ -116,17 +130,38 @@ def iface_out(iface: WgInterface, router_rows: dict | None, peers: list[Peer]) -
     }
 
 
+def _router_ifaces(db: Session) -> list[WgInterface]:
+    return (db.query(WgInterface).filter(WgInterface.router_id == current_router().id)
+            .order_by(WgInterface.id).all())
+
+
+def _router_peers(db: Session) -> list[Peer]:
+    ids = [i.id for i in _router_ifaces(db)]
+    return db.query(Peer).filter(Peer.interface_id.in_(ids)).all() if ids else []
+
+
+def _managed_id(db: Session, peer: Peer) -> int | None:
+    router = db.query(Router).filter(Router.site_peer_id == peer.id).first()
+    return router.id if router else None
+
+
+def _out(db: Session, peer: Peer) -> dict:
+    return peer_out(peer, _managed_id(db, peer))
+
+
 def _iface_or_404(db: Session, iface_id: int) -> WgInterface:
     iface = db.get(WgInterface, iface_id)
-    if not iface:
-        raise HTTPException(404, "Interface não encontrada")
+    if not iface or iface.router_id != current_router().id:
+        raise HTTPException(404, "Interface não encontrada neste roteador")
     return iface
 
 
 def _peer_or_404(db: Session, peer_id: int) -> Peer:
+    """Só aceita peers do roteador selecionado: evita mexer no MikroTik errado."""
     peer = db.get(Peer, peer_id)
-    if not peer:
-        raise HTTPException(404, "Cliente não encontrado")
+    iface = db.get(WgInterface, peer.interface_id) if peer and peer.interface_id else None
+    if not peer or not iface or iface.router_id != current_router().id:
+        raise HTTPException(404, "Cliente não encontrado neste roteador")
     return peer
 
 
@@ -251,8 +286,8 @@ def _validate_remote_networks(db: Session, iface: WgInterface, text: str, peer_i
                 raise HTTPException(400, f"A rede do cliente {net} conflita com a sua rede {own}. As duas pontas "
                                          "precisam de faixas diferentes — mude a faixa da LAN do cliente "
                                          "(ex.: 192.168.10.0/24).")
-        for other in db.query(Peer).filter(Peer.kind == "site").all():
-            if other.id == peer_id:
+        for other in _router_peers(db):
+            if other.kind != "site" or other.id == peer_id:
                 continue
             for other_net in split_list(other.remote_networks):
                 if net.overlaps(ipaddress.ip_network(other_net)):
@@ -264,18 +299,19 @@ def _validate_remote_networks(db: Session, iface: WgInterface, text: str, peer_i
 
 @router.get("/interfaces")
 async def list_interfaces(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    s = get_settings(db)
+    rt = current_router()
     error, rows = None, None
     try:
         rows = {r["name"]: r for r in await mt.get(IFACE_PATH)}
     except MikroTikError as exc:
         error = str(exc)
-    peers = db.query(Peer).all()
+    peers = _router_peers(db)
     return {
-        "endpoint_remote": s["endpoint_remote"],
-        "endpoint_local": s["endpoint_local"],
+        "router_id": rt.id,
+        "endpoint_remote": rt.endpoint_remote,
+        "endpoint_local": rt.endpoint_local,
         "error": error,
-        "interfaces": [iface_out(i, rows, peers) for i in db.query(WgInterface).order_by(WgInterface.id).all()],
+        "interfaces": [iface_out(i, rows, peers) for i in _router_ifaces(db)],
     }
 
 
@@ -306,7 +342,7 @@ async def suggest(_: User = Depends(require_admin), db: Session = Depends(get_db
         elif ip not in out["remote"]:
             out["remote"].append(ip)
 
-    managed = {i.name for i in db.query(WgInterface).all()}
+    managed = {i.name for i in _router_ifaces(db)}
     for row in wg_rows:
         if row["name"] in managed:
             continue
@@ -342,8 +378,9 @@ async def setup_interface(body: InterfaceIn, user: User = Depends(require_admin)
         lan_networks = validate_networks(body.lan_networks)
     except ValueError as exc:
         raise HTTPException(400, f"Rede LAN inválida: {exc}")
-    record = db.query(WgInterface).filter(WgInterface.name == body.interface).first()
-    for other in db.query(WgInterface).all():
+    rt = current_router()
+    record = next((i for i in _router_ifaces(db) if i.name == body.interface), None)
+    for other in _router_ifaces(db):
         if other.id == (record.id if record else None):
             continue
         if other.listen_port == body.listen_port:
@@ -386,7 +423,7 @@ async def setup_interface(body: InterfaceIn, user: User = Depends(require_admin)
             steps.append("Lista de interfaces 'LAN' não existe — ajuste o firewall manualmente se necessário")
 
     if record is None:
-        record = WgInterface(name=body.interface)
+        record = WgInterface(name=body.interface, router_id=rt.id)
         db.add(record)
     record.description = body.description.strip()
     record.listen_port = body.listen_port
@@ -394,12 +431,11 @@ async def setup_interface(body: InterfaceIn, user: User = Depends(require_admin)
     record.public_key = iface.get("public-key", "")
     record.dns = body.dns.strip() or str(iface_addr.ip)
     record.lan_networks = ", ".join(lan_networks)
-    settings_update = {"wg_configured": True}
     if body.endpoint_remote.strip():
-        settings_update["endpoint_remote"] = body.endpoint_remote.strip()
+        rt.endpoint_remote = body.endpoint_remote.strip()
     if body.endpoint_local.strip():
-        settings_update["endpoint_local"] = body.endpoint_local.strip()
-    save_settings(db, settings_update)
+        rt.endpoint_local = body.endpoint_local.strip()
+    save_settings(db, {"wg_configured": True})
     db.commit()
     audit(db, user.username, "interface WireGuard configurada", f"{body.interface}: " + "; ".join(steps))
     collector.trigger()
@@ -419,7 +455,7 @@ async def delete_interface(iface_id: int, remove_from_router: bool = False, user
             for row in await mt.get(path, **flt):
                 if row.get("comment", "").startswith(TAG):
                     await mt.remove(path, row[".id"])
-        if not any(i.listen_port == iface.listen_port for i in db.query(WgInterface).all() if i.id != iface.id):
+        if not any(i.listen_port == iface.listen_port for i in _router_ifaces(db) if i.id != iface.id):
             for rule in await mt.get(FILTER_PATH):
                 if rule.get("comment") == f"{TAG} WireGuard UDP {iface.listen_port}":
                     await mt.remove(FILTER_PATH, rule[".id"])
@@ -436,14 +472,15 @@ async def delete_interface(iface_id: int, remove_from_router: bool = False, user
 
 @router.get("/peers")
 def list_peers(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    return [peer_out(p) for p in db.query(Peer).order_by(Peer.name).all()]
+    managed = {r.site_peer_id: r.id for r in db.query(Router).filter(Router.site_peer_id.isnot(None)).all()}
+    return [peer_out(p, managed.get(p.id)) for p in sorted(_router_peers(db), key=lambda p: p.name.lower())]
 
 
 @router.get("/importable")
 async def importable_peers(_: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Peers que existem no MikroTik mas ainda não estão no painel (criados pelo Winbox, por exemplo)."""
-    known = {p.public_key for p in db.query(Peer).all()}
-    managed = {i.name for i in db.query(WgInterface).all()}
+    known = {p.public_key for p in _router_peers(db)}
+    managed = {i.name for i in _router_ifaces(db)}
     out = []
     for row in await mt.get(PEERS_PATH):
         if row.get("public-key") in known:
@@ -471,9 +508,9 @@ def _imported_name(row: dict) -> str:
 async def import_peers(body: ImportIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Traz peers existentes para o painel sem alterar nada no MikroTik."""
     rows = {r[".id"]: r for r in await mt.get(PEERS_PATH)}
-    ifaces = {i.name: i for i in db.query(WgInterface).all()}
+    ifaces = {i.name: i for i in _router_ifaces(db)}
     known_keys = {p.public_key for p in db.query(Peer).all()}
-    used_ips = {p.ip for p in db.query(Peer).all()}
+    used_ips = {p.ip for p in _router_peers(db)}
     imported, errors = [], []
     for item_id in body.ids:
         row = rows.get(item_id)
@@ -521,7 +558,7 @@ async def create_peer(body: PeerIn, user: User = Depends(require_admin), db: Ses
     remote_networks = _validate_remote_networks(db, iface, body.remote_networks, None) if body.kind == "site" else ""
 
     server = ipaddress.ip_interface(iface.address)
-    used = {str(server.ip)} | {p.ip for p in db.query(Peer).all()}
+    used = {str(server.ip)} | {p.ip for p in _router_peers(db)}
     for row in await mt.get(PEERS_PATH, interface=iface.name):
         for allowed in (row.get("allowed-address") or "").split(","):
             if allowed:
@@ -558,11 +595,38 @@ async def create_peer(body: PeerIn, user: User = Depends(require_admin), db: Ses
         await mt.remove(PEERS_PATH, peer.mikrotik_id)
         db.rollback()
         raise
+    managed = None
+    if peer.kind == "site" and body.manage and current_router().is_main:
+        managed = _create_managed_router(db, peer, body.api_port)
     db.commit()
     label = "MikroTik remoto criado" if peer.kind == "site" else "cliente VPN criado"
-    audit(db, user.username, label, f"{peer.name} ({peer.ip}) em {iface.name}")
+    audit(db, user.username, label, f"{peer.name} ({peer.ip}) em {iface.name}" + (" · gerenciado" if managed else ""))
     collector.trigger()
-    return peer_out(peer)
+    return peer_out(peer, managed.id if managed else None)
+
+
+def _create_managed_router(db: Session, peer: Peer, api_port: int) -> Router:
+    """Registro do MikroTik do cliente: o painel chega nele pelo túnel com um usuário limitado."""
+    router = Router(name=peer.name, url=f"http://{peer.ip.split('/')[0]}:{api_port}", username="wgpanel",
+                    password_enc=encrypt(secrets.token_urlsafe(18)), site_peer_id=peer.id)
+    db.add(router)
+    db.flush()
+    return router
+
+
+@router.post("/peers/{peer_id}/manage")
+async def manage_site(peer_id: int, body: ManageIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Passa a gerenciar pelo painel um MikroTik remoto que já tem túnel (gera só o trecho de gerenciamento)."""
+    peer = _peer_or_404(db, peer_id)
+    if peer.kind != "site":
+        raise HTTPException(400, "Só MikroTiks remotos podem ser gerenciados")
+    if not current_router().is_main:
+        raise HTTPException(400, "Gerenciamento só para túneis do roteador principal")
+    managed = db.query(Router).filter(Router.site_peer_id == peer.id).first() or _create_managed_router(db, peer, body.api_port)
+    db.commit()
+    audit(db, user.username, "MikroTik remoto passou a ser gerenciado", peer.name)
+    collector.trigger()
+    return peer_out(peer, managed.id)
 
 
 @router.patch("/peers/{peer_id}")
@@ -596,7 +660,7 @@ async def update_peer(peer_id: int, body: PeerUpdate, user: User = Depends(requi
     db.commit()
     audit(db, user.username, "cliente VPN alterado", f"{peer.name}: {', '.join(changes)}")
     collector.trigger()
-    return peer_out(peer)
+    return _out(db, peer)
 
 
 @router.delete("/peers/{peer_id}")
@@ -606,6 +670,8 @@ async def delete_peer(peer_id: int, user: User = Depends(require_admin), db: Ses
     if row:
         await mt.remove(PEERS_PATH, row[".id"])
     await _remove_site(peer)
+    for managed in db.query(Router).filter(Router.site_peer_id == peer.id).all():
+        delete_router_records(db, managed)
     db.query(PeerSample).filter(PeerSample.peer_id == peer.id).delete()
     db.delete(peer)
     db.commit()
@@ -656,13 +722,14 @@ async def regenerate_keys(peer_id: int, user: User = Depends(require_admin), db:
     db.commit()
     audit(db, user.username, "chaves do cliente VPN regeneradas", peer.name)
     collector.trigger()
-    return peer_out(peer)
+    return _out(db, peer)
 
 
 # ------------------------------------------------------------------ arquivos para o lado do cliente
 
 def _endpoint_host(s: dict, endpoint: str) -> str:
-    host = s["endpoint_remote"] if endpoint == "remote" else s["endpoint_local"]
+    rt = current_router()
+    host = rt.endpoint_remote if endpoint == "remote" else rt.endpoint_local
     if not host:
         label = "remoto (IP público/DDNS)" if endpoint == "remote" else "local (IP do MikroTik na rede)"
         raise HTTPException(400, f"Configure o endereço {label} em Configurações antes de gerar o arquivo")
@@ -703,13 +770,64 @@ def build_client_config(peer: Peer, iface: WgInterface, s: dict, endpoint: str) 
     return "\n".join(lines) + "\n"
 
 
-def build_site_script(peer: Peer, iface: WgInterface, s: dict, endpoint: str) -> str:
+async def _panel_networks() -> list[str]:
+    """Rede de onde o painel fala com o MikroTik principal, quando ela é uma rede do próprio roteador
+    (ex.: 172.20.0.0/24 do container dentro do MikroTik). O MikroTik do cliente precisa de rota de volta
+    para ela. Painel em Docker no PC sai com o IP do PC, que já está nas redes da LAN."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect((urlparse(config.MIKROTIK_URL).hostname, 80))
+        own_ip = ipaddress.ip_address(sock.getsockname()[0])
+        sock.close()
+        for addr in await main_client.get("/ip/address"):
+            net = ipaddress.ip_interface(addr["address"]).network
+            if own_ip in net and net.prefixlen < 32:
+                return [str(net)]
+    except (OSError, ValueError, MikroTikError):
+        pass
+    return []
+
+
+def _management_lines(managed: Router, admin_nets: list[str]) -> list[str]:
+    from ..security import decrypt as _decrypt
+    nets = ",".join(admin_nets)
+    password = _decrypt(managed.password_enc)
+    port = urlparse(managed.url).port or 80
+    return [
+        "# --- Gerenciamento pelo WG Panel: usuario LIMITADO, que so entra pelo tunel ---",
+        ':do { /user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive comment="WG Panel" } '
+        'on-error={ :do { /user group add name=wgpanel policy=read,write,api,test,sensitive comment="WG Panel" } on-error={} }',
+        f':do {{ /user add name=wgpanel group=wgpanel password="{password}" address={nets} comment="WG Panel (so pelo tunel)" }} '
+        f'on-error={{ /user set [find name=wgpanel] group=wgpanel password="{password}" address={nets} }}',
+        "# API REST pelo servico www (o trafego ja vai criptografado dentro do tunel WireGuard).",
+        f':if ([/ip service get www disabled]) do={{ /ip service set www disabled=no port={port} address={nets} }}',
+        f':if ([/ip service get www port] != {port}) do={{ :put "ATENCAO: o www deste roteador usa a porta '
+        f'$[/ip service get www port]. Ajuste a URL dele em Roteadores no painel." }}',
+        f':do {{ :if ([:len [/ip service get www address]] > 0) do={{ :put "ATENCAO: o www so aceita alguns IPs. '
+        f'Inclua {nets} em IP -> Services -> www." }} }} on-error={{}}',
+    ]
+
+
+def build_site_script(peer: Peer, iface: WgInterface, s: dict, endpoint: str, managed: Router | None = None,
+                      panel_nets: list[str] | None = None, only_management: bool = False) -> str:
     """Script RouterOS v7 para colar no terminal do MikroTik do cliente."""
     _require_key(peer)
     host = _endpoint_host(s, endpoint)
     vpn_net = ipaddress.ip_interface(iface.address).network
-    central = [str(n) for n in _iface_networks(iface)]
-    lans = [str(n) for n in _iface_networks(iface)[1:]]
+    extra = [n for n in (panel_nets or []) if n not in {str(x) for x in _iface_networks(iface)}] if managed else []
+    central = [str(n) for n in _iface_networks(iface)] + extra
+    lans = [str(n) for n in _iface_networks(iface)[1:]] + extra
+    if only_management:
+        lines = [
+            f"# ===== WG Panel: gerenciamento do MikroTik \"{peer.name}\" pelo painel =====",
+            "# Cole no Terminal do MikroTik do CLIENTE (o tunel wg-central ja deve existir).",
+            "",
+        ]
+        if extra:  # painel numa rede própria (ex.: container no MikroTik): o cliente precisa alcançá-la
+            lines.append(f'/interface wireguard peers set [find interface=wg-central] allowed-address={",".join(central)}')
+            lines += [f'/ip route add dst-address={net} gateway=wg-central comment="WG Panel: painel"' for net in extra]
+        lines += _management_lines(managed, central) + ["", ':put "OK! Em instantes o roteador aparece em Roteadores no painel."']
+        return unicodedata.normalize("NFKD", "\n".join(lines) + "\n").encode("ascii", "ignore").decode()
     keepalive = s["wg_keepalive"] or 25
     psk = f' preshared-key="{decrypt(peer.preshared_key_enc)}"' if peer.preshared_key_enc else ""
     two_way = peer.site_access == "two_way"
@@ -734,6 +852,7 @@ def build_site_script(peer: Peer, iface: WgInterface, s: dict, endpoint: str) ->
         "# Se este roteador não usa a lista LAN da configuração padrão, crie regras accept para wg-central.",
         '/interface list member add list=LAN interface=wg-central comment="WG Panel"',
         "",
+        *(_management_lines(managed, central) + [""] if managed else []),
         ':log info "WG Panel: tunel wg-central configurado"',
         ':put "OK! Em instantes o painel deve mostrar este MikroTik como Online."',
     ]
@@ -746,14 +865,23 @@ def _slug(name: str, fallback: str) -> str:
     return re.sub(r"[^A-Za-z0-9_=+.-]+", "-", name).strip("-") or fallback
 
 
+async def _site_script(db: Session, peer: Peer, endpoint: str, only_management: bool = False) -> str:
+    managed = db.query(Router).filter(Router.site_peer_id == peer.id).first()
+    if only_management and not managed:
+        raise HTTPException(400, "Este MikroTik ainda não é gerenciado pelo painel")
+    panel_nets = await _panel_networks() if managed else []
+    return build_site_script(peer, _peer_iface(db, peer), get_settings(db), endpoint, managed, panel_nets,
+                             only_management)
+
+
 @router.get("/peers/{peer_id}/config")
-def download_config(peer_id: int, endpoint: Literal["remote", "local"] = "remote",
-                    user: User = Depends(require_admin), db: Session = Depends(get_db)):
+async def download_config(peer_id: int, endpoint: Literal["remote", "local"] = "remote",
+                          user: User = Depends(require_admin), db: Session = Depends(get_db)):
     peer = _peer_or_404(db, peer_id)
     iface = _peer_iface(db, peer)
     s = get_settings(db)
     if peer.kind == "site":
-        text = build_site_script(peer, iface, s, endpoint)
+        text = await _site_script(db, peer, endpoint)
         filename = f"{_slug(peer.name, f'site{peer.id}')}-mikrotik.rsc"
     else:
         text = build_client_config(peer, iface, s, endpoint)
@@ -765,12 +893,12 @@ def download_config(peer_id: int, endpoint: Literal["remote", "local"] = "remote
 
 
 @router.get("/peers/{peer_id}/script")
-def site_script(peer_id: int, endpoint: Literal["remote", "local"] = "remote",
-                user: User = Depends(require_admin), db: Session = Depends(get_db)):
+async def site_script(peer_id: int, endpoint: Literal["remote", "local"] = "remote", part: Literal["all", "management"] = "all",
+                      user: User = Depends(require_admin), db: Session = Depends(get_db)):
     peer = _peer_or_404(db, peer_id)
     if peer.kind != "site":
         raise HTTPException(400, "Script RouterOS só existe para clientes do tipo 'Outro MikroTik'")
-    text = build_site_script(peer, _peer_iface(db, peer), get_settings(db), endpoint)
+    text = await _site_script(db, peer, endpoint, only_management=(part == "management"))
     audit(db, user.username, "script do MikroTik remoto exibido", f"{peer.name} ({endpoint})")
     return PlainTextResponse(text)
 

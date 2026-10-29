@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..config import config
-from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, SystemSample, User, WgInterface, iso, utcnow
+from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, Router, SystemSample, User, WgInterface, iso, utcnow
+from ..routerctx import current_router, use_router
 from ..security import current_user, get_db, require_admin
 from ..services import collector
 
-router = APIRouter(prefix="/api/monitor", tags=["monitor"])
+router = APIRouter(prefix="/api/monitor", tags=["monitor"], dependencies=[Depends(use_router)])
 
 _POINTS = 120  # pontos por gráfico
 
@@ -45,15 +46,24 @@ def _bucketize_counters(rows, fields, start, hours):
 
 @router.get("/overview")
 def overview(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    peers = db.query(Peer).all()
-    rules = db.query(NatRule).all()
+    rt = current_router()
+    peers, rules = _router_peers(db, rt.id), db.query(NatRule).filter(NatRule.router_id == rt.id).all()
     live_peers, live_nat = collector.state["peers"], collector.state["nat"]
+    empty = {"online": None, "error": None, "resource": None, "wan": None, "updated": None}
     return {
-        "router": collector.state["router"],
-        "mikrotik_url": config.MIKROTIK_URL,
+        "router": collector.state["routers"].get(rt.id, empty),
+        "router_id": rt.id,
+        "router_name": rt.name,
+        "mikrotik_url": rt.url,
         "poll_interval": config.POLL_INTERVAL,
+        # resumo de todos os roteadores, para o seletor e o painel
+        "routers": [{"id": r.id, "name": r.name, "is_main": r.is_main, "enabled": r.enabled,
+                     "online": collector.state["routers"].get(r.id, {}).get("online"),
+                     "error": collector.state["routers"].get(r.id, {}).get("error"),
+                     "resource": collector.state["routers"].get(r.id, {}).get("resource")}
+                    for r in db.query(Router).order_by(Router.is_main.desc(), Router.name).all()],
         "vpn": {
-            "configured": db.query(WgInterface).count() > 0,
+            "configured": db.query(WgInterface).filter(WgInterface.router_id == rt.id).count() > 0,
             "total": len(peers),
             "enabled": sum(p.enabled for p in peers),
             "online": sum(1 for p in peers if live_peers.get(p.id, {}).get("online")),
@@ -68,6 +78,11 @@ def overview(_: User = Depends(current_user), db: Session = Depends(get_db)):
     }
 
 
+def _router_peers(db: Session, router_id: int) -> list[Peer]:
+    ids = [i.id for i in db.query(WgInterface).filter(WgInterface.router_id == router_id).all()]
+    return db.query(Peer).filter(Peer.interface_id.in_(ids)).all() if ids else []
+
+
 @router.post("/refresh")
 async def refresh(_: User = Depends(current_user)):
     await collector.collect()
@@ -78,7 +93,8 @@ async def refresh(_: User = Depends(current_user)):
 def system_history(hours: int = Query(24, ge=1, le=24 * 90), _: User = Depends(current_user),
                    db: Session = Depends(get_db)):
     start = utcnow() - timedelta(hours=hours)
-    rows = db.query(SystemSample).filter(SystemSample.ts >= start).order_by(SystemSample.ts).all()
+    rows = (db.query(SystemSample).filter(SystemSample.router_id == current_router().id, SystemSample.ts >= start)
+            .order_by(SystemSample.ts).all())
     size = _bucket_size(hours)
     buckets: dict[int, list] = {}
     for row in rows:
@@ -144,7 +160,7 @@ def usage(days: int = Query(30, ge=1, le=365), _: User = Depends(current_user), 
     """Consumo total por cliente VPN no período."""
     start = utcnow() - timedelta(days=days)
     out = []
-    for peer in db.query(Peer).order_by(Peer.name).all():
+    for peer in sorted(_router_peers(db, current_router().id), key=lambda p: p.name.lower()):
         rows = (db.query(PeerSample).filter(PeerSample.peer_id == peer.id, PeerSample.ts >= start)
                 .order_by(PeerSample.ts).all())
         deltas = _counter_deltas(rows, ("rx", "tx"))

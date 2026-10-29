@@ -19,9 +19,9 @@ def protocols_of(protocol: str) -> list[str]:
     return ["tcp", "udp"] if protocol == "both" else [protocol]
 
 
-def match_params(settings: dict) -> dict:
+def match_params(router) -> dict:
     """De onde vem o tráfego que deve ser redirecionado."""
-    mode, target = settings["nat_match_mode"], settings["nat_in_target"]
+    mode, target = router.nat_match_mode, router.nat_in_target
     if mode == "wan_list" and target:
         return {"in-interface-list": target}
     if mode == "interface" and target:
@@ -37,9 +37,9 @@ async def _sync_address_list(rule: NatRule, addresses: list[str]):
         await mt.add(ADDR_PATH, {"list": name, "address": address, "comment": f"{TAG} {rule.name}"})
 
 
-async def apply_rule(rule: NatRule, settings: dict) -> list[str]:
+async def apply_rule(rule: NatRule, router) -> list[str]:
     """Cria as regras no MikroTik e devolve os IDs. Desfaz tudo se algo falhar no meio."""
-    extra = match_params(settings)
+    extra = match_params(router)
     whitelist = split_list(rule.whitelist)
     if whitelist:
         await _sync_address_list(rule, whitelist)

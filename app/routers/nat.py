@@ -11,10 +11,10 @@ from ..mikrotik import mt
 from ..security import current_user, get_db, require_admin
 from ..services import collector, nat_ops
 from ..services.nat_templates import TEMPLATES
-from ..settings_store import get_settings
+from ..routerctx import current_router, use_router
 from ..utils import TAG, parse_ports, split_list
 
-router = APIRouter(prefix="/api/nat", tags=["nat"])
+router = APIRouter(prefix="/api/nat", tags=["nat"], dependencies=[Depends(use_router)])
 
 
 class NatIn(BaseModel):
@@ -83,8 +83,8 @@ def _validate(body: NatIn):
 
 def _rule_or_404(db: Session, rule_id: int) -> NatRule:
     rule = db.get(NatRule, rule_id)
-    if not rule:
-        raise HTTPException(404, "Regra não encontrada")
+    if not rule or rule.router_id != current_router().id:
+        raise HTTPException(404, "Regra não encontrada neste roteador")
     return rule
 
 
@@ -95,7 +95,8 @@ def templates(_: User = Depends(current_user)):
 
 @router.get("/rules")
 def list_rules(_: User = Depends(current_user), db: Session = Depends(get_db)):
-    return [rule_out(r) for r in db.query(NatRule).order_by(NatRule.name).all()]
+    rules = db.query(NatRule).filter(NatRule.router_id == current_router().id).order_by(NatRule.name).all()
+    return [rule_out(r) for r in rules]
 
 
 @router.get("/router-rules")
@@ -129,6 +130,7 @@ async def create_rule(body: NatIn, user: User = Depends(require_admin), db: Sess
         raise HTTPException(409, "Porta já usada por: " + "; ".join(conflicts))
 
     rule = NatRule(
+        router_id=current_router().id,
         name=body.name.strip(), template=body.template, protocol=body.protocol,
         external_port=body.external_port.replace(" ", ""), internal_ip=body.internal_ip.strip(),
         internal_port=body.internal_port.replace(" ", ""), whitelist="\n".join(split_list(body.whitelist)),
@@ -138,7 +140,7 @@ async def create_rule(body: NatIn, user: User = Depends(require_admin), db: Sess
     db.add(rule)
     db.flush()  # precisa do id para o comentário no MikroTik
     try:
-        rule.mikrotik_ids = await nat_ops.apply_rule(rule, get_settings(db))
+        rule.mikrotik_ids = await nat_ops.apply_rule(rule, current_router())
     except Exception:
         db.rollback()
         raise
@@ -153,7 +155,7 @@ async def create_rule(body: NatIn, user: User = Depends(require_admin), db: Sess
 async def update_rule(rule_id: int, body: NatUpdate, user: User = Depends(require_admin),
                       db: Session = Depends(get_db)):
     rule = _rule_or_404(db, rule_id)
-    s = get_settings(db)
+    s = current_router()
     if body.expires_hours is not None:
         rule.expires_at = utcnow() + timedelta(hours=body.expires_hours) if body.expires_hours else None
     if body.health_check is not None:
@@ -186,7 +188,7 @@ async def reapply_rule(rule_id: int, user: User = Depends(require_admin), db: Se
     """Apaga e recria as regras no MikroTik com a configuração salva no painel."""
     rule = _rule_or_404(db, rule_id)
     await nat_ops.remove_rule(rule)
-    rule.mikrotik_ids = await nat_ops.apply_rule(rule, get_settings(db))
+    rule.mikrotik_ids = await nat_ops.apply_rule(rule, current_router())
     db.commit()
     audit(db, user.username, "liberação de porta recriada", rule.name)
     collector.trigger()

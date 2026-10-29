@@ -7,8 +7,14 @@ Mapeamento REST -> comandos do RouterOS:
   DELETE /rest/<menu>/<id>     -> remove
   POST   /rest/<menu>/<cmd>    -> qualquer comando (ex.: add com place-before)
 Todos os valores trafegam como texto.
+
+Vários roteadores: cada um tem seu cliente (client_for). O objeto `mt` usado pelo resto do código
+aponta para o roteador "da vez" — o escolhido no seletor do painel (por requisição) ou o que o
+coletor está lendo — guardado num ContextVar.
 """
+import asyncio
 import codecs
+import contextvars
 import json
 
 import httpx
@@ -32,17 +38,24 @@ class MikroTikError(Exception):
 
 
 class MikroTik:
-    def __init__(self):
+    def __init__(self, url: str, user: str, password: str, verify_tls: bool = False, label: str = "MikroTik",
+                 timeout: float | None = None):
+        self.url = url.rstrip("/")
+        self.user = user
+        self.password = password
+        self.verify_tls = verify_tls
+        self.label = label
+        self.timeout = timeout or config.MIKROTIK_TIMEOUT
         self._client: httpx.AsyncClient | None = None
 
     @property
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
-                base_url=f"{config.MIKROTIK_URL}/rest",
-                auth=(config.MIKROTIK_USER, config.MIKROTIK_PASSWORD),
-                verify=config.MIKROTIK_VERIFY_TLS,
-                timeout=config.MIKROTIK_TIMEOUT,
+                base_url=f"{self.url}/rest",
+                auth=(self.user, self.password),
+                verify=self.verify_tls,
+                timeout=self.timeout,
             )
         return self._client
 
@@ -56,7 +69,7 @@ class MikroTik:
             resp = await self.client.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
             raise MikroTikError(
-                f"Não foi possível conectar ao MikroTik em {config.MIKROTIK_URL} ({exc.__class__.__name__})"
+                f"Não foi possível conectar ao MikroTik {self.label} em {self.url} ({exc.__class__.__name__})"
             ) from exc
         if resp.status_code == 401:
             raise MikroTikError("Usuário ou senha do MikroTik inválidos (ou usuário sem permissão rest-api)", 401)
@@ -103,4 +116,60 @@ def _stringify(data: dict) -> dict:
     return out
 
 
-mt = MikroTik()
+main = MikroTik(config.MIKROTIK_URL, config.MIKROTIK_USER, config.MIKROTIK_PASSWORD,
+                config.MIKROTIK_VERIFY_TLS, label="Principal")
+_current: contextvars.ContextVar["MikroTik | None"] = contextvars.ContextVar("mikrotik", default=None)
+_clients: dict[int, tuple[str, MikroTik]] = {}
+
+
+def client_for(router) -> MikroTik:
+    """Cliente da API para um registro de roteador (o principal usa sempre o .env)."""
+    if router.is_main:
+        return main
+    from .security import decrypt  # evita import circular
+
+    signature = f"{router.url}|{router.username}|{router.password_enc}|{router.verify_tls}|{router.name}"
+    cached = _clients.get(router.id)
+    if cached and cached[0] == signature:
+        return cached[1]
+    if cached:
+        _close_later(cached[1])
+    client = MikroTik(router.url, router.username, decrypt(router.password_enc) if router.password_enc else "",
+                      router.verify_tls, label=router.name)
+    _clients[router.id] = (signature, client)
+    return client
+
+
+def use(client: MikroTik):
+    """Define o roteador "da vez" para o restante da requisição/tarefa."""
+    _current.set(client)
+
+
+def _close_later(client: MikroTik):
+    """Fecha a conexão antiga sem bloquear; fora do laço async (rotas síncronas), o coletor de lixo resolve."""
+    try:
+        asyncio.get_running_loop().create_task(client.close())
+    except RuntimeError:
+        pass
+
+
+def forget_client(router_id: int):
+    cached = _clients.pop(router_id, None)
+    if cached:
+        _close_later(cached[1])
+
+
+async def close_all():
+    await main.close()
+    for _, client in _clients.values():
+        await client.close()
+
+
+class _Current:
+    """Encaminha mt.get/mt.add/... para o roteador da vez (ou o principal)."""
+
+    def __getattr__(self, name):
+        return getattr(_current.get() or main, name)
+
+
+mt = _Current()
