@@ -702,16 +702,18 @@
               <li class="flex gap-2"><span>⬜</span><span><b>Fazer um backup</b> — em <a @click="tab='backup'">Backup</a> → Baixar backup, e guarde em local seguro.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Trocar a senha do admin</b> — menu lateral → 🔑 Trocar senha.</span></li>
             </ol>
-            <p class="hint">Opcional: <a @click="scrollHelp('site')">ligar MikroTiks de clientes</a> ao seu (site-to-site) e <a @click="tab='nat'">liberar portas</a> para servidores de jogos/aplicações.</p>
+            <p class="hint">Opcional: <a @click="scrollHelp('site')">ligar MikroTiks de clientes</a> ao seu (site-to-site) e <a @click="scrollHelp('routers')">gerenciá-los pelo painel</a>, e <a @click="tab='nat'">liberar portas</a> para servidores de jogos/aplicações.</p>
+            <p class="hint">Gerencia mais de um MikroTik? Tudo nesta lista vale para o roteador escolhido no <b>seletor do topo</b>.</p>
           </div>
 
           <div id="help-dashboard" class="card space-y-3">
             <h2>📊 Painel</h2>
-            <p>Visão geral do que está acontecendo agora. Atualiza sozinho a cada 15 segundos (o botão <b>⟳</b> no topo força uma coleta imediata).</p>
+            <p>Visão geral do que está acontecendo agora no <b>roteador escolhido no seletor do topo</b>. Atualiza sozinho a cada 15 segundos (o botão <b>⟳</b> força uma coleta imediata).</p>
             <ul>
+              <li><b>Seus roteadores</b> — aparece quando o painel gerencia mais de um MikroTik: 🟢/🔴 de cada um, modelo, CPU e tempo ligado. Clique num deles para trocar.</li>
               <li><b>Roteador</b> — modelo, versão do RouterOS e há quanto tempo está ligado.</li>
               <li><b>CPU / Memória</b> — uso atual. CPU alta por muito tempo pode deixar a internet lenta.</li>
-              <li><b>VPN WireGuard</b> — quantos clientes (dispositivos e MikroTiks remotos) estão conectados agora, somando todas as interfaces.</li>
+              <li><b>VPN WireGuard</b> — quantos clientes (dispositivos e MikroTiks remotos) deste roteador estão conectados agora, somando todas as interfaces dele.</li>
               <li><b>Portas liberadas</b> — quantas liberações estão ativas e se os servidores estão respondendo.</li>
               <li><b>Tráfego da internet</b> — download/upload do seu link. A interface de internet é <b>detectada sozinha</b> pela rota padrão (ex.: <span class="mono">pppoe-out1</span>); o nome aparece embaixo do gráfico.</li>
               <li><b>Eventos recentes</b> — últimos acontecimentos: alguém conectou, servidor caiu, porta expirou…</li>
@@ -782,6 +784,8 @@
             <table class="table">
               <tr><td>📈</td><td>Gráfico de uso.</td></tr>
               <tr><td>📱 / 📜</td><td>Dispositivo: QR Code e arquivo <span class="mono">.conf</span>. Outro MikroTik: script para colar no roteador do cliente.</td></tr>
+              <tr><td>🖥️</td><td>MikroTik remoto já gerenciado: abre o roteador dele no painel (troca o seletor do topo).</td></tr>
+              <tr><td>🛠️</td><td>MikroTik remoto ainda não gerenciado: gera o trecho de script que cria o usuário limitado e libera a API, para ele aparecer em Roteadores.</td></tr>
               <tr><td>✏️</td><td>Editar nome, responsável, modo (dispositivo) ou redes e tipo de acesso (MikroTik).</td></tr>
               <tr><td>⏸️ / ▶️</td><td>Bloquear / liberar o acesso sem apagar.</td></tr>
               <tr><td>🔁</td><td>Aparece quando o MikroTik está diferente do painel: corrige com um clique.</td></tr>
@@ -813,9 +817,10 @@
             <ol class="list-decimal pl-5 space-y-1">
               <li><b>Uma vez só:</b> crie uma interface para clientes (<b>＋ Nova interface</b>, ex.: <span class="mono">wg-clientes</span>).</li>
               <li>Na aba dela, clique em <b>🖧 Outro MikroTik</b> e informe o nome e a <b>rede local do cliente</b> (veja no Winbox dele em IP → Addresses, ex.: <span class="mono">192.168.10.0/24</span>).</li>
-              <li>Escolha <b>quem acessa quem</b> (abaixo).</li>
+              <li>Escolha <b>quem acessa quem</b> (abaixo) e deixe ligado <b>"Gerenciar este MikroTik pelo painel"</b> se quiser criar VPN, portas e ver gráficos do roteador dele aqui (informe a porta do WebFig dele — padrão 80).</li>
               <li>O painel mostra um <b>script</b>. No Winbox do MikroTik do cliente → <b>New Terminal</b> → cole e aperte Enter (uma única vez). Dá para copiar ou baixar o <span class="mono">.rsc</span>.</li>
               <li>Em segundos ele aparece <span class="badge b-green">Online</span>. Acesse o roteador dele pelo <b>IP no túnel</b> (coluna "IP VPN", ex.: 10.20.0.2) e os aparelhos pelo IP normal da rede dele (ex.: 192.168.10.50).</li>
+              <li>Se marcou "Gerenciar", ele também aparece em <a @click="scrollHelp('routers')">Roteadores</a> e no seletor do topo.</li>
             </ol>
             <h3>Quem acessa quem?</h3>
             <table class="table">
@@ -827,6 +832,7 @@
             <ul>
               <li><b>No seu MikroTik:</b> o peer do cliente, as rotas para a rede dele e (no modo "só eu acesso") a regra de bloqueio.</li>
               <li><b>No MikroTik do cliente (pelo script):</b> a interface <span class="mono">wg-central</span> apontando para o seu DDNS, o IP no túnel, as rotas para a sua rede e a inclusão do túnel na lista LAN dele (para você conseguir entrar no Winbox).</li>
+              <li><b>Com "Gerenciar" ligado, também:</b> o usuário <span class="mono">wgpanel</span> (grupo limitado, senha aleatória, login <b>só</b> pelas redes do túnel) e o serviço www liberado para a API. Se o www dele já estiver em uso com restrições, o script avisa o que ajustar.</li>
             </ul>
             <p class="text-amber-300">⚠️ As duas redes precisam ser <b>diferentes</b>. Se o cliente também usa <span class="mono">192.168.88.x</span> (padrão de fábrica do MikroTik, igual à sua), o painel recusa — mude a faixa da rede do cliente antes. O script contém a chave do túnel: envie por um canal seguro.</p>
             <p>Para refazer no cliente (ex.: após 🔑 gerar chaves novas): no MikroTik dele, remova a interface <span class="mono">wg-central</span> e rode o script novo.</p>
@@ -875,7 +881,7 @@
 
           <div id="help-events" class="card space-y-3">
             <h2>🔔 Eventos</h2>
-            <p>Linha do tempo automática do sistema: conexões e desconexões da VPN ("VPN: …" para dispositivos, "Site: …" para MikroTiks de clientes), servidores que caíram/voltaram, portas que expiraram, regras apagadas por fora e quedas do MikroTik. Tudo é registrado aqui, mesmo o que não gera alerta.</p>
+            <p>Linha do tempo automática do sistema: conexões e desconexões da VPN ("VPN: …" para dispositivos, "Site: …" para MikroTiks de clientes), servidores que caíram/voltaram, portas que expiraram, regras apagadas por fora e quedas do MikroTik. Com vários roteadores, cada evento começa com o nome dele (ex.: <span class="mono">[Padaria] MikroTik inacessível</span>). Tudo é registrado aqui, mesmo o que não gera alerta.</p>
             <p>Cores: <span class="badge b-green">success</span> algo bom · <span class="badge b-blue">info</span> informativo · <span class="badge b-amber">warn</span> atenção · <span class="badge b-red">error</span> problema.</p>
           </div>
 
@@ -885,7 +891,7 @@
             <ul>
               <li><b>Discord</b> — no canal desejado: Editar canal → Integrações → Webhooks → Novo webhook → Copiar URL. Cole no painel e ative.</li>
               <li><b>Telegram</b> — crie um bot com o <b>@BotFather</b> (/newbot), mande uma mensagem para o bot e pegue o Chat ID em <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span>.</li>
-              <li><b>Quando avisar</b> — escolha quais eventos geram mensagem.</li>
+              <li><b>Quando avisar</b> — escolha quais eventos geram mensagem. Valem para todos os roteadores; cada aviso diz de qual roteador é. A queda de um roteador de cliente só é avisada depois que ele já esteve online (não alerta enquanto o script ainda não foi colado).</li>
               <li>Use <b>Salvar e enviar teste</b> para confirmar que chegou.</li>
             </ul>
           </div>
@@ -902,25 +908,26 @@
           <div id="help-backup" class="card space-y-3">
             <h2>💾 Backup <span class="badge b-blue">admin</span></h2>
             <ul>
-              <li><b>Baixar backup</b> — arquivo com tudo do painel: interfaces, clientes (com chaves), MikroTiks remotos, portas, configurações, alertas e usuários. Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN.</li>
-              <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado, e o que faltar pode ser recriado no MikroTik. Aceita backups de versões antigas.</li>
-              <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do roteador dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
+              <li><b>Baixar backup</b> — arquivo com tudo do painel: roteadores cadastrados (com as senhas de API), interfaces, clientes (com chaves), MikroTiks remotos, portas, configurações, alertas e usuários. Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN e nos roteadores.</li>
+              <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado. O que faltar é recriado só no <b>roteador principal</b>; os dos outros roteadores entram no painel (eles já estão configurados nos MikroTiks deles). Aceita backups de versões antigas.</li>
+              <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do <b>roteador escolhido no seletor</b>, dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
             </ul>
             <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik): o caminho completo é Baixar backup no antigo → Restaurar no novo. Se só precisar dos clientes VPN, use <b>⬇️ Importar do MikroTik</b> no novo — com as chaves guardadas no roteador, eles vêm com QR Code. Depois desligue o painel antigo para não receber alertas em dobro.</p>
           </div>
 
           <div id="help-settings" class="card space-y-3">
             <h2>⚙️ Configurações <span class="badge b-blue">admin</span></h2>
+            <p>Itens marcados com <span class="badge b-blue">🖧 nome</span> são do <b>roteador escolhido no seletor</b>; os outros valem para o painel todo.</p>
             <ul>
-              <li><b>Endereço remoto / local</b> — valem para todas as interfaces e vão nos QR codes, arquivos e scripts. Mudou o DDNS? Atualize aqui e gere as configurações de novo.</li>
+              <li><b>Endereço remoto / local</b> <span class="badge b-blue">🖧</span> — o DDNS/IP público e o IP local deste roteador; vão nos QR codes, arquivos e scripts criados nele. Mudou o DDNS? Atualize aqui e gere as configurações de novo.</li>
               <li><b>Keepalive / MTU</b> — avançado; os padrões funcionam na maioria dos casos. (DNS e redes acessíveis ficam em cada interface: VPN → ⚙️.)</li>
               <li><b>Guardar a chave privada dos clientes no MikroTik</b> — ligado por padrão. Permite que qualquer painel importe os clientes com QR Code. Quem for admin do MikroTik consegue ver as chaves, e elas vão junto nos backups do roteador.</li>
-              <li><b>Identificação do tráfego da internet (NAT)</b> — mantenha "Lista de interfaces WAN" se o seu MikroTik usa a configuração padrão.</li>
-              <li><b>Interface WAN</b> — vazio = detectar sozinho pela rota padrão (recomendado). Preencha só para forçar outra.</li>
+              <li><b>Identificação do tráfego da internet (NAT)</b> <span class="badge b-blue">🖧</span> — mantenha "Lista de interfaces WAN" se o seu MikroTik usa a configuração padrão.</li>
+              <li><b>Interface WAN</b> <span class="badge b-blue">🖧</span> — vazio = detectar sozinho pela rota padrão (recomendado). Preencha só para forçar outra.</li>
               <li><b>Considerar offline após</b> — tempo sem handshake até um cliente aparecer offline. Mínimo seguro: 150 s (abaixo disso surgem alertas falsos).</li>
               <li><b>Guardar histórico</b> — por quantos dias manter os dados dos gráficos.</li>
             </ul>
-            <p class="hint">Conexão com o MikroTik (IP, usuário, senha, intervalo de coleta) fica no arquivo <span class="mono">.env</span> — ou nas variáveis do container, se o painel roda dentro do MikroTik.</p>
+            <p class="hint">Conexão com o MikroTik principal (IP, usuário, senha, intervalo de coleta) fica no arquivo <span class="mono">.env</span> — ou nas variáveis do container, se o painel roda dentro do MikroTik. A dos outros roteadores fica em <a @click="scrollHelp('routers')">Roteadores</a> → ✏️ Editar.</p>
           </div>
 
           <div id="help-audit" class="card space-y-3">
@@ -933,6 +940,9 @@
             <dl class="grid sm:grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
               <dt>WireGuard</dt><dd>Tecnologia de VPN moderna, rápida e segura, já embutida no MikroTik (RouterOS 7).</dd>
               <dt>Peer / Cliente</dt><dd>Cada dispositivo (ou MikroTik remoto) autorizado a conectar na VPN.</dd>
+              <dt>Roteador principal</dt><dd>O seu MikroTik, configurado no arquivo <span class="mono">.env</span>. Os outros (de clientes) são cadastrados no painel.</dd>
+              <dt>Usuário limitado</dt><dd>O usuário <span class="mono">wgpanel</span> que o painel usa nos MikroTiks: lê e configura, mas não mexe em usuários/senhas; nos de clientes, só entra pelo túnel.</dd>
+              <dt>API REST</dt><dd>A "porta de conversa" do RouterOS 7 que o painel usa (pelo serviço www/www-ssl). O Winbox usa outro protocolo.</dd>
               <dt>Interface WireGuard</dt><dd>Um "servidor" de VPN dentro do MikroTik, com porta e faixa de IPs próprias. Dá para ter várias.</dd>
               <dt>Site-to-site</dt><dd>Túnel entre duas redes inteiras (dois roteadores), em vez de um aparelho só. É o "Outro MikroTik".</dd>
               <dt>Rota</dt><dd>Indica ao roteador por onde chegar numa rede. O painel cria rotas para a rede de cada MikroTik remoto.</dd>
