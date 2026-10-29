@@ -147,6 +147,7 @@ function panel() {
 
     helpIndex: [
       { id: 'start', label: '🚀 Primeiros passos' },
+      { id: 'security', label: '🔒 Segurança' },
       { id: 'dashboard', label: '📊 Painel' },
       { id: 'routers', label: '🖧 Roteadores' },
       { id: 'vpn', label: '🔐 VPN WireGuard' },
@@ -190,7 +191,7 @@ function panel() {
       { tab: 'backup', sel: 'sec-backup', admin: true, title: '💾 Backup', text: 'Baixe uma cópia de tudo do painel (roteadores, interfaces, clientes, portas, alertas, usuários) e crie backups do MikroTik escolhido no seletor antes de mudanças grandes.' },
       { tab: 'settings', sel: 'sec-settings', admin: true, title: '⚙️ Configurações', text: 'Itens marcados com <b>🖧</b> são do roteador escolhido (DDNS, NAT, WAN); o resto vale para o painel todo — como a opção de <b>guardar as chaves dos clientes no MikroTik</b>, para importar com QR Code em qualquer painel.' },
       { tab: 'audit', sel: 'sec-audit', admin: true, title: '📜 Auditoria', text: 'Registro de quem fez o quê e quando no painel.' },
-      { tab: 'help', sel: 'help-btns', title: '🎉 Pronto!', text: 'Ficou com dúvida? <b>❓ Ajuda</b> abre o manual da tela atual, e o <b>📖 Manual</b> no menu tem tudo — inclusive <b>🖧 Roteadores</b> e o passo a passo do <b>🖧 Outro MikroTik</b>. Comece pelos <b>Primeiros passos</b>!' },
+      { tab: 'help', sel: 'help-btns', title: '🎉 Pronto!', text: 'Ficou com dúvida? <b>❓ Ajuda</b> abre o manual da tela atual, e o <b>📖 Manual</b> no menu tem tudo — inclusive <b>🖧 Roteadores</b> e o passo a passo do <b>🖧 Outro MikroTik</b>. Comece pelos <b>Primeiros passos</b> e veja <b>🔒 Segurança</b>: o painel nunca deve ficar exposto na internet — acesse pela rede local ou pela VPN.' },
     ],
 
     fmtBytes, fmtBps, fmtDur, fmtDate, fmtAgo,

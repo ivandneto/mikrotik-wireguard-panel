@@ -9,6 +9,8 @@ Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e ger
 
 > 💬 Tem uma ideia ou dúvida? Use a aba **[Discussions](../../discussions)**. Encontrou um problema? Abra uma **[Issue](../../issues/new/choose)**.
 
+> ⚠️ **Segurança: nunca exponha o painel na internet.** Acesse só pela rede local ou pela VPN. Veja o passo a passo em **[🔒 Segurança](#-segurança)**.
+
 | Módulo | O que faz |
 |---|---|
 | 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf**, endereço **remoto** (IP fixo/DDNS) ou **local** (IP na LAN), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves, **importar peers que já existem no MikroTik** (chaves guardadas no roteador → QR funciona em qualquer painel) |
@@ -111,6 +113,8 @@ docker compose logs -f
 ```
 
 Acesse **http://IP-DO-COMPUTADOR:8080** e entre com `admin` e a senha.
+
+> ⚠️ Deixe o painel acessível **só na rede local e pela VPN** — veja **[🔒 Segurança](#-segurança)** (não crie port forward para a porta 8080).
 
 > O painel precisa ficar ligado para monitorar e enviar alertas. O ideal é rodar em algo 24h (mini PC, Raspberry Pi, servidor ou VPS). Se rodar no seu PC, o monitoramento para quando ele desligar, mas a VPN e as portas continuam funcionando, porque ficam no MikroTik.
 
@@ -247,7 +251,7 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm
 /container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
-Acesse **http://172.20.0.2:8080**. Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Se só precisar dos clientes VPN, use **VPN → ⬇️ Importar do MikroTik** (com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code). Desligue o antigo para não receber alertas em dobro.
+Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a regra do [SECURITY.md](SECURITY.md), item 3). Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Se só precisar dos clientes VPN, use **VPN → ⬇️ Importar do MikroTik** (com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code). Desligue o antigo para não receber alertas em dobro.
 
 **Atualizar:** gere a imagem nova, envie, e rode `/container stop wgpanel`, `/container remove wgpanel` e o `/container add …` de novo (os dados ficam em `usb1/wgpanel/data`).
 
@@ -291,7 +295,21 @@ mikrotik-setup.rsc        # preparação do roteador
 
 ## 🔒 Segurança
 
-O painel tem acesso de configuração aos seus MikroTiks. **Não o exponha na internet**: acesse pela rede local ou pela própria VPN. Veja as boas práticas e como relatar falhas em **[SECURITY.md](SECURITY.md)**.
+> ### ⚠️ NUNCA exponha o painel na internet
+> Ele tem acesso de configuração aos seus MikroTiks. Acesse **só pela rede local ou pela VPN WireGuard** — para usar de fora, conecte primeiro na VPN.
+
+**Passo a passo para deixar o painel acessível só na rede local e pela VPN** (detalhes e comandos completos no **[SECURITY.md](SECURITY.md)**):
+
+1. **Nunca crie liberação de porta (port forward) para o painel.** Confira no MikroTik que estas listas vêm vazias:
+   ```
+   /ip firewall nat print where dst-port=8080
+   /ip firewall nat print where to-ports=8080
+   ```
+2. **Docker:** publique a porta só no IP da LAN (`"192.168.88.61:8080:8080"` no `docker-compose.yml`) e libere a porta no firewall da máquina só para a rede local e a faixa da VPN.
+3. **Container no MikroTik:** adicione a regra que só deixa a LAN e a VPN chegarem em `172.20.0.2:8080` (comandos no SECURITY.md, item 3).
+4. **Teste:** no celular, só com 4G e **sem VPN**, abra `http://SEU-DDNS:8080` — **não pode abrir**. Ligue a VPN e abra pelo IP interno — **deve abrir**.
+
+Também: senha forte no `admin` do painel, usuário `wgpanel` limitado no MikroTik (nunca o admin), API do MikroTik restrita às suas redes e cuidado com `.env`, `data/` e backups. Falhas de segurança: relate em privado (veja SECURITY.md).
 
 ## 💬 Ideias, dúvidas e contribuições
 

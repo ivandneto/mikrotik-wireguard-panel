@@ -10,6 +10,9 @@ services:
     environment:
       - TZ=America/Sao_Paulo
     ports:
+      # ⚠️ Segurança: não crie port forward para esta porta no MikroTik.
+      # Para publicar só na rede local, troque por "IP-DESTA-MAQUINA:8080:8080" (ex.: "192.168.88.61:8080:8080")
+      # ou "127.0.0.1:8080:8080" se só este computador vai abrir o painel. Veja SECURITY.md.
       - "8080:8080"
     volumes:
       - ./data:/data

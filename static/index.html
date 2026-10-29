@@ -704,9 +704,44 @@
               <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "Salvar e enviar teste".</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Fazer um backup</b> — em <a @click="tab='backup'">Backup</a> → Baixar backup, e guarde em local seguro.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Trocar a senha do admin</b> — menu lateral → 🔑 Trocar senha.</span></li>
+              <li class="flex gap-2"><span>⬜</span><span><b>Garantir que o painel não está na internet</b> — siga <a @click="scrollHelp('security')">🔒 Segurança</a> e faça o teste pelo 4G.</span></li>
             </ol>
             <p class="hint">Opcional: <a @click="scrollHelp('site')">ligar MikroTiks de clientes</a> ao seu (site-to-site) e <a @click="scrollHelp('routers')">gerenciá-los pelo painel</a>, e <a @click="tab='nat'">liberar portas</a> para servidores de jogos/aplicações.</p>
             <p class="hint">Gerencia mais de um MikroTik? Tudo nesta lista vale para o roteador escolhido no <b>seletor do topo</b>.</p>
+          </div>
+
+          <div id="help-security" class="card space-y-3">
+            <h2>🔒 Segurança</h2>
+            <div class="text-sm text-red-200 bg-red-950/40 border border-red-900 rounded-lg p-3">
+              <b>⚠️ NUNCA exponha o painel na internet.</b> Ele tem acesso de configuração aos seus MikroTiks. Acesse <b>só pela rede local ou pela VPN WireGuard</b> — para usar de fora de casa, conecte primeiro na VPN e então abra o painel.</div>
+            <h3>1. Não crie liberação de porta para o painel</h3>
+            <p>O painel só fica exposto se existir um port forward apontando para ele. <b>Nunca</b> libere a porta do painel (8080) na tela "Liberação de portas" nem no Winbox. Confira no terminal do MikroTik — as duas listas devem vir vazias:</p>
+            <pre class="mono text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 overflow-x-auto">/ip firewall nat print where dst-port=8080
+/ip firewall nat print where to-ports=8080</pre>
+            <h3>2. Painel em Docker (PC/servidor)</h3>
+            <ul>
+              <li>No <span class="mono">docker-compose.yml</span>, publique a porta só no IP da LAN: <span class="mono">"192.168.88.61:8080:8080"</span> (troque pelo IP da máquina) e rode <span class="mono">docker compose up -d</span>.</li>
+              <li>Windows (PowerShell como Administrador) — libera a porta só para a rede local e a VPN:<br>
+                <span class="mono text-xs">New-NetFirewallRule -DisplayName "WG Panel (só LAN e VPN)" -Direction Inbound -Protocol TCP -LocalPort 8080 -RemoteAddress LocalSubnet,10.10.0.0/24 -Action Allow</span></li>
+              <li>Linux: o Docker ignora o ufw nas portas publicadas — o item anterior (publicar só no IP da LAN) é o que protege. Veja o SECURITY.md para a chain <span class="mono">DOCKER-USER</span>.</li>
+            </ul>
+            <h3>3. Painel em container no MikroTik</h3>
+            <p>Cole no terminal do MikroTik (ajuste as faixas da sua rede e da VPN). Só a rede local e a VPN chegam no painel:</p>
+            <pre class="mono text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 overflow-x-auto">/ip firewall address-list add list=wgpanel-acesso address=192.168.88.0/24 comment="WG Panel: rede local"
+/ip firewall address-list add list=wgpanel-acesso address=10.10.0.0/24 comment="WG Panel: VPN"
+/ip firewall filter add chain=forward action=drop protocol=tcp dst-address=172.20.0.2 dst-port=8080 src-address-list=!wgpanel-acesso comment="WG Panel: painel so para LAN e VPN" place-before=[:pick [/ip firewall filter find where dynamic=no] 0]</pre>
+            <h3>4. Teste</h3>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li>No celular, desligue o Wi-Fi e a VPN (só 4G) e abra <span class="mono">http://SEU-DDNS:8080</span> — <b>não pode abrir</b>.</li>
+              <li>Ligue a VPN e abra pelo IP interno do painel — <b>deve abrir</b>.</li>
+            </ol>
+            <p>Se o item 1 abrir o painel, ele está exposto: revise a liberação de portas imediatamente.</p>
+            <h3>Outras boas práticas</h3>
+            <ul>
+              <li>Senha forte no <span class="mono">admin</span> do painel e usuários "Somente leitura" para quem só acompanha.</li>
+              <li>No MikroTik, o painel usa o usuário <span class="mono">wgpanel</span> limitado — <b>nunca</b> o admin. Restrinja a API (IP → Services) às redes de onde o painel acessa.</li>
+              <li>Guarde com cuidado o <span class="mono">.env</span>, a pasta <span class="mono">data/</span> e os backups: contêm senhas e as chaves da VPN.</li>
+            </ul>
           </div>
 
           <div id="help-dashboard" class="card space-y-3">
