@@ -63,6 +63,17 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def no_stale_frontend(request: Request, call_next):
+    """Faz o navegador revalidar HTML/JS/CSS a cada carga (barato, via ETag): após atualizar o painel,
+    a versão nova aparece sem precisar de Ctrl+F5."""
+    response = await call_next(request)
+    path = request.url.path
+    if path in ("/", "/login") or path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.exception_handler(MikroTikError)
 async def mikrotik_error_handler(_request: Request, exc: MikroTikError):
     return JSONResponse(status_code=502, content={"detail": f"MikroTik: {exc}"})
