@@ -132,7 +132,7 @@ async def create_rule(body: NatIn, user: User = Depends(require_admin), db: Sess
         name=body.name.strip(), template=body.template, protocol=body.protocol,
         external_port=body.external_port.replace(" ", ""), internal_ip=body.internal_ip.strip(),
         internal_port=body.internal_port.replace(" ", ""), whitelist="\n".join(split_list(body.whitelist)),
-        health_check=body.health_check, created_by=user.username,
+        health_check=body.health_check, enabled=True, created_by=user.username,
         expires_at=utcnow() + timedelta(hours=body.expires_hours) if body.expires_hours else None,
     )
     db.add(rule)

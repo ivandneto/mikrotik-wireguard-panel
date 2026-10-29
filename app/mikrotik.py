@@ -8,9 +8,21 @@ Mapeamento REST -> comandos do RouterOS:
   POST   /rest/<menu>/<cmd>    -> qualquer comando (ex.: add com place-before)
 Todos os valores trafegam como texto.
 """
+import codecs
+import json
+
 import httpx
 
 from .config import config
+
+
+def _cp1252_fallback(exc: UnicodeDecodeError):
+    """Bytes que não são UTF-8 válido são lidos como Windows-1252."""
+    chunk = exc.object[exc.start:exc.end]
+    return chunk.decode("cp1252", errors="replace"), exc.end
+
+
+codecs.register_error("cp1252-fallback", _cp1252_fallback)
 
 
 class MikroTikError(Exception):
@@ -57,7 +69,8 @@ class MikroTik:
             raise MikroTikError(message, resp.status_code)
         if not resp.content:
             return None
-        return resp.json()
+        # o RouterOS mistura UTF-8 e Windows-1252 (texto digitado no Winbox) na mesma resposta
+        return json.loads(resp.content.decode("utf-8", errors="cp1252-fallback"))
 
     async def get(self, path: str, **filters):
         return await self.request("GET", path, params=filters or None)

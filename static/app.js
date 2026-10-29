@@ -73,7 +73,7 @@ function lineChart(canvas, labels, datasets, yFmt) {
       interaction: { mode: 'index', intersect: false },
       scales: {
         x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e293b' } },
-        y: { beginAtZero: true, ticks: { color: '#64748b', callback: yFmt }, grid: { color: '#1e293b' } },
+        y: { beginAtZero: true, ticks: { color: '#64748b', callback: yFmt, precision: 0 }, grid: { color: '#1e293b' } },
       },
       plugins: {
         legend: { labels: { color: '#cbd5e1', boxWidth: 12 } },
@@ -118,21 +118,24 @@ function panel() {
 
     modal: null,
     form: {},
-    qr: { peer: null, endpoint: 'remote', svg: '', error: '' },
+    qr: { peer: null, endpoint: 'remote', svg: '', error: '', notice: '' },
 
     tabs: [
       { id: 'dashboard', label: 'Painel', icon: '📊' },
-      { id: 'vpn', label: 'VPN WireGuard', icon: '🔐' },
-      { id: 'nat', label: 'Liberação de portas', icon: '🎮' },
-      { id: 'monitor', label: 'Monitoramento', icon: '📈' },
-      { id: 'events', label: 'Eventos', icon: '🔔' },
-      { id: 'alerts', label: 'Alertas', icon: '📣', admin: true },
-      { id: 'users', label: 'Usuários', icon: '👥', admin: true },
-      { id: 'backup', label: 'Backup', icon: '💾', admin: true },
-      { id: 'settings', label: 'Configurações', icon: '⚙️', admin: true },
-      { id: 'audit', label: 'Auditoria', icon: '📜', admin: true },
+      { id: 'vpn', label: 'VPN WireGuard', icon: '🔐', group: 'net' },
+      { id: 'nat', label: 'Liberação de portas', icon: '🎮', group: 'net' },
+      { id: 'monitor', label: 'Gráficos e consumo', icon: '📈', group: 'mon' },
+      { id: 'events', label: 'Eventos', icon: '🔔', group: 'mon' },
+      { id: 'alerts', label: 'Alertas', icon: '📣', admin: true, group: 'mon' },
+      { id: 'users', label: 'Usuários', icon: '👥', admin: true, group: 'adm' },
+      { id: 'backup', label: 'Backup', icon: '💾', admin: true, group: 'adm' },
+      { id: 'settings', label: 'Configurações', icon: '⚙️', admin: true, group: 'adm' },
+      { id: 'audit', label: 'Auditoria', icon: '📜', admin: true, group: 'adm' },
       { id: 'help', label: 'Manual', icon: '📖' },
     ],
+
+    navGroups: { net: 'Rede', mon: 'Monitoramento', adm: 'Administração' },
+    navClosed: {},
 
     helpIndex: [
       { id: 'start', label: '🚀 Primeiros passos' },
@@ -155,7 +158,7 @@ function panel() {
     // tab: aba a abrir · sel: valor de data-tour a destacar (sem sel = balão centralizado)
     tourSteps: [
       { title: '👋 Bem-vindo ao WG Panel!', text: 'Este tour rápido mostra para que serve cada parte do painel. Use <b>Próximo</b> ou as setas do teclado. Você pode refazê-lo a qualquer momento pelo botão <b>🎓 Tour</b> no topo.' },
-      { tab: 'dashboard', sel: 'nav', title: 'Menu', text: 'Aqui ficam todas as telas. Itens como Alertas, Usuários e Configurações só aparecem para administradores.' },
+      { tab: 'dashboard', sel: 'nav', title: 'Menu', text: 'As telas ficam agrupadas por assunto: <b>Rede</b> (VPN e portas), <b>Monitoramento</b> (gráficos, eventos, alertas) e <b>Administração</b>. Clique no nome do grupo para abrir/fechar. Administração só aparece para administradores.' },
       { tab: 'dashboard', sel: 'status', title: 'Status da conexão', text: 'Mostra se o painel está conseguindo falar com o MikroTik. <b>⟳</b> força uma atualização, <b>🎓</b> abre este tour e <b>❓</b> abre o manual da tela atual.' },
       { tab: 'dashboard', sel: 'dash-cards', title: 'Resumo', text: 'Saúde do roteador (CPU, memória, tempo ligado), quantos clientes VPN estão conectados agora e o estado das portas liberadas. Clique nos cartões de VPN e Portas para ir direto às telas.' },
       { tab: 'dashboard', sel: 'dash-chart', title: 'Gráficos', text: 'Velocidade da internet (download/upload) e uso de CPU/memória ao longo do tempo. Para o gráfico de internet, informe a <b>Interface WAN</b> em Configurações.' },
@@ -181,6 +184,22 @@ function panel() {
     get isAdmin() { return this.me?.role === 'admin'; },
     get visibleTabs() { return this.tabs.filter(t => !t.admin || this.isAdmin); },
     get router() { return this.overview?.router || {}; },
+    // menu lateral: itens soltos e grupos, na ordem de `tabs`
+    get navTree() {
+      const out = [];
+      for (const t of this.visibleTabs) {
+        if (!t.group) { out.push({ key: t.id, tab: t }); continue; }
+        let g = out.find(e => e.group === t.group);
+        if (!g) out.push(g = { key: 'g-' + t.group, group: t.group, label: this.navGroups[t.group], items: [] });
+        g.items.push(t);
+      }
+      return out;
+    },
+    isGroupOpen(e) { return !this.navClosed[e.group] || e.items.some(t => t.id === this.tab); },
+    toggleGroup(e) {
+      this.navClosed[e.group] = this.isGroupOpen(e);
+      try { localStorage.setItem('wgpanel_nav_closed', JSON.stringify(this.navClosed)); } catch {}
+    },
     get filteredPeers() {
       const q = this.wg.filter.toLowerCase();
       return this.wg.peers.filter(p => !q || [p.name, p.owner, p.ip, p.description].join(' ').toLowerCase().includes(q));
@@ -198,6 +217,7 @@ function panel() {
 
     async init() {
       try { this.me = await api('GET', '/api/auth/me'); } catch { return; }
+      try { this.navClosed = JSON.parse(localStorage.getItem('wgpanel_nav_closed')) || {}; } catch {}
       await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWgStatus(),
         this.loadEvents(), api('GET', '/api/nat/templates').then(t => this.nat.templates = t)]);
       const hash = location.hash.slice(1);
@@ -355,6 +375,7 @@ function panel() {
       if (!p.enabled) return { label: 'Desativado', cls: 'b-gray' };
       if (!p.live) return { label: 'Aguardando', cls: 'b-gray' };
       if (!p.live.exists) return { label: 'Ausente no MikroTik', cls: 'b-red' };
+      if (p.live.router_disabled) return { label: 'Desativado no MikroTik', cls: 'b-red' };
       if (p.live.online) return { label: 'Online', cls: 'b-green' };
       return { label: 'Offline', cls: 'b-amber' };
     },
@@ -408,15 +429,20 @@ function panel() {
       this.modal = 'peer';
     },
     editPeer(p) {
-      this.form = { id: p.id, name: p.name, owner: p.owner, description: p.description, tunnel_mode: p.tunnel_mode };
+      this.form = { id: p.id, name: p.name, owner: p.owner, description: p.description, tunnel_mode: p.tunnel_mode,
+        original_mode: p.tunnel_mode };
       this.modal = 'peer';
     },
     async savePeer() {
-      const { id, ...data } = this.form;
+      const { id, original_mode, ...data } = this.form;
       if (!data.ip) delete data.ip;
       if (id) {
-        await this.run(() => api('PATCH', `/api/wireguard/peers/${id}`, data), 'Cliente atualizado');
+        const peer = await this.run(() => api('PATCH', `/api/wireguard/peers/${id}`, data), 'Cliente atualizado');
         this.modal = null;
+        if (original_mode !== data.tunnel_mode) {
+          // o modo fica no arquivo do dispositivo: precisa importar de novo
+          this.openQr(peer, 'O modo de navegação mudou. Escaneie este QR Code (ou importe o .conf) de novo no dispositivo — a configuração antiga continua no modo anterior.');
+        }
       } else {
         const peer = await this.run(() => api('POST', '/api/wireguard/peers', data), 'Cliente criado');
         await this.loadPeers();
@@ -445,8 +471,8 @@ function panel() {
       this.loadPeers();
       this.openQr(peer);
     },
-    async openQr(p) {
-      this.qr = { peer: p, endpoint: this.wg.status?.endpoint_remote ? 'remote' : 'local', svg: '', error: '' };
+    async openQr(p, notice = '') {
+      this.qr = { peer: p, endpoint: this.wg.status?.endpoint_remote ? 'remote' : 'local', svg: '', error: '', notice };
       this.modal = 'qr';
       await this.loadQr();
     },

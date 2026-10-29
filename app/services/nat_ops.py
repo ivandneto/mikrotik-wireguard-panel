@@ -59,7 +59,7 @@ async def apply_rule(rule: NatRule, settings: dict) -> list[str]:
             }
             if rule.internal_port and rule.internal_port != rule.external_port:
                 data["to-ports"] = rule.internal_port
-            if not rule.enabled:
+            if rule.enabled is False:  # None (ainda não salvo) = ativa
                 data["disabled"] = True
             result = await mt.add(NAT_PATH, data)
             created.append(result[".id"])

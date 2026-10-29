@@ -166,6 +166,60 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 
 ---
 
+## Rodar dentro do próprio MikroTik (container)
+
+Testado em um **RB5009 com RouterOS 7.24.4**: o painel usa ~60 MB de RAM e a imagem tem ~30 MB. É preciso um **pendrive ou SSD USB** (a flash interna não aguenta gravação constante).
+
+> Desvantagem: se o roteador travar, o painel cai junto, então não existe o alerta "MikroTik inacessível".
+
+**1. Gerar a imagem ARM64** (no PC, com Docker):
+```bash
+docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm64 \
+  --output type=docker,dest=dist/wgpanel-arm64.tar .
+```
+
+**2. Preparar o roteador** (terminal, usuário administrador):
+```
+/system device-mode update container=yes          # confirme apertando o botão/reiniciando, se pedir
+/tool fetch url="https://download.mikrotik.com/routeros/<VERSÃO>/container-<VERSÃO>-arm64.npk"
+/disk format usb1 file-system=ext4 label=wgpanel  # APAGA o pendrive
+/system reboot                                    # reinicie pelo comando, não pela tomada
+```
+
+**3. Rede do container:**
+```
+/interface bridge add name=containers
+/ip address add address=172.20.0.1/24 interface=containers
+/interface veth add name=veth-wgpanel address=172.20.0.2/24 gateway=172.20.0.1
+/interface bridge port add bridge=containers interface=veth-wgpanel
+/interface list member add list=LAN interface=containers
+/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24,172.20.0.0/24
+```
+
+**4. Configuração** (troque as senhas):
+```
+/container config set tmpdir=usb1/tmp
+/container envs add list=wgpanel key=MIKROTIK_URL value=https://172.20.0.1
+/container envs add list=wgpanel key=MIKROTIK_USER value=wgpanel
+/container envs add list=wgpanel key=MIKROTIK_PASSWORD value="SENHA-DO-WGPANEL"
+/container envs add list=wgpanel key=ADMIN_PASSWORD value="SENHA-DO-PAINEL"
+/container envs add list=wgpanel key=POLL_INTERVAL value=60
+/container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
+```
+
+**5. Enviar e iniciar:** arraste `dist/wgpanel-arm64.tar` para o `usb1` na janela **Files** do Winbox e rode:
+```
+/container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container start wgpanel      # quando /container print mostrar que terminou de extrair
+```
+Acesse **http://172.20.0.2:8080**. Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Desligue o antigo para não receber alertas em dobro.
+
+**Atualizar:** gere a imagem nova, envie, e rode `/container stop wgpanel`, `/container remove wgpanel` e o `/container add …` de novo (os dados ficam em `usb1/wgpanel/data`).
+
+> Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
+
+---
+
 ## Rodar sem Docker (opcional)
 
 ```bash

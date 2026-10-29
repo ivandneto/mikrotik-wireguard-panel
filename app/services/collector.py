@@ -111,8 +111,22 @@ async def _router_up():
         await notify("router_up", "MikroTik voltou a responder", config.MIKROTIK_URL, "success")
 
 
+async def _detect_wan() -> str | None:
+    """Interface de saída da rota padrão ativa (ex.: pppoe-out1, ether1)."""
+    for route in await mt.get("/ip/route", **{"dst-address": "0.0.0.0/0"}):
+        if route.get("active") != "true":
+            continue
+        immediate = route.get("immediate-gw", "")
+        if "%" in immediate:  # "100.77.1.254%pppoe-out1"
+            return immediate.split("%", 1)[1]
+        gateway = route.get("gateway", "")
+        if gateway and not gateway[0].isdigit():  # gateway já é o nome da interface
+            return gateway
+    return None
+
+
 async def _collect_wan(settings: dict):
-    name = settings.get("wan_interface")
+    name = settings.get("wan_interface") or await _detect_wan()
     if not name:
         state["router"]["wan"] = None
         return None
@@ -125,7 +139,8 @@ async def _collect_wan(settings: dict):
     if not prev or rx < prev[1] or tx < prev[2]:
         return None
     elapsed = t - prev[0]
-    wan = {"interface": name, "rx_bps": (rx - prev[1]) * 8 / elapsed, "tx_bps": (tx - prev[2]) * 8 / elapsed}
+    wan = {"interface": name, "auto": not settings.get("wan_interface"),
+           "rx_bps": (rx - prev[1]) * 8 / elapsed, "tx_bps": (tx - prev[2]) * 8 / elapsed}
     state["router"]["wan"] = wan
     return wan
 
@@ -151,6 +166,7 @@ async def _collect_peers(db, settings: dict, now):
 
         new_state[peer.id] = {
             "exists": row is not None,
+            "router_disabled": row.get("disabled") == "true" if row else None,
             "online": online,
             "last_handshake": handshake,
             "rx": rx,

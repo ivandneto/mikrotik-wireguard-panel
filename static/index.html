@@ -22,10 +22,29 @@
         <div class="text-xs text-slate-500">MikroTik</div>
       </div>
     </div>
-    <template x-for="t in visibleTabs" :key="t.id">
-      <button class="nav-item" :class="tab === t.id && 'active'" @click="tab = t.id">
-        <span x-text="t.icon"></span><span x-text="t.label"></span>
-      </button>
+    <template x-for="e in navTree" :key="e.key">
+      <div>
+        <template x-if="e.tab">
+          <button class="nav-item" :class="tab === e.tab.id && 'active'" @click="tab = e.tab.id">
+            <span x-text="e.tab.icon"></span><span x-text="e.tab.label"></span>
+          </button>
+        </template>
+        <template x-if="e.group">
+          <div class="mt-3">
+            <button class="nav-group" @click="toggleGroup(e)" :aria-expanded="isGroupOpen(e)">
+              <span x-text="e.label"></span>
+              <span class="nav-chevron" :class="isGroupOpen(e) && 'open'">›</span>
+            </button>
+            <div x-show="isGroupOpen(e)" class="nav-children">
+              <template x-for="t in e.items" :key="t.id">
+                <button class="nav-item" :class="tab === t.id && 'active'" @click="tab = t.id">
+                  <span x-text="t.icon"></span><span x-text="t.label"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
     </template>
     <div class="mt-auto pt-4 border-t border-slate-800 text-sm space-y-2">
       <div class="px-2 text-slate-400">
@@ -41,7 +60,7 @@
     <!-- ===== Barra superior ===== -->
     <header class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 flex items-center gap-3">
       <select class="input md:hidden w-auto" x-model="tab">
-        <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="t.icon + ' ' + t.label"></option></template>
+        <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="(t.group ? navGroups[t.group] + ' › ' : '') + t.icon + ' ' + t.label"></option></template>
       </select>
       <h1 class="hidden md:block text-lg font-semibold text-white" x-text="tabs.find(t => t.id === tab)?.label"></h1>
       <div class="ml-auto flex items-center gap-3 text-sm" data-tour="status">
@@ -120,7 +139,8 @@
               </select>
             </div>
             <div class="h-56"><canvas x-ref="dashChart"></canvas></div>
-            <p class="hint" x-show="!router.wan">Defina a interface WAN em Configurações para ver este gráfico.</p>
+            <p class="hint" x-show="router.wan" x-text="'Interface: ' + router.wan?.interface + (router.wan?.auto ? ' (detectada automaticamente)' : '')"></p>
+            <p class="hint" x-show="!router.wan">Aguardando a primeira medição da internet (até 1 minuto)…</p>
             <div class="h-40 mt-4"><canvas x-ref="cpuChart"></canvas></div>
           </div>
           <div class="card" data-tour="dash-events">
@@ -194,7 +214,7 @@
                             <button class="btn-ghost" title="QR Code / baixar configuração" @click="openQr(p)">📱</button>
                             <button class="btn-ghost" title="Editar" @click="editPeer(p)">✏️</button>
                             <button class="btn-ghost" :title="p.enabled ? 'Desativar' : 'Ativar'" @click="togglePeer(p)" x-text="p.enabled ? '⏸️' : '▶️'"></button>
-                            <button class="btn-ghost" title="Recriar no MikroTik" x-show="p.live && !p.live.exists" @click="reapplyPeer(p)">🔁</button>
+                            <button class="btn-ghost" title="Corrigir no MikroTik" x-show="p.enabled && p.live && (!p.live.exists || p.live.router_disabled)" @click="reapplyPeer(p)">🔁</button>
                             <button class="btn-ghost" title="Gerar novas chaves" @click="regeneratePeer(p)">🔑</button>
                             <button class="btn-ghost" title="Remover" @click="deletePeer(p)">🗑️</button>
                           </span>
@@ -510,7 +530,7 @@
               <div class="card space-y-4">
                 <div class="font-semibold text-white">📈 Monitoramento</div>
                 <label class="block"><span class="label">Interface WAN (para gráfico de internet)</span>
-                  <input class="input mono" x-model="settings.wan_interface" list="wan-ifaces" placeholder="ex.: ether1 ou pppoe-out1 (vazio = não monitorar)">
+                  <input class="input mono" x-model="settings.wan_interface" list="wan-ifaces" placeholder="vazio = detectar automaticamente (rota padrão)">
                   <datalist id="wan-ifaces">
                     <template x-for="o in routerOptions.interfaces" :key="o"><option :value="o"></option></template>
                   </datalist></label>
@@ -613,6 +633,7 @@
               <tr><td><span class="badge b-amber">Offline</span></td><td>Cadastrado, mas o dispositivo não está conectado agora.</td></tr>
               <tr><td><span class="badge b-gray">Desativado</span></td><td>Você bloqueou o acesso (⏸️). Ative de novo com ▶️.</td></tr>
               <tr><td><span class="badge b-red">Ausente no MikroTik</span></td><td>Alguém apagou o cliente direto no Winbox. Use 🔁 para recriar.</td></tr>
+              <tr><td><span class="badge b-red">Desativado no MikroTik</span></td><td>Ativo no painel, mas desativado no roteador (ex.: alterado pelo Winbox). Use 🔁 para corrigir.</td></tr>
             </table>
             <h3>Botões de ação</h3>
             <table class="table">
@@ -746,6 +767,10 @@
             <table class="table">
               <tr><td><b>MikroTik offline</b></td><td>Confira IP e senha no arquivo <span class="mono">.env</span>, se o serviço <span class="mono">www-ssl</span> está ativo (IP → Services) e se o computador do painel está na rede permitida. Após editar o <span class="mono">.env</span>, rode <span class="mono">docker compose up -d</span>.</td></tr>
               <tr><td><b>VPN conecta mas não acessa nada</b></td><td>Em VPN → Reconfigurar, deixe marcado "Tratar a VPN como rede interna" e aplique de novo.</td></tr>
+              <tr><td><b>VPN conectada, mas não abre um aparelho da rede</b></td><td>O aparelho de destino está recusando a faixa da VPN (10.10.0.x):<br>
+                • <b>MikroTik (WebFig/Winbox)</b>: libere em IP → Services → <span class="mono">available-from</span> (ou <span class="mono">address</span> em versões antigas) incluindo <span class="mono">10.10.0.0/24</span>.<br>
+                • <b>PC Windows</b>: o Firewall do Windows só aceita a própria rede. Em PowerShell (admin): <span class="mono">New-NetFirewallRule -DisplayName "VPN WireGuard" -Direction Inbound -RemoteAddress 10.10.0.0/24 -Action Allow</span><br>
+                • <b>Use o IP</b>, não o nome (<span class="mono">\\192.168.88.61</span> em vez de <span class="mono">\\meu-pc</span>). Apps que "procuram aparelhos na rede" automaticamente não funcionam pela VPN.</td></tr>
               <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Use o QR de <b>Acesso remoto</b> fora de casa. Verifique se o endereço remoto (DDNS) está certo em Configurações.</td></tr>
               <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
               <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>
@@ -768,6 +793,9 @@
     <template x-if="modal === 'setup' && setup">
       <div class="p-6 space-y-4">
         <h2 class="text-lg font-semibold text-white">⚙️ Configuração do WireGuard no MikroTik</h2>
+        <p x-show="wg.status?.configured && !setupResult" class="text-sm text-slate-400 -mt-2">
+          Esta tela ajusta o <b>servidor</b> VPN no MikroTik. Para mudar se um dispositivo navega na internet pela VPN
+          ("Só rede local" × "Toda a internet"), use <b>✏️ Editar</b> na linha do cliente.</p>
         <template x-if="!setupResult">
           <form class="space-y-4" @submit.prevent="runSetup()">
             <div x-show="suggest?.existing_interfaces?.length" class="text-sm bg-blue-950/50 border border-blue-900 rounded-lg p-3 text-blue-200">
@@ -846,7 +874,9 @@
     <!-- QR Code -->
     <template x-if="modal === 'qr'">
       <div class="p-6 space-y-4">
-        <h2 class="text-lg font-semibold text-white">📱 <span x-text="qr.peer.name"></span></h2>
+        <h2 class="text-lg font-semibold text-white">📱 <span x-text="qr.peer.name"></span>
+          <span class="badge ml-1" :class="qr.peer.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="qr.peer.tunnel_mode === 'full' ? '🌐 Toda a internet' : '🏠 Só rede local'"></span></h2>
+        <div x-show="qr.notice" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="qr.notice"></div>
         <div class="grid grid-cols-2 gap-2">
           <button class="btn justify-center" :class="qr.endpoint === 'remote' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'remote'; loadQr()">🌍 Acesso remoto</button>
           <button class="btn justify-center" :class="qr.endpoint === 'local' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'local'; loadQr()">🏠 Acesso local</button>

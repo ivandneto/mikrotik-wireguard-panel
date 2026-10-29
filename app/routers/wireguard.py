@@ -96,7 +96,7 @@ async def _create_on_router(peer: Peer, settings: dict) -> str:
         "preshared-key": decrypt(peer.preshared_key_enc),
         "allowed-address": f"{peer.ip}/32",
         "comment": peer_comment(peer.name),
-        "disabled": not peer.enabled,
+        "disabled": peer.enabled is False,  # None (ainda não salvo) = ativo
     })
     return result[".id"]
 
@@ -270,7 +270,7 @@ async def create_peer(body: PeerIn, user: User = Depends(require_admin), db: Ses
     peer = Peer(
         name=body.name.strip(), description=body.description, owner=body.owner,
         ip=ip, public_key=public_key, private_key_enc=encrypt(private_key),
-        preshared_key_enc=encrypt(generate_psk()), tunnel_mode=body.tunnel_mode,
+        preshared_key_enc=encrypt(generate_psk()), tunnel_mode=body.tunnel_mode, enabled=True,
         created_by=user.username,
     )
     peer.mikrotik_id = await _create_on_router(peer, s)
@@ -324,7 +324,13 @@ async def reapply_peer(peer_id: int, user: User = Depends(require_admin), db: Se
     peer = _peer_or_404(db, peer_id)
     s = get_settings(db)
     _require_configured(s)
-    if await _router_peer(peer):
+    row = await _router_peer(peer)
+    if row:
+        if peer.enabled and row.get("disabled") == "true":
+            await mt.set(PEERS_PATH, row[".id"], {"disabled": False})
+            audit(db, user.username, "cliente VPN reativado no MikroTik", peer.name)
+            collector.trigger()
+            return {"ok": True, "message": "Cliente estava desativado no MikroTik e foi reativado"}
         return {"ok": True, "message": "O cliente já existe no MikroTik"}
     peer.mikrotik_id = await _create_on_router(peer, s)
     db.commit()

@@ -16,10 +16,12 @@
 /certificate sign wgpanel-ca
 /certificate add name=wgpanel-https common-name=192.168.88.1 subject-alt-name=IP:192.168.88.1 days-valid=3650
 /certificate sign wgpanel-https ca=wgpanel-ca
-/ip service set www-ssl certificate=wgpanel-https disabled=no address=192.168.88.0/24
+#    RouterOS 7.20+ usa "available-from"; em versões anteriores troque por "address".
+#    10.10.0.0/24 = faixa da VPN: permite abrir WebFig/Winbox de quem estiver conectado na VPN.
+/ip service set www-ssl certificate=wgpanel-https disabled=no available-from=192.168.88.0/24,10.10.0.0/24
 
 # --- Alternativa mais simples (HTTP sem criptografia, só na rede interna) ---
-# /ip service set www disabled=no address=192.168.88.0/24
+# /ip service set www disabled=no available-from=192.168.88.0/24,10.10.0.0/24
 # e use MIKROTIK_URL=http://192.168.88.1 no .env
 
 # 4) (Opcional, recomendado) DDNS grátis do MikroTik para acesso remoto
