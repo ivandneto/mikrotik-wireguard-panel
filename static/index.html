@@ -200,7 +200,7 @@
 
             <div class="flex flex-wrap items-center gap-2">
               <input class="input max-w-xs" placeholder="Buscar cliente…" x-model="wg.filter">
-              <div class="ml-auto flex flex-wrap gap-2" x-show="isAdmin">
+              <div class="ml-auto flex flex-wrap gap-2" x-show="isAdmin" data-tour="vpn-actions">
                 <button class="btn" @click="openImport()" title="Trazer peers que já existem no MikroTik">⬇️ Importar do MikroTik</button>
                 <button class="btn" @click="newPeer('site')" title="Túnel com o MikroTik de um cliente (site-to-site)">🖧 Outro MikroTik</button>
                 <button class="btn-primary" data-tour="vpn-new" @click="newPeer()">＋ Novo dispositivo</button>
@@ -619,13 +619,14 @@
             <h2>🚀 Primeiros passos</h2>
             <p>Siga esta ordem na primeira vez. Cada item mostra se já está feito:</p>
             <ol class="space-y-2">
-              <li class="flex gap-2"><span x-text="router.online ? '✅' : '⬜'"></span><span><b>Conectar ao MikroTik</b> — o selo no topo deve estar <span class="badge b-green">MikroTik online</span>. Se não estiver, veja <a href="#help-problems" @click.prevent="scrollHelp('problems')">Problemas comuns</a>.</span></li>
-              <li class="flex gap-2"><span x-text="router.wan ? '✅' : '⬜'"></span><span><b>Informar a interface de internet</b> — em <a @click="tab='settings'">Configurações</a> → Interface WAN (ex.: <span class="mono">pppoe-out1</span>). Ativa o gráfico de internet.</span></li>
-              <li class="flex gap-2"><span x-text="overview?.vpn.configured ? '✅' : '⬜'"></span><span><b>Configurar a VPN</b> — em <a @click="tab='vpn'">VPN WireGuard</a> → Iniciar configuração. Feito uma única vez.</span></li>
-              <li class="flex gap-2"><span x-text="overview?.vpn.total ? '✅' : '⬜'"></span><span><b>Criar o primeiro cliente</b> — VPN WireGuard → Novo cliente → escaneie o QR Code com o app WireGuard.</span></li>
-              <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "enviar teste".</span></li>
+              <li class="flex gap-2"><span x-text="router.online ? '✅' : '⬜'"></span><span><b>Conectar ao MikroTik</b> — o selo no topo deve estar <span class="badge b-green">MikroTik online</span>. Se não estiver, veja <a @click="scrollHelp('problems')">Problemas comuns</a>.</span></li>
+              <li class="flex gap-2"><span x-text="overview?.vpn.configured ? '✅' : '⬜'"></span><span><b>Criar a primeira interface WireGuard</b> — em <a @click="tab='vpn'">VPN WireGuard</a> → Iniciar configuração. O painel prepara tudo no MikroTik.</span></li>
+              <li class="flex gap-2"><span x-text="overview?.vpn.total ? '✅' : '⬜'"></span><span><b>Cadastrar o primeiro dispositivo</b> — VPN WireGuard → ＋ Novo dispositivo → escaneie o QR Code no app WireGuard.</span></li>
+              <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "Salvar e enviar teste".</span></li>
+              <li class="flex gap-2"><span>⬜</span><span><b>Fazer um backup</b> — em <a @click="tab='backup'">Backup</a> → Baixar backup, e guarde em local seguro.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Trocar a senha do admin</b> — menu lateral → 🔑 Trocar senha.</span></li>
             </ol>
+            <p class="hint">Opcional: <a @click="scrollHelp('site')">ligar MikroTiks de clientes</a> ao seu (site-to-site) e <a @click="tab='nat'">liberar portas</a> para servidores de jogos/aplicações.</p>
           </div>
 
           <div id="help-dashboard" class="card space-y-3">
@@ -634,9 +635,9 @@
             <ul>
               <li><b>Roteador</b> — modelo, versão do RouterOS e há quanto tempo está ligado.</li>
               <li><b>CPU / Memória</b> — uso atual. CPU alta por muito tempo pode deixar a internet lenta.</li>
-              <li><b>VPN WireGuard</b> — quantos clientes estão conectados agora, do total ativo.</li>
+              <li><b>VPN WireGuard</b> — quantos clientes (dispositivos e MikroTiks remotos) estão conectados agora, somando todas as interfaces.</li>
               <li><b>Portas liberadas</b> — quantas liberações estão ativas e se os servidores estão respondendo.</li>
-              <li><b>Tráfego da internet</b> — velocidade de download/upload do seu link ao longo do tempo (precisa da Interface WAN configurada).</li>
+              <li><b>Tráfego da internet</b> — download/upload do seu link. A interface de internet é <b>detectada sozinha</b> pela rota padrão (ex.: <span class="mono">pppoe-out1</span>); o nome aparece embaixo do gráfico.</li>
               <li><b>Eventos recentes</b> — últimos acontecimentos: alguém conectou, servidor caiu, porta expirou…</li>
             </ul>
             <button class="btn" @click="tab='dashboard'">Ir para o Painel →</button>
@@ -644,46 +645,92 @@
 
           <div id="help-vpn" class="card space-y-3">
             <h2>🔐 VPN WireGuard</h2>
-            <p>Uma VPN cria um "túnel" seguro entre um dispositivo (celular, notebook) e sua rede. Com ela você acessa de qualquer lugar as coisas de casa/empresa — câmeras, NAS, servidores, impressoras — como se estivesse lá.</p>
-            <h3>Configuração inicial (uma vez só)</h3>
+            <p>Uma VPN cria um "túnel" seguro até a sua rede. Com ela você acessa de qualquer lugar as coisas de casa/empresa — câmeras, NAS, servidores, impressoras, o próprio MikroTik — como se estivesse lá.</p>
+            <p>O painel trabalha com dois tipos de cliente:</p>
+            <table class="table">
+              <tr><td>📱 <b>Dispositivo</b></td><td>Um aparelho (celular, notebook). Configura escaneando um <b>QR Code</b> ou importando um arquivo <span class="mono">.conf</span>.</td></tr>
+              <tr><td>🖧 <b>Outro MikroTik</b></td><td>O roteador de um cliente e a rede inteira atrás dele. Configura colando um <b>script</b> no terminal do MikroTik dele. Veja <a @click="scrollHelp('site')">Outro MikroTik</a>.</td></tr>
+            </table>
+
+            <h3>Interfaces (as abas no topo da tela)</h3>
+            <p>Cada aba é uma interface WireGuard do MikroTik, com <b>porta</b> e <b>faixa de IPs</b> próprias. Use mais de uma para separar propósitos — por exemplo <span class="mono">wg-casa</span> para seus aparelhos e <span class="mono">wg-clientes</span> para MikroTiks de clientes. O número na aba mostra <b>online / total</b>.</p>
             <ul>
-              <li><b>Nome da interface / Porta UDP</b> — pode deixar o padrão.</li>
-              <li><b>Faixa da VPN</b> — os endereços que os clientes da VPN recebem. Precisa ser diferente da sua rede (ex.: sua rede é 192.168.88.x → use 10.10.0.x).</li>
-              <li><b>Endereço remoto</b> — por onde os clientes te encontram na internet. Prefira o DDNS (<span class="mono">….sn.mynetname.net</span>), pois o IP pode mudar.</li>
-              <li><b>Endereço local</b> — IP do MikroTik na sua rede, para usar a VPN de dentro de casa.</li>
+              <li><b>＋ Nova interface</b> — cria uma interface (o painel sugere porta e faixa livres) ou <b>adota</b> uma que já existe no MikroTik.</li>
+              <li><b>Faixa da VPN</b> — precisa ser diferente da sua rede (sua rede é 192.168.88.x → use 10.10.0.x).</li>
+              <li><b>Redes daqui</b> — as redes da sua casa/empresa que os clientes podem alcançar.</li>
+              <li><b>Tratar como rede interna (LAN)</b> — deixa os dispositivos acessarem a rede, o DNS e a internet. Para uma interface só de MikroTiks de clientes, pode desmarcar.</li>
+              <li>⚙️ reconfigura · 🗑️ exclui (só quando não tem clientes; pode remover também do MikroTik).</li>
             </ul>
-            <h3>Clientes</h3>
-            <p>Cada dispositivo deve ter <b>seu próprio cliente</b> (não compartilhe o mesmo QR entre aparelhos). Ao criar, escolha:</p>
+
+            <h3>Dispositivos: o que passa pela VPN?</h3>
             <ul>
               <li><b>🏠 Só rede local</b> — acessa sua rede; a internet do aparelho continua normal. Recomendado na maioria dos casos.</li>
-              <li><b>🌐 Toda a internet</b> — toda a navegação passa pelo seu MikroTik. Útil em Wi-Fi público ou para "parecer" que está em casa.</li>
+              <li><b>🌐 Toda a internet</b> — toda a navegação passa pelo seu MikroTik. Útil em Wi-Fi público.</li>
             </ul>
+            <p>Ao trocar o modo de um dispositivo, o QR novo abre sozinho: <b>escaneie de novo</b> no aparelho (o modo fica gravado nele).</p>
+            <p><b>Acesso remoto × local:</b> no QR/arquivo, use <b>🌍 remoto</b> (IP público/DDNS) quando o aparelho estiver fora de casa e <b>🏠 local</b> (IP do MikroTik na rede) dentro dela.</p>
+
             <h3>Status</h3>
             <table class="table">
               <tr><td><span class="badge b-green">Online</span></td><td>Conectado — houve comunicação nos últimos minutos.</td></tr>
-              <tr><td><span class="badge b-amber">Offline</span></td><td>Cadastrado, mas o dispositivo não está conectado agora.</td></tr>
+              <tr><td><span class="badge b-amber">Offline</span></td><td>Cadastrado, mas não conectado agora. O aviso de queda leva ~3 min (o WireGuard não avisa quando alguém desconecta).</td></tr>
               <tr><td><span class="badge b-gray">Desativado</span></td><td>Você bloqueou o acesso (⏸️). Ative de novo com ▶️.</td></tr>
-              <tr><td><span class="badge b-red">Ausente no MikroTik</span></td><td>Alguém apagou o cliente direto no Winbox. Use 🔁 para recriar.</td></tr>
+              <tr><td><span class="badge b-red">Ausente no MikroTik</span></td><td>Alguém apagou o cliente direto no Winbox. Use 🔁 para recriar, ou 🗑️ para remover de vez (pelo painel, que limpa também rotas e regras).</td></tr>
               <tr><td><span class="badge b-red">Desativado no MikroTik</span></td><td>Ativo no painel, mas desativado no roteador (ex.: alterado pelo Winbox). Use 🔁 para corrigir.</td></tr>
             </table>
-            <h3>Botões de ação</h3>
+
+            <h3>Botões</h3>
             <table class="table">
-              <tr><td>📈</td><td>Gráfico de uso desse cliente.</td></tr>
-              <tr><td>📱</td><td>QR Code e download do arquivo <span class="mono">.conf</span> — escolha <b>Acesso remoto</b> (fora de casa) ou <b>Acesso local</b> (dentro de casa).</td></tr>
-              <tr><td>✏️</td><td>Editar nome, responsável e modo.</td></tr>
+              <tr><td>📈</td><td>Gráfico de uso.</td></tr>
+              <tr><td>📱 / 📜</td><td>Dispositivo: QR Code e arquivo <span class="mono">.conf</span>. Outro MikroTik: script para colar no roteador do cliente.</td></tr>
+              <tr><td>✏️</td><td>Editar nome, responsável, modo (dispositivo) ou redes e tipo de acesso (MikroTik).</td></tr>
               <tr><td>⏸️ / ▶️</td><td>Bloquear / liberar o acesso sem apagar.</td></tr>
-              <tr><td>🔑</td><td>Gerar chaves novas (ex.: celular perdido). O QR antigo para de funcionar.</td></tr>
-              <tr><td>🖧 Outro MikroTik</td><td>Túnel com o roteador de um cliente (site-to-site). Você informa a rede local dele e escolhe <b>➡️ Só eu acesso</b> (padrão) ou <b>↔️ Mão dupla</b>. O painel cria o peer e as rotas no seu MikroTik e gera um <b>script 📜</b> para colar no terminal do MikroTik do cliente. Depois você acessa o Winbox dele e os equipamentos da rede dele pelo túnel, e recebe alerta se ele cair.</td></tr>
-              <tr><td>Interfaces</td><td>As abas no topo da tela são as interfaces WireGuard. Use <b>＋ Nova interface</b> para separar propósitos (ex.: <span class="mono">wg-casa</span> e <span class="mono">wg-clientes</span>) ou para adotar uma interface que já existe no MikroTik. ⚙️ reconfigura e 🗑️ exclui (só sem clientes).</td></tr>
-              <tr><td>⬇️ Importar do MikroTik</td><td>Traz para o painel peers criados fora dele (Winbox, VPN antiga). Se a chave privada estiver guardada no MikroTik (opção ligada por padrão em Configurações), vêm completos, com QR Code. Senão, aparecem como <span class="badge b-gray">importado</span>, com monitoramento e alertas mas sem QR Code — a chave só existe no dispositivo.</td></tr>
+              <tr><td>🔁</td><td>Aparece quando o MikroTik está diferente do painel: corrige com um clique.</td></tr>
+              <tr><td>🔑</td><td>Gerar chaves novas (ex.: celular perdido). A configuração antiga para de funcionar.</td></tr>
               <tr><td>🗑️</td><td>Remover o cliente de vez.</td></tr>
+              <tr><td>⬇️ Importar do MikroTik</td><td>Traz peers criados fora do painel (Winbox, VPN antiga), sem alterar nada no roteador. Os marcados <span class="badge b-green">🔑 com chave</span> vêm completos, com QR/script; os outros aparecem como <span class="badge b-gray">importado</span> (monitorados, mas sem QR). A interface do peer precisa estar no painel — adote-a antes em ＋ Nova interface.</td></tr>
             </table>
+            <p><b>Chaves guardadas no MikroTik:</b> com a opção ligada em Configurações (padrão), a chave de cada cliente fica salva também no roteador. Assim qualquer painel novo importa os clientes <b>com QR Code funcionando</b>, sem precisar de backup.</p>
+
             <h3>Como instalar no dispositivo</h3>
             <ul>
               <li><b>Celular</b> — app "WireGuard" (Play Store / App Store) → <b>+</b> → Escanear QR code → ativar.</li>
               <li><b>Windows/Mac/Linux</b> — instale em wireguard.com/install → "Importar túnel de arquivo" → selecione o <span class="mono">.conf</span> → Ativar.</li>
             </ul>
             <button class="btn" @click="tab='vpn'">Ir para VPN →</button>
+          </div>
+
+          <div id="help-site" class="card space-y-3">
+            <h2>🖧 Outro MikroTik (site-to-site)</h2>
+            <p>Liga o MikroTik de um <b>cliente</b> ao seu por um túnel. Da sua casa você abre o Winbox do roteador dele e acessa os equipamentos da rede dele (câmeras, computadores), e o painel avisa no Discord se o cliente cair.</p>
+<pre class="mono text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 overflow-x-auto leading-5">   SUA CASA                                 CLIENTE (ex.: Padaria)
+┌─────────────────┐                      ┌──────────────────────┐
+│ Seu MikroTik    │◄════════ túnel ═════►│ MikroTik do cliente  │
+│ 192.168.88.x    │   (pela internet)    │ 192.168.10.x         │
+│  └ seu PC       │                      │  ├ câmeras           │
+│  └ painel       │                      │  └ computadores      │
+└─────────────────┘                      └──────────────────────┘</pre>
+            <h3>Passo a passo</h3>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li><b>Uma vez só:</b> crie uma interface para clientes (<b>＋ Nova interface</b>, ex.: <span class="mono">wg-clientes</span>).</li>
+              <li>Na aba dela, clique em <b>🖧 Outro MikroTik</b> e informe o nome e a <b>rede local do cliente</b> (veja no Winbox dele em IP → Addresses, ex.: <span class="mono">192.168.10.0/24</span>).</li>
+              <li>Escolha <b>quem acessa quem</b> (abaixo).</li>
+              <li>O painel mostra um <b>script</b>. No Winbox do MikroTik do cliente → <b>New Terminal</b> → cole e aperte Enter (uma única vez). Dá para copiar ou baixar o <span class="mono">.rsc</span>.</li>
+              <li>Em segundos ele aparece <span class="badge b-green">Online</span>. Acesse o roteador dele pelo <b>IP no túnel</b> (coluna "IP VPN", ex.: 10.20.0.2) e os aparelhos pelo IP normal da rede dele (ex.: 192.168.10.50).</li>
+            </ol>
+            <h3>Quem acessa quem?</h3>
+            <table class="table">
+              <tr><td><span class="badge b-blue">➡️ Só eu acesso</span></td><td>Você entra na rede do cliente; o cliente <b>não</b> abre conexões para a sua rede. Recomendado e padrão. O painel cria no seu MikroTik uma regra que bloqueia só conexões <b>novas</b> vindas do cliente.</td></tr>
+              <tr><td><span class="badge b-amber">↔️ Mão dupla</span></td><td>Os dois lados se acessam. Use só se o cliente realmente precisar de algo da sua rede.</td></tr>
+            </table>
+            <p>Pode trocar depois pelo ✏️, sem mexer no MikroTik do cliente.</p>
+            <h3>O que o painel faz em cada lado</h3>
+            <ul>
+              <li><b>No seu MikroTik:</b> o peer do cliente, as rotas para a rede dele e (no modo "só eu acesso") a regra de bloqueio.</li>
+              <li><b>No MikroTik do cliente (pelo script):</b> a interface <span class="mono">wg-central</span> apontando para o seu DDNS, o IP no túnel, as rotas para a sua rede e a inclusão do túnel na lista LAN dele (para você conseguir entrar no Winbox).</li>
+            </ul>
+            <p class="text-amber-300">⚠️ As duas redes precisam ser <b>diferentes</b>. Se o cliente também usa <span class="mono">192.168.88.x</span> (padrão de fábrica do MikroTik, igual à sua), o painel recusa — mude a faixa da rede do cliente antes. O script contém a chave do túnel: envie por um canal seguro.</p>
+            <p>Para refazer no cliente (ex.: após 🔑 gerar chaves novas): no MikroTik dele, remova a interface <span class="mono">wg-central</span> e rode o script novo.</p>
           </div>
 
           <div id="help-nat" class="card space-y-3">
@@ -716,20 +763,20 @@
           </div>
 
           <div id="help-monitor" class="card space-y-3">
-            <h2>📈 Monitoramento</h2>
+            <h2>📈 Gráficos e consumo</h2>
             <ul>
-              <li><b>Gráfico</b> — escolha um cliente VPN ou uma porta liberada e o período (1 hora a 30 dias).
+              <li><b>Gráfico</b> — escolha um cliente VPN (dispositivo ou MikroTik remoto) ou uma porta liberada e o período (1 hora a 30 dias).
                 Para VPN: <b>Download</b> = o que o dispositivo recebeu; <b>Upload</b> = o que enviou. "Online X% do tempo" mostra quanto ficou conectado.
                 Para portas: tráfego que entrou e a <b>disponibilidade</b> do servidor.</li>
               <li><b>Consumo por cliente</b> — quanto cada dispositivo usou no período e quando foi visto por último.</li>
             </ul>
             <p>O histórico é guardado pelo tempo definido em Configurações (padrão 30 dias).</p>
-            <button class="btn" @click="tab='monitor'">Ir para Monitoramento →</button>
+            <button class="btn" @click="tab='monitor'">Ir para Gráficos e consumo →</button>
           </div>
 
           <div id="help-events" class="card space-y-3">
             <h2>🔔 Eventos</h2>
-            <p>Linha do tempo automática do sistema: conexões e desconexões da VPN, servidores que caíram/voltaram, portas que expiraram e quedas do MikroTik. Tudo é registrado aqui, mesmo o que não gera alerta.</p>
+            <p>Linha do tempo automática do sistema: conexões e desconexões da VPN ("VPN: …" para dispositivos, "Site: …" para MikroTiks de clientes), servidores que caíram/voltaram, portas que expiraram, regras apagadas por fora e quedas do MikroTik. Tudo é registrado aqui, mesmo o que não gera alerta.</p>
             <p>Cores: <span class="badge b-green">success</span> algo bom · <span class="badge b-blue">info</span> informativo · <span class="badge b-amber">warn</span> atenção · <span class="badge b-red">error</span> problema.</p>
           </div>
 
@@ -756,22 +803,25 @@
           <div id="help-backup" class="card space-y-3">
             <h2>💾 Backup <span class="badge b-blue">admin</span></h2>
             <ul>
-              <li><b>Baixar backup</b> — arquivo com tudo do painel (clientes e chaves, portas, configurações, usuários). Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN.</li>
-              <li><b>Restaurar</b> — importa um backup (ex.: ao trocar de computador). Pode recriar no MikroTik o que estiver faltando.</li>
-              <li><b>Backup do MikroTik</b> — salva a configuração inteira do roteador dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
+              <li><b>Baixar backup</b> — arquivo com tudo do painel: interfaces, clientes (com chaves), MikroTiks remotos, portas, configurações, alertas e usuários. Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN.</li>
+              <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado, e o que faltar pode ser recriado no MikroTik. Aceita backups de versões antigas.</li>
+              <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do roteador dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
             </ul>
+            <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik): o caminho completo é Baixar backup no antigo → Restaurar no novo. Se só precisar dos clientes VPN, use <b>⬇️ Importar do MikroTik</b> no novo — com as chaves guardadas no roteador, eles vêm com QR Code. Depois desligue o painel antigo para não receber alertas em dobro.</p>
           </div>
 
           <div id="help-settings" class="card space-y-3">
             <h2>⚙️ Configurações <span class="badge b-blue">admin</span></h2>
             <ul>
-              <li><b>Endereço remoto / local</b> — usados nos QR codes e arquivos da VPN. Mudou o DDNS? Atualize aqui e gere os QR codes de novo.</li>
-              <li><b>Redes acessíveis</b> — o que o modo "Só rede local" alcança.</li>
-              <li><b>DNS / Keepalive / MTU</b> — avançado; os padrões funcionam na maioria dos casos.</li>
+              <li><b>Endereço remoto / local</b> — valem para todas as interfaces e vão nos QR codes, arquivos e scripts. Mudou o DDNS? Atualize aqui e gere as configurações de novo.</li>
+              <li><b>Keepalive / MTU</b> — avançado; os padrões funcionam na maioria dos casos. (DNS e redes acessíveis ficam em cada interface: VPN → ⚙️.)</li>
+              <li><b>Guardar a chave privada dos clientes no MikroTik</b> — ligado por padrão. Permite que qualquer painel importe os clientes com QR Code. Quem for admin do MikroTik consegue ver as chaves, e elas vão junto nos backups do roteador.</li>
               <li><b>Identificação do tráfego da internet (NAT)</b> — mantenha "Lista de interfaces WAN" se o seu MikroTik usa a configuração padrão.</li>
-              <li><b>Interface WAN</b> — a interface da internet (ex.: <span class="mono">pppoe-out1</span>) para o gráfico do Painel.</li>
-              <li><b>Considerar offline após</b> — quanto tempo sem comunicação até um cliente aparecer como offline.</li>
+              <li><b>Interface WAN</b> — vazio = detectar sozinho pela rota padrão (recomendado). Preencha só para forçar outra.</li>
+              <li><b>Considerar offline após</b> — tempo sem handshake até um cliente aparecer offline. Mínimo seguro: 150 s (abaixo disso surgem alertas falsos).</li>
+              <li><b>Guardar histórico</b> — por quantos dias manter os dados dos gráficos.</li>
             </ul>
+            <p class="hint">Conexão com o MikroTik (IP, usuário, senha, intervalo de coleta) fica no arquivo <span class="mono">.env</span> — ou nas variáveis do container, se o painel roda dentro do MikroTik.</p>
           </div>
 
           <div id="help-audit" class="card space-y-3">
@@ -783,7 +833,10 @@
             <h2>📚 Glossário</h2>
             <dl class="grid sm:grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
               <dt>WireGuard</dt><dd>Tecnologia de VPN moderna, rápida e segura, já embutida no MikroTik (RouterOS 7).</dd>
-              <dt>Peer / Cliente</dt><dd>Cada dispositivo autorizado a conectar na VPN.</dd>
+              <dt>Peer / Cliente</dt><dd>Cada dispositivo (ou MikroTik remoto) autorizado a conectar na VPN.</dd>
+              <dt>Interface WireGuard</dt><dd>Um "servidor" de VPN dentro do MikroTik, com porta e faixa de IPs próprias. Dá para ter várias.</dd>
+              <dt>Site-to-site</dt><dd>Túnel entre duas redes inteiras (dois roteadores), em vez de um aparelho só. É o "Outro MikroTik".</dd>
+              <dt>Rota</dt><dd>Indica ao roteador por onde chegar numa rede. O painel cria rotas para a rede de cada MikroTik remoto.</dd>
               <dt>Handshake</dt><dd>"Aperto de mão" periódico entre o dispositivo e o MikroTik. Se aconteceu há pouco, o cliente está conectado.</dd>
               <dt>Endpoint</dt><dd>Endereço (IP ou DDNS + porta) onde o cliente encontra o MikroTik.</dd>
               <dt>DDNS</dt><dd>Um nome fixo (ex.: <span class="mono">xxxx.sn.mynetname.net</span>) que sempre aponta para seu IP, mesmo que ele mude.</dd>
@@ -793,6 +846,7 @@
               <dt>CGNAT</dt><dd>Quando a operadora não te dá um IP público próprio. Impede liberar portas e receber VPN — peça IP público à operadora.</dd>
               <dt>Split / Full tunnel</dt><dd>"Só rede local" / "Toda a internet" pela VPN.</dd>
               <dt>Whitelist</dt><dd>Lista de IPs permitidos; todos os outros são bloqueados.</dd>
+              <dt>Chave privada / pública</dt><dd>O par de chaves de cada cliente. A pública fica no MikroTik (o "cadeado"); a privada prova quem é o cliente. Pode ficar guardada também no MikroTik (ver Configurações).</dd>
             </dl>
           </div>
 
@@ -800,11 +854,16 @@
             <h2>🛠️ Problemas comuns</h2>
             <table class="table">
               <tr><td><b>MikroTik offline</b></td><td>Confira IP e senha no arquivo <span class="mono">.env</span>, se o serviço <span class="mono">www-ssl</span> está ativo (IP → Services) e se o computador do painel está na rede permitida. Após editar o <span class="mono">.env</span>, rode <span class="mono">docker compose up -d</span>.</td></tr>
-              <tr><td><b>VPN conecta mas não acessa nada</b></td><td>Em VPN → Reconfigurar, deixe marcado "Tratar a VPN como rede interna" e aplique de novo.</td></tr>
+              <tr><td><b>VPN conecta mas não acessa nada</b></td><td>Em VPN → ⚙️ da interface, deixe marcado "Tratar a VPN como rede interna" e aplique de novo.</td></tr>
               <tr><td><b>VPN conectada, mas não abre um aparelho da rede</b></td><td>O aparelho de destino está recusando a faixa da VPN (10.10.0.x):<br>
                 • <b>MikroTik (WebFig/Winbox)</b>: libere em IP → Services → <span class="mono">available-from</span> (ou <span class="mono">address</span> em versões antigas) incluindo <span class="mono">10.10.0.0/24</span>.<br>
                 • <b>PC Windows</b>: o Firewall do Windows só aceita a própria rede. Em PowerShell (admin): <span class="mono">New-NetFirewallRule -DisplayName "VPN WireGuard" -Direction Inbound -RemoteAddress 10.10.0.0/24 -Action Allow</span><br>
                 • <b>Use o IP</b>, não o nome (<span class="mono">\\192.168.88.61</span> em vez de <span class="mono">\\meu-pc</span>). Apps que "procuram aparelhos na rede" automaticamente não funcionam pela VPN.</td></tr>
+              <tr><td><b>MikroTik do cliente não fica Online</b></td><td>Confira no roteador do cliente se o script rodou sem erro (<span class="mono">/interface wireguard print</span> deve mostrar <span class="mono">wg-central</span>), se ele tem internet e se o seu endereço remoto (DDNS) está certo em Configurações. A porta UDP da interface precisa estar liberada no seu MikroTik (o painel faz isso ao criar a interface).</td></tr>
+              <tr><td><b>Túnel Online, mas não abre a rede do cliente</b></td><td>Confira se a rede informada no cliente está certa (✏️) e se o aparelho de lá aceita conexões de outra rede (firewall do Windows, câmeras com restrição). Se o MikroTik do cliente não usa a lista LAN padrão, crie nele uma regra accept para a interface <span class="mono">wg-central</span>.</td></tr>
+              <tr><td><b>"Conflita com a sua rede" ao criar Outro MikroTik</b></td><td>A rede do cliente é igual (ou se sobrepõe) à sua ou à de outro cliente. Mude a faixa da LAN do cliente (ex.: 192.168.10.0/24) antes de criar o túnel.</td></tr>
+              <tr><td><b>Peer removido pelo Winbox</b></td><td>O painel mostra "Ausente no MikroTik". Use 🔁 para recriar ou 🗑️ no painel para remover de vez — removendo pelo painel, as rotas e regras dele também são limpas.</td></tr>
+              <tr><td><b>Atualizei o painel e não vi a mudança</b></td><td>Recarregue a página. Se o painel roda no MikroTik, troque a imagem do container (veja o README).</td></tr>
               <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Use o QR de <b>Acesso remoto</b> fora de casa. Verifique se o endereço remoto (DDNS) está certo em Configurações.</td></tr>
               <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
               <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>
