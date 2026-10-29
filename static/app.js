@@ -101,7 +101,7 @@ function panel() {
     routerId: null,
     routers: [],
     rtForm: null,
-    wg: { info: null, peers: [], filter: '', ifaceId: null },
+    wg: { info: null, peers: [], filter: '', ifaceId: null, existing: null },
     script: { peer: null, text: '', error: '', notice: '', part: 'all' },
     setup: null,
     suggest: null,
@@ -346,7 +346,7 @@ function panel() {
 
     async onTab(t) {
       if (t === 'dashboard') this.$nextTick(() => this.drawDashboard());
-      if (t === 'vpn' && this.wg.info && !this.wgIfaces.length && this.isAdmin) this.openSetup();
+      if (t === 'vpn' && this.wg.info && !this.wgIfaces.length && this.isAdmin) this.checkExistingIfaces();
       if (t === 'monitor') { this.loadUsage(); this.$nextTick(() => this.drawChart()); }
       if (t === 'events') this.loadEvents();
       if (t === 'audit') this.audit = await api('GET', '/api/monitor/audit');
@@ -504,6 +504,37 @@ function panel() {
       } catch (e) {
         this.toast(e.message, 'err');
       }
+    },
+    // painel vazio, mas o MikroTik já tem WireGuard (ex.: painel reinstalado): oferece adotar em vez de criar do zero
+    async checkExistingIfaces() {
+      this.wg.existing = null;
+      try {
+        this.suggest = await api('GET', '/api/wireguard/suggest');
+        this.wg.existing = this.suggest.existing_interfaces;
+      } catch (e) {
+        this.wg.existing = [];
+      }
+      if (!this.wg.existing.length) this.openSetup();
+    },
+    async adoptAndImport(i) {
+      const s = this.suggest || await api('GET', '/api/wireguard/suggest');
+      if (!i.address) {  // interface sem IP: abre o assistente já preenchido com ela
+        await this.openSetup();
+        this.adoptIface(i);
+        return;
+      }
+      const body = {
+        interface: i.name, listen_port: Number(i.listen_port), address: i.address, description: '', dns: '',
+        lan_networks: s.lan_networks.join(', '),
+        endpoint_remote: this.wg.info?.endpoint_remote || s.remote[0] || '',
+        endpoint_local: this.wg.info?.endpoint_local || s.local[0] || '',
+        add_to_lan_list: true, open_firewall: true,
+      };
+      const r = await this.run(() => api('POST', '/api/wireguard/interfaces', body), `Interface ${i.name} adotada`);
+      this.wg.ifaceId = r.id;
+      await this.loadWg();
+      this.loadOverview();
+      this.openImport();
     },
     adoptIface(i) {
       this.setup.interface = i.name;

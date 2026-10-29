@@ -238,9 +238,27 @@
         <template x-if="wg.info && !wgIfaces.length">
           <div class="card text-center py-10 space-y-3">
             <div class="text-4xl">🔐</div>
-            <h2 class="text-lg font-semibold text-white">A VPN ainda não foi configurada</h2>
-            <p class="text-slate-400 text-sm max-w-lg mx-auto">O assistente cria a interface WireGuard no MikroTik, define a faixa de IPs da VPN e libera a porta no firewall. Leva menos de um minuto.</p>
-            <button class="btn-primary" x-show="isAdmin" @click="openSetup()">Iniciar configuração</button>
+            <h2 class="text-lg font-semibold text-white" x-text="wg.existing?.length ? 'Este MikroTik já tem WireGuard' : 'A VPN ainda não foi configurada'"></h2>
+            <template x-if="isAdmin && wg.existing?.length">
+              <div class="space-y-3 max-w-xl mx-auto">
+                <p class="text-slate-400 text-sm">Encontramos interfaces WireGuard que ainda não estão no painel (por exemplo, depois de reinstalar o painel). Adote para trazer a interface e os clientes — com as chaves guardadas no MikroTik, eles vêm <b>com QR Code</b>.</p>
+                <template x-for="i in wg.existing" :key="i.name">
+                  <div class="flex items-center gap-3 rounded-lg border border-slate-800 p-3 text-left">
+                    <div class="min-w-0"><div class="mono text-white" x-text="i.name"></div>
+                      <div class="text-xs text-slate-500" x-text="'porta ' + i.listen_port + (i.address ? ' · ' + i.address : ' · sem IP')"></div></div>
+                    <button class="btn-primary ml-auto" @click="adoptAndImport(i)" :disabled="busy">Adotar e importar clientes</button>
+                  </div>
+                </template>
+                <p class="text-sm text-slate-500">Ou <a class="text-blue-400 cursor-pointer" @click="tab = 'backup'">restaure um backup</a> (traz também alertas, usuários e roteadores) ·
+                  <a class="text-blue-400 cursor-pointer" @click="openSetup()">criar uma interface nova</a></p>
+              </div>
+            </template>
+            <template x-if="!wg.existing?.length">
+              <div class="space-y-3">
+                <p class="text-slate-400 text-sm max-w-lg mx-auto">O assistente cria a interface WireGuard no MikroTik, define a faixa de IPs da VPN e libera a porta no firewall. Leva menos de um minuto.</p>
+                <button class="btn-primary" x-show="isAdmin" @click="openSetup()">Iniciar configuração</button>
+              </div>
+            </template>
             <p class="text-sm text-slate-500" x-show="!isAdmin">Peça a um administrador para configurar.</p>
           </div>
         </template>
@@ -1021,6 +1039,7 @@
                 • <b>MikroTik (WebFig/Winbox)</b>: libere em IP → Services → <span class="mono">available-from</span> (ou <span class="mono">address</span> em versões antigas) incluindo <span class="mono">10.10.0.0/24</span>.<br>
                 • <b>PC Windows</b>: o Firewall do Windows só aceita a própria rede. Em PowerShell (admin): <span class="mono">New-NetFirewallRule -DisplayName "VPN WireGuard" -Direction Inbound -RemoteAddress 10.10.0.0/24 -Action Allow</span><br>
                 • <b>Use o IP</b>, não o nome (<span class="mono">\\192.168.88.61</span> em vez de <span class="mono">\\meu-pc</span>). Apps que "procuram aparelhos na rede" automaticamente não funcionam pela VPN.</td></tr>
+              <tr><td><b>Painel novo/reinstalado sem os clientes</b></td><td>Em VPN WireGuard aparece "Este MikroTik já tem WireGuard": clique em <b>Adotar e importar clientes</b>. Ou, para trazer tudo (alertas, usuários, roteadores), use <b>Backup → Restaurar</b> com um backup do painel antigo.</td></tr>
               <tr><td><b>Roteador de cliente "Sem conexão" em Roteadores</b></td><td>O túnel (VPN) dele precisa estar Online. Confira se o trecho de gerenciamento do script foi colado e use <b>🔌 Testar</b>, que procura a porta da API. Se o www dele aceitar só alguns IPs, o script avisa: inclua a faixa do túnel em IP → Services → www.</td></tr>
               <tr><td><b>MikroTik do cliente não fica Online</b></td><td>Confira no roteador do cliente se o script rodou sem erro (<span class="mono">/interface wireguard print</span> deve mostrar <span class="mono">wg-central</span>), se ele tem internet e se o seu endereço remoto (DDNS) está certo em Configurações. A porta UDP da interface precisa estar liberada no seu MikroTik (o painel faz isso ao criar a interface).</td></tr>
               <tr><td><b>Túnel Online, mas não abre a rede do cliente</b></td><td>Confira se a rede informada no cliente está certa (✏️) e se o aparelho de lá aceita conexões de outra rede (firewall do Windows, câmeras com restrição). Se o MikroTik do cliente não usa a lista LAN padrão, crie nele uma regra accept para a interface <span class="mono">wg-central</span>.</td></tr>
