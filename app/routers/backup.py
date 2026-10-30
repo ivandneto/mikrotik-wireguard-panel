@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..db import NatRule, Peer, Router, User, WgInterface, _migrate, audit, iso, utcnow
+from ..i18n import tr
 from ..mikrotik import MikroTikError, mt, use
 from ..mikrotik import main as main_client
 from ..routerctx import use_router
@@ -91,7 +92,7 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
     """Restaura um backup. Só recria itens no MikroTik PRINCIPAL; os dos outros roteadores entram só no painel."""
     data = body.data
     if data.get("app") != "mikrotik-wg-panel":
-        raise HTTPException(400, "Arquivo não é um backup deste painel")
+        raise HTTPException(400, tr("Arquivo não é um backup deste painel"))
     report = {"peers_created": 0, "peers_updated": 0, "nat_created": 0, "users_created": 0, "routers_created": 0,
               "errors": []}
     use(main_client)

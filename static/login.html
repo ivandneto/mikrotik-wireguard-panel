@@ -6,6 +6,7 @@
   <title>Entrar · WG Panel</title>
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center p-4">
   <form id="form" class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-5 shadow-2xl">
@@ -24,19 +25,25 @@
     </label>
     <p id="error" class="text-sm text-red-400 hidden"></p>
     <button class="btn-primary w-full justify-center py-2.5">Entrar</button>
+    <label class="flex items-center justify-center gap-2 text-sm text-slate-400" title="Idioma / Language">🌐
+      <select id="lang" class="bg-transparent outline-none cursor-pointer"></select>
+    </label>
   </form>
   <script>
+    const sel = document.getElementById('lang');
+    for (const l of LANGS) sel.add(new Option(l.name, l.code, false, l.code === LANG));
+    sel.addEventListener('change', () => setLang(sel.value));
     document.getElementById('form').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const err = document.getElementById('error');
       err.classList.add('hidden');
       const body = Object.fromEntries(new FormData(ev.target));
       const r = await fetch('/api/auth/login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+        method: 'POST', headers: {'Content-Type': 'application/json', 'X-Lang': LANG}, body: JSON.stringify(body),
       });
       if (r.ok) { location.href = '/'; return; }
       const data = await r.json().catch(() => ({}));
-      err.textContent = data.detail || 'Falha no login';
+      err.textContent = data.detail || t('Falha no login');
       err.classList.remove('hidden');
     });
   </script>

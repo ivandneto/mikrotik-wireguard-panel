@@ -7,7 +7,7 @@
 ![RouterOS 7](https://img.shields.io/badge/RouterOS-7.x-blue)
 ![Docker](https://img.shields.io/badge/Docker-pronto-2496ED)
 
-Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e gerenciar MikroTiks de clientes**, **liberar portas (NAT)** para servidores de jogos e aplicações, e **monitorar tudo**, com alertas no **Telegram** e no **Discord**. Roda em **Docker** ou como **container dentro do próprio MikroTik**.
+Painel web (em 9 idiomas) para **criar e gerenciar VPN WireGuard**, **ligar e gerenciar MikroTiks de clientes**, **liberar portas (NAT)** para servidores de jogos e aplicações, e **monitorar tudo**, com alertas no **Telegram** e no **Discord**. Roda em **Docker** ou como **container dentro do próprio MikroTik**.
 
 > 💬 Tem uma ideia ou dúvida? Use a aba **[Discussions](../../discussions)**. Encontrou um problema? Abra uma **[Issue](../../issues/new/choose)**.
 
@@ -21,10 +21,14 @@ Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e ger
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
 | 📈 **Monitoramento** | Quem está online, último handshake, IP de origem, tráfego por cliente, consumo por período, tráfego por porta liberada, **teste se o servidor está no ar**, CPU/memória/WAN do roteador, gráficos com histórico |
 | 🌐 **WebFig e Terminal** | Botão **🌐 WebFig** em cada roteador (e no topo) abre a página do MikroTik — com o **Terminal** — numa nova aba, com o seu próprio login. Para clientes, funciona pelo túnel |
+| 🛠️ **Ferramentas** | **Ping** e **traceroute** feitos pelo próprio MikroTik (o seu ou o de um cliente): ele alcança o cliente da VPN, o servidor, a internet? |
+| 🛡️ **Checagem de segurança** | Confere em cada roteador os erros mais comuns — port forward para o painel, firewall de entrada ausente, serviços abertos, usuário `admin` padrão, DNS aberto — com o comando para corrigir cada um. Só lê |
+| ⬆️ **Atualização do RouterOS** | Pergunta a cada roteador uma vez por dia se há RouterOS novo, mostra nos cartões dos roteadores e avisa no Discord/Telegram |
 | 📖 **Manual e tour** | Manual completo dentro do painel, tour guiado e ajuda contextual (❓) em cada tela |
-| 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline |
+| 🌐 **9 idiomas** | Português (Brasil), English, Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — telas, tour, manual, erros e alertas. Segue o idioma do navegador; troque na tela de login, no menu lateral ou em Configurações |
+| 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline, atualização do RouterOS disponível, configuração mudou — no idioma que você escolher |
 | 👥 **Usuários** | Vários usuários: **administrador** ou **somente leitura** |
-| 💾 **Backup** | Exporta/importa tudo do painel (JSON) e cria backup `.backup`/`.rsc` dentro do MikroTik |
+| 💾 **Backup** | Exporta/importa tudo do painel (JSON), cria backup `.backup`/`.rsc` dentro do MikroTik e faz **backup automático diário/semanal** da configuração de cada MikroTik, guardando **só quando algo mudou**, com o **O que mudou** para comparar |
 | 📜 **Auditoria** | Registro de quem criou, alterou ou removeu o quê, e quando |
 
 > **Segurança:** o painel só altera o que ele mesmo criou (tudo leva o comentário `[wgpanel]`). Suas regras atuais do MikroTik **não são tocadas**.
@@ -33,34 +37,42 @@ Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e ger
 
 ## 📸 Telas
 
-> Dados de demonstração (roteadores, clientes e IPs fictícios).
+> Dados de demonstração (roteadores, clientes e IPs fictícios). O painel também fala English, Español, Français, Deutsch, Italiano, Русский, 中文 e 日本語.
 
-<p align="center"><a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="Painel"></a><br><sub><b>Painel</b> — todos os seus roteadores, CPU/memória, clientes VPN conectados, tráfego da WAN e eventos recentes</sub></p>
+<p align="center"><a href="docs/screenshots/pt-BR/dashboard.png"><img src="docs/screenshots/pt-BR/dashboard.png" alt="Painel"></a><br><sub><b>Painel</b> — todos os seus roteadores, CPU/memória, clientes VPN conectados, tráfego da WAN e eventos recentes</sub></p>
 
 <table>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/vpn.png"><img src="docs/screenshots/vpn.png" alt="<b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas"></a><br><sub><b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/qrcode.png"><img src="docs/screenshots/qrcode.png" alt="<b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/vpn.png"><img src="docs/screenshots/pt-BR/vpn.png" alt="VPN WireGuard"></a><br><sub><b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/qrcode.png"><img src="docs/screenshots/pt-BR/qrcode.png" alt="QR Code"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/site-to-site.png"><img src="docs/screenshots/site-to-site.png" alt="<b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/routers.png"><img src="docs/screenshots/routers.png" alt="<b>Roteadores</b> — gerencie vários MikroTiks, com botão WebFig em cada um"></a><br><sub><b>Roteadores</b> — gerencie vários MikroTiks, com botão WebFig em cada um</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/site-to-site.png"><img src="docs/screenshots/pt-BR/site-to-site.png" alt="Outro MikroTik (site-to-site)"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/routers.png"><img src="docs/screenshots/pt-BR/routers.png" alt="Roteadores"></a><br><sub><b>Roteadores</b> — vários MikroTiks num painel só, aviso de atualização do RouterOS e WebFig</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/port-forwarding.png"><img src="docs/screenshots/port-forwarding.png" alt="<b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta"></a><br><sub><b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/new-port.png"><img src="docs/screenshots/new-port.png" alt="<b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações"></a><br><sub><b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/port-forwarding.png"><img src="docs/screenshots/pt-BR/port-forwarding.png" alt="Liberação de portas"></a><br><sub><b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/new-port.png"><img src="docs/screenshots/pt-BR/new-port.png" alt="Liberar porta"></a><br><sub><b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/monitoring.png"><img src="docs/screenshots/monitoring.png" alt="<b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN"></a><br><sub><b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/events.png"><img src="docs/screenshots/events.png" alt="<b>Eventos</b> — tudo o que aconteceu, também enviado como alerta"></a><br><sub><b>Eventos</b> — tudo o que aconteceu, também enviado como alerta</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/security.png"><img src="docs/screenshots/pt-BR/security.png" alt="Checagem de segurança"></a><br><sub><b>Checagem de segurança</b> — os erros mais comuns em cada roteador, com o comando para corrigir</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/tools.png"><img src="docs/screenshots/pt-BR/tools.png" alt="Ferramentas"></a><br><sub><b>Ferramentas</b> — ping e traceroute feitos pelo próprio MikroTik</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/alerts.png"><img src="docs/screenshots/alerts.png" alt="<b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam"></a><br><sub><b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/manual.png"><img src="docs/screenshots/manual.png" alt="<b>Manual no painel</b> — cada tela explicada, mais o tour guiado"></a><br><sub><b>Manual no painel</b> — cada tela explicada, mais o tour guiado</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/backup-diff.png"><img src="docs/screenshots/pt-BR/backup-diff.png" alt="Backup automático"></a><br><sub><b>Backup automático</b> — a configuração de cada MikroTik, guardada só quando muda, com o que mudou</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/monitoring.png"><img src="docs/screenshots/pt-BR/monitoring.png" alt="Gráficos e consumo"></a><br><sub><b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/alerts.png"><img src="docs/screenshots/pt-BR/alerts.png" alt="Alertas"></a><br><sub><b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/settings.png"><img src="docs/screenshots/pt-BR/settings.png" alt="Configurações"></a><br><sub><b>Configurações</b> — opções por roteador e o idioma da tela e dos alertas</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/events.png"><img src="docs/screenshots/pt-BR/events.png" alt="Eventos"></a><br><sub><b>Eventos</b> — tudo o que aconteceu, também enviado como alerta</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/manual.png"><img src="docs/screenshots/pt-BR/manual.png" alt="Manual no painel"></a><br><sub><b>Manual no painel</b> — cada tela explicada, em 9 idiomas</sub></td>
   </tr>
 </table>
 
-<p align="center"><a href="docs/screenshots/mobile.png"><img src="docs/screenshots/mobile.png" alt="Celular" width="260"></a>&nbsp;&nbsp;&nbsp;<a href="docs/screenshots/tour.png"><img src="docs/screenshots/tour.png" alt="Tour guiado" width="520"></a><br><sub><b>Funciona no celular</b> · <b>Tour guiado</b> no primeiro acesso</sub></p>
+<p align="center"><a href="docs/screenshots/pt-BR/mobile.png"><img src="docs/screenshots/pt-BR/mobile.png" alt="Mobile" width="260"></a>&nbsp;&nbsp;&nbsp;<a href="docs/screenshots/pt-BR/tour.png"><img src="docs/screenshots/pt-BR/tour.png" alt="Tour" width="520"></a><br><sub><b>Funciona no celular</b> · <b>Tour guiado</b> no primeiro acesso</sub></p>
 
 ---
 
@@ -103,7 +115,7 @@ Abra o **Winbox → New Terminal** e cole os comandos do arquivo [`mikrotik-setu
 
 O script faz o seguinte:
 
-1. Cria o grupo `wgpanel` com as permissões necessárias.
+1. Cria o grupo `wgpanel` com as permissões necessárias (`ftp` = acesso a arquivos, para o backup automático e a verificação de atualização; **não** liga o serviço FTP).
 2. Cria o usuário `wgpanel`.
 3. Ativa a API REST via HTTPS (`www-ssl`), acessível **só da sua rede**.
 4. Ativa o DDNS grátis do MikroTik (`xxxx.sn.mynetname.net`), útil se você não tem IP fixo.
@@ -120,7 +132,7 @@ Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou
 
 **Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.2.3.tar.gz     # use o nome exato do arquivo baixado
+docker load -i wgpanel-docker-amd64-v1.3.0.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -224,6 +236,8 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 ## Backup e atualização
 
 - **Backup do painel:** aba **Backup → Baixar backup**. Contém as chaves privadas da VPN, então guarde em local seguro.
+- **Backup automático do MikroTik:** ligado por padrão. Todo dia (ou semana) o painel exporta a configuração de cada roteador (sem senhas) para `data/router-backups/` e guarda uma cópia só quando algo mudou. Veja e compare em **Backup → 🕒 Backup automático do MikroTik**.
+- **Atualizando da 1.2 ou anterior?** O backup automático e a verificação de atualização precisam da permissão `ftp` no usuário `wgpanel`. Como admin, no terminal do MikroTik: `/user group set [find name=wgpanel] policy=read,write,api,rest-api,test,sensitive,ftp`
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
 - **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
 - **Reinstalar ou trocar de máquina:** restaure o backup em **Backup → Restaurar** (traz tudo). Sem backup, em **VPN WireGuard** use **Adotar e importar clientes**: a interface e os clientes voltam do próprio MikroTik.
@@ -283,9 +297,9 @@ bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.2.3` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.0` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.2.3.tar comment="WG Panel v1.2.3" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.0.tar comment="WG Panel v1.3.0" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
 O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").
@@ -297,7 +311,7 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.2.4.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
+Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.1.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
 
@@ -329,7 +343,12 @@ app/
   services/alerts.py      # Telegram / Discord
   services/nat_ops.py     # criação/remoção das regras de NAT
   services/router_ops.py  # remoção de roteadores do painel
+  services/router_tools.py # ping, traceroute, checagem de segurança, exportação, atualização
+  services/auto_tasks.py  # backups automáticos e verificação diária de atualização
+  i18n.py + locales/      # mensagens do servidor em cada idioma
 static/                   # interface web (Alpine.js + Tailwind + Chart.js)
+  i18n.js + i18n/         # traduções das telas, do tour e do manual (um arquivo por idioma)
+scripts/i18n_extract.py   # lista as frases que faltam em cada idioma
 Dockerfile                # imagem Docker (PC/servidor)
 Dockerfile.mikrotik       # imagem enxuta ARM64 para container no RouterOS
 mikrotik-setup.rsc        # preparação do roteador
@@ -360,6 +379,7 @@ Também: senha forte no `admin` do painel, usuário `wgpanel` limitado no MikroT
 - **[Discussions](../../discussions)** — ideias, perguntas de instalação/uso e troca de experiências.
 - **[Issues](../../issues/new/choose)** — formulários para 💡 sugerir uma função ou 🐛 relatar um problema.
 - **Pull requests** são bem-vindos. Para mudanças grandes, abra uma discussão antes.
+- **Traduções:** cada idioma é um arquivo em `static/i18n/` (telas, tour e manual) e um em `app/locales/` (mensagens do servidor); a chave é o texto original em português. Rode `python scripts/i18n_extract.py` para ver o que falta em um idioma.
 
 Ao relatar algo, **nunca cole senhas, chaves da VPN, o `.env` ou backups**.
 

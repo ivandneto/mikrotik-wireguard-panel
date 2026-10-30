@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import NatRule, NatSample, User, audit, iso, utcnow
+from ..i18n import tr
 from ..mikrotik import mt
 from ..security import current_user, get_db, require_admin
 from ..services import collector, nat_ops
@@ -64,27 +65,27 @@ def _validate(body: NatIn):
             internal = parse_ports(body.internal_port)
             single = lambda ranges: len(ranges) == 1 and ranges[0][0] == ranges[0][1]
             if not (single(ext) and single(internal)):
-                raise ValueError("Porta interna diferente da externa só é suportada para uma porta única "
-                                 "(deixe a porta interna em branco para usar as mesmas)")
+                raise ValueError(tr("Porta interna diferente da externa só é suportada para uma porta única "
+                                    "(deixe a porta interna em branco para usar as mesmas)"))
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     try:
         ip = ipaddress.ip_address(body.internal_ip.strip())
     except ValueError:
-        raise HTTPException(400, "IP interno inválido")
+        raise HTTPException(400, tr("IP interno inválido"))
     if not ip.is_private:
-        raise HTTPException(400, "O IP interno deve ser um endereço da sua rede local")
+        raise HTTPException(400, tr("O IP interno deve ser um endereço da sua rede local"))
     for item in split_list(body.whitelist):
         try:
             ipaddress.ip_network(item, strict=False)
         except ValueError:
-            raise HTTPException(400, f"Endereço inválido na whitelist: {item}")
+            raise HTTPException(400, tr("Endereço inválido na whitelist: {item}", item=item))
 
 
 def _rule_or_404(db: Session, rule_id: int) -> NatRule:
     rule = db.get(NatRule, rule_id)
     if not rule or rule.router_id != current_router().id:
-        raise HTTPException(404, "Regra não encontrada neste roteador")
+        raise HTTPException(404, tr("Regra não encontrada neste roteador"))
     return rule
 
 
@@ -127,7 +128,7 @@ async def create_rule(body: NatIn, user: User = Depends(require_admin), db: Sess
     _validate(body)
     conflicts = await nat_ops.find_conflicts(body.protocol, body.external_port, [])
     if conflicts and not body.force:
-        raise HTTPException(409, "Porta já usada por: " + "; ".join(conflicts))
+        raise HTTPException(409, tr("Porta já usada por: {rules}", rules="; ".join(conflicts)))
 
     rule = NatRule(
         router_id=current_router().id,

@@ -20,6 +20,8 @@ EVENT_LABELS = {
     "nat_expired": "Liberação temporária expirou",
     "router_down": "MikroTik inacessível",
     "router_up": "MikroTik voltou",
+    "router_update": "Atualização do RouterOS disponível",
+    "config_changed": "Configuração do MikroTik mudou (backup automático salvo)",
 }
 _COLORS = {"success": 0x22C55E, "info": 0x3B82F6, "warn": 0xF59E0B, "error": 0xEF4444}
 _ICONS = {"success": "✅", "info": "ℹ️", "warn": "⚠️", "error": "🚨"}

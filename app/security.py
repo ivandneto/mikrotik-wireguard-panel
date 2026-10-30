@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .config import config
 from .db import SessionLocal, User
+from .i18n import tr
 
 _PBKDF2_ROUNDS = 310_000
 _fernet = Fernet(base64.urlsafe_b64encode(hashlib.sha256(config.SECRET_KEY.encode()).digest()))
@@ -55,7 +56,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.get(User, uid) if uid else None
     if not user or request.session.get("pv") != password_fingerprint(user):
         request.session.clear()
-        raise HTTPException(401, "Não autenticado")
+        raise HTTPException(401, tr("Não autenticado"))
     return user
 
 

@@ -8,9 +8,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import NatRule, Peer, Router, User, WgInterface, audit, iso
+from ..i18n import tr
 from ..mikrotik import MikroTik, MikroTikError, client_for, forget_client
 from ..security import current_user, decrypt, encrypt, get_db, require_admin
-from ..services import collector
+from ..services import auto_tasks, collector
 from ..services.router_ops import delete_router_records
 
 router = APIRouter(prefix="/api/routers", tags=["routers"])
@@ -53,6 +54,7 @@ def router_out(r: Router, db: Session) -> dict:
         "wan_interface": r.wan_interface,
         "created_at": iso(r.created_at),
         "live": collector.state["routers"].get(r.id),
+        "update": auto_tasks.router_state(r.id).get("update"),
         "interfaces": len(iface_ids),
         "peers_total": len(peers),
         "peers_online": sum(1 for p in peers if collector.state["peers"].get(p.id, {}).get("online")),
@@ -63,7 +65,7 @@ def router_out(r: Router, db: Session) -> dict:
 def _router_or_404(db: Session, router_id: int) -> Router:
     r = db.get(Router, router_id)
     if not r:
-        raise HTTPException(404, "Roteador não encontrado")
+        raise HTTPException(404, tr("Roteador não encontrado"))
     return r
 
 
@@ -71,7 +73,7 @@ def _validate_url(url: str) -> str:
     url = url.strip().rstrip("/")
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        raise HTTPException(400, "URL inválida. Exemplo: http://10.20.0.2:80 ou https://192.168.10.1")
+        raise HTTPException(400, tr("URL inválida. Exemplo: http://10.20.0.2:80 ou https://192.168.10.1"))
     return url
 
 
@@ -84,7 +86,7 @@ def list_routers(_: User = Depends(current_user), db: Session = Depends(get_db))
 @router.post("")
 def create_router(body: RouterIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     if not body.password:
-        raise HTTPException(400, "Informe a senha do usuário da API")
+        raise HTTPException(400, tr("Informe a senha do usuário da API"))
     r = Router(name=body.name.strip(), url=_validate_url(body.url), username=body.username.strip() or "wgpanel",
                password_enc=encrypt(body.password), verify_tls=body.verify_tls, enabled=body.enabled,
                endpoint_remote=body.endpoint_remote.strip(), endpoint_local=body.endpoint_local.strip(),
@@ -121,7 +123,7 @@ def update_router(router_id: int, body: RouterIn, user: User = Depends(require_a
 def delete_router(router_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     r = _router_or_404(db, router_id)
     if r.is_main:
-        raise HTTPException(400, "O roteador principal não pode ser removido (ele vem do arquivo .env)")
+        raise HTTPException(400, tr("O roteador principal não pode ser removido (ele vem do arquivo .env)"))
     name = r.name
     delete_router_records(db, r)
     db.commit()
@@ -135,7 +137,8 @@ async def test_router(router_id: int, user: User = Depends(require_admin), db: S
     r = _router_or_404(db, router_id)
     try:
         res = await client_for(r).get("/system/resource")
-        return {"ok": True, "message": f"Conectado: {res.get('board-name')} · RouterOS {res.get('version')}"}
+        return {"ok": True, "message": tr("Conectado: {board} · RouterOS {version}",
+                                           board=res.get("board-name"), version=res.get("version"))}
     except MikroTikError as exc:
         first_error = str(exc)
         if exc.status == 401 or r.is_main:
@@ -165,6 +168,6 @@ async def test_router(router_id: int, user: User = Depends(require_admin), db: S
         forget_client(r.id)
         collector.trigger()
         audit(db, user.username, "roteador: porta da API detectada", f"{r.name} → {url}")
-        return {"ok": True, "message": f"Encontrado na porta {port} e salvo: {res.get('board-name')} · "
-                                       f"RouterOS {res.get('version')}"}
+        return {"ok": True, "message": tr("Encontrado na porta {port} e salvo: {board} · RouterOS {version}",
+                                          port=port, board=res.get("board-name"), version=res.get("version"))}
     return {"ok": False, "message": first_error}

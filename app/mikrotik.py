@@ -20,6 +20,7 @@ import json
 import httpx
 
 from .config import config
+from .i18n import tr
 
 
 def _cp1252_fallback(exc: UnicodeDecodeError):
@@ -69,10 +70,11 @@ class MikroTik:
             resp = await self.client.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
             raise MikroTikError(
-                f"Não foi possível conectar ao MikroTik {self.label} em {self.url} ({exc.__class__.__name__})"
+                tr("Não foi possível conectar ao MikroTik {name} em {url} ({error})",
+                   name=self.label, url=self.url, error=exc.__class__.__name__)
             ) from exc
         if resp.status_code == 401:
-            raise MikroTikError("Usuário ou senha do MikroTik inválidos (ou usuário sem permissão rest-api)", 401)
+            raise MikroTikError(tr("Usuário ou senha do MikroTik inválidos (ou usuário sem permissão rest-api)"), 401)
         if resp.status_code >= 400:
             try:
                 body = resp.json()

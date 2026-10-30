@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import User, audit
+from ..i18n import tr
 from ..security import current_user, get_db, hash_password, password_fingerprint, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -37,7 +38,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
     if not user or not verify_password(body.password, user.password_hash):
         attempts.append(now)
         _failures[ip] = attempts
-        raise HTTPException(401, "Usuário ou senha inválidos")
+        raise HTTPException(401, tr("Usuário ou senha inválidos"))
     _failures.pop(ip, None)
     request.session.clear()
     request.session.update(uid=user.id, pv=password_fingerprint(user))

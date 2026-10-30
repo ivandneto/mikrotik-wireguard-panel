@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js"></script>
   <script src="/static/app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
@@ -51,6 +52,11 @@
         <span x-text="me?.username"></span>
         <span class="badge ml-1" :class="isAdmin ? 'b-blue' : 'b-gray'" x-text="isAdmin ? 'admin' : 'leitura'"></span>
       </div>
+      <label class="nav-item cursor-pointer" title="Idioma / Language">🌐
+        <select class="bg-transparent outline-none flex-1 min-w-0 cursor-pointer" @change="setLang($event.target.value)">
+          <template x-for="l in LANGS" :key="l.code"><option class="bg-slate-900" :value="l.code" :selected="l.code === LANG" x-text="l.name"></option></template>
+        </select>
+      </label>
       <button class="nav-item" @click="changeMyPassword()">🔑 Trocar senha</button>
       <button class="nav-item" @click="logout()">🚪 Sair</button>
     </div>
@@ -108,6 +114,7 @@
                   <span class="badge b-blue ml-auto" x-show="r.is_main">principal</span></div>
                 <div class="text-xs text-slate-400 mt-1" x-show="r.resource" x-text="(r.resource?.board || '') + ' · CPU ' + (r.resource?.cpu ?? '—') + '% · ligado há ' + fmtDur(r.resource?.uptime)"></div>
                 <div class="text-xs text-red-300 mt-1 truncate" x-show="r.online === false" x-text="'offline: ' + (r.error || '')"></div>
+                <div class="text-xs text-amber-300 mt-1" x-show="r.update?.available" x-text="'⬆️ ' + t('RouterOS {version} disponível', { version: r.update?.latest })"></div>
               </button>
             </template>
           </div>
@@ -118,6 +125,8 @@
             <div class="text-xl font-semibold text-white mt-2" x-text="router.resource?.board || '—'"></div>
             <div class="text-sm text-slate-400 mt-1">RouterOS <span x-text="router.resource?.version || '—'"></span></div>
             <div class="text-sm text-slate-400">Ligado há <span x-text="fmtDur(router.resource?.uptime)"></span></div>
+            <a class="text-sm text-amber-300 cursor-pointer" x-show="curRouter?.update?.available" @click="tab = 'security'"
+               x-text="'⬆️ ' + t('RouterOS {version} disponível', { version: curRouter?.update?.latest })"></a>
           </div>
           <div class="card">
             <div class="card-title">CPU / Memória</div>
@@ -213,6 +222,7 @@
               <div class="text-sm text-red-300" x-show="r.live?.online === false" x-text="'Sem conexão: ' + (r.live?.error || '')"></div>
               <div class="text-sm text-slate-400" x-show="!r.live">Aguardando a primeira coleta…</div>
               <div class="flex flex-wrap gap-2 text-xs">
+                <span class="badge b-amber" x-show="r.update?.available" x-text="'⬆️ ' + t('RouterOS {version} disponível', { version: r.update?.latest })"></span>
                 <span class="badge b-gray" x-text="'VPN: ' + r.peers_online + '/' + r.peers_total + ' online'"></span>
                 <span class="badge b-gray" x-text="r.interfaces + ' interface(s)'"></span>
                 <span class="badge b-gray" x-text="r.nat_total + ' porta(s) liberada(s)'"></span>
@@ -326,7 +336,7 @@
                           <span class="badge" :class="p.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="p.tunnel_mode === 'full' ? 'Toda internet' : 'Só rede local'"></span>
                         </template>
                       </td>
-                      <td x-text="p.live?.last_handshake != null ? fmtDur(p.live.last_handshake) + ' atrás' : 'nunca'"></td>
+                      <td x-text="p.live?.last_handshake != null ? t('{time} atrás', { time: fmtDur(p.live.last_handshake) }) : 'nunca'"></td>
                       <td class="mono text-xs text-slate-400" x-text="p.live?.endpoint || '—'"></td>
                       <td class="text-xs whitespace-nowrap"><div>↓ <span x-text="fmtBytes(p.live?.tx)"></span></div><div>↑ <span x-text="fmtBytes(p.live?.rx)"></span></div></td>
                       <td class="text-right whitespace-nowrap">
@@ -424,7 +434,7 @@
                     <td x-text="r.protocol || '—'"></td>
                     <td class="mono" x-text="r.dst_port || '—'"></td>
                     <td class="mono" x-text="(r.to_addresses || '—') + (r.to_ports ? ':' + r.to_ports : '')"></td>
-                    <td x-text="r.packets.toLocaleString('pt-BR')"></td>
+                    <td x-text="r.packets.toLocaleString(LOCALE)"></td>
                     <td x-text="fmtBytes(r.bytes)"></td>
                   </tr>
                 </template>
@@ -462,7 +472,7 @@
               <template x-if="chart.info?.kind === 'nat'">
                 <div class="flex gap-4">
                   <span>Tráfego <b x-text="fmtBytes(chart.info.total_bytes)"></b></span>
-                  <span>Pacotes <b x-text="chart.info.total_packets.toLocaleString('pt-BR')"></b></span>
+                  <span>Pacotes <b x-text="chart.info.total_packets.toLocaleString(LOCALE)"></b></span>
                   <span x-show="chart.info.uptime_pct != null">Disponibilidade <b x-text="chart.info.uptime_pct + '%'"></b></span>
                 </div>
               </template>
@@ -547,7 +557,7 @@
                 <template x-for="(label, key) in alerts.labels" :key="key">
                   <label class="flex items-center gap-3 cursor-pointer">
                     <button type="button" class="toggle" :class="alerts.config.events[key] && 'on'" @click="alerts.config.events[key] = !alerts.config.events[key]"></button>
-                    <span class="text-sm" x-text="label"></span>
+                    <span class="text-sm" x-text="t(label)"></span>
                   </label>
                 </template>
               </div>
@@ -607,6 +617,116 @@
           <p class="text-sm text-slate-400">Salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do roteador, dentro do próprio MikroTik (menu Files no Winbox).</p>
           <button class="btn" @click="mikrotikBackup()" :disabled="busy">Criar backup no roteador</button>
         </div>
+        <div class="card space-y-3 lg:col-span-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="font-semibold text-white">🕒 Backup automático do MikroTik <span class="badge b-blue">🖧 <span x-text="curRouter?.name"></span></span></div>
+            <button class="btn ml-auto" @click="runAutoBackup()" :disabled="busy">▶️ Fazer agora</button>
+          </div>
+          <p class="text-sm text-slate-400">O painel exporta a configuração de cada MikroTik (sem senhas) e guarda uma cópia <b>só quando algo mudou</b>. Assim dá para ver o que foi alterado e quando.</p>
+          <template x-if="settings">
+            <div class="flex flex-wrap items-end gap-4">
+              <label class="flex items-center gap-2 text-sm cursor-pointer pb-2">
+                <button type="button" class="toggle" :class="settings.auto_backup_enabled && 'on'" @click="settings.auto_backup_enabled = !settings.auto_backup_enabled"></button>
+                <span>Ativado (vale para todos os roteadores)</span></label>
+              <label class="block"><span class="label">Frequência</span>
+                <select class="input" x-model="settings.auto_backup_interval"><option value="daily">Diário</option><option value="weekly">Semanal</option></select></label>
+              <label class="block"><span class="label">Guardar até (cópias)</span><input class="input w-28" type="number" min="1" max="365" x-model.number="settings.auto_backup_keep"></label>
+              <button class="btn" @click="saveAutoBackupSettings()" :disabled="busy">Salvar</button>
+            </div>
+          </template>
+          <div x-show="autoBk?.error" class="text-sm text-red-300 bg-red-950/40 border border-red-900 rounded-lg p-3 break-all" x-text="autoBk?.error"></div>
+          <div class="overflow-x-auto"><table class="table">
+            <thead><tr><th>Data</th><th>Tamanho</th><th class="text-right">Ações</th></tr></thead>
+            <tbody>
+              <template x-for="b in autoBk?.backups || []" :key="b.name">
+                <tr><td x-text="fmtDate(b.ts)"></td><td x-text="fmtBytes(b.size)"></td>
+                  <td class="text-right whitespace-nowrap">
+                    <button class="btn" @click="showBackupDiff(b)">🔍 O que mudou</button>
+                    <a class="btn" :href="'/api/tools/backups/' + b.name + '?router=' + routerId" download>⬇️ .rsc</a></td></tr>
+              </template>
+              <tr x-show="autoBk && !autoBk.backups.length"><td colspan="3" class="text-slate-500">Nenhum backup ainda. O primeiro sai na próxima coleta (ou clique em "Fazer agora").</td></tr>
+            </tbody>
+          </table></div>
+          <p class="hint"><span x-text="t('Última verificação: {time}', { time: autoBk?.last_check ? fmtAgo(autoBk.last_check) : t('nunca') })"></span>
+            · Para voltar algo atrás, abra o .rsc, copie os comandos que precisa e cole no terminal do MikroTik.</p>
+        </div>
+      </section>
+
+      <!-- ===================== FERRAMENTAS ===================== -->
+      <section data-tour="sec-tools" x-show="tab === 'tools'" class="space-y-4">
+        <div class="card space-y-4">
+          <div class="font-semibold text-white">🛠️ Testar a partir do roteador <span class="badge b-blue">🖧 <span x-text="curRouter?.name"></span></span></div>
+          <p class="text-sm text-slate-400">O teste sai do próprio MikroTik: serve para saber se ele alcança um cliente da VPN, um servidor da rede ou a internet.</p>
+          <form class="flex flex-wrap items-end gap-3" @submit.prevent="runPing()">
+            <label class="block flex-1 min-w-[12rem]"><span class="label">Endereço (IP ou nome)</span>
+              <input class="input mono" x-model="tools.address" placeholder="ex.: 10.10.0.2, 192.168.88.20, google.com" required></label>
+            <label class="block"><span class="label">Pacotes</span><input class="input w-24" type="number" min="1" max="20" x-model.number="tools.count"></label>
+            <button class="btn-primary" :disabled="!!tools.running">📶 Ping</button>
+            <button type="button" class="btn" :disabled="!!tools.running || !tools.address" @click="runTrace()">🧭 Traceroute</button>
+          </form>
+          <p class="text-sm text-slate-400" x-show="tools.running === 'ping'">Rodando o ping…</p>
+          <p class="text-sm text-slate-400" x-show="tools.running === 'trace'">Rodando o traceroute (pode levar até 1 minuto)…</p>
+        </div>
+        <div x-show="tools.error" class="card text-sm text-red-300 break-all" x-text="tools.error"></div>
+        <template x-if="tools.ping">
+          <div class="card space-y-3">
+            <div class="flex flex-wrap gap-2 items-center">
+              <div class="font-semibold text-white">📶 Ping <span class="mono text-slate-400" x-text="tools.ping.address"></span></div>
+              <span class="badge" :class="tools.ping.loss === 0 ? 'b-green' : tools.ping.loss < 100 ? 'b-amber' : 'b-red'"
+                    x-text="t('{received}/{sent} respostas · {loss}% de perda', { received: tools.ping.received, sent: tools.ping.sent, loss: tools.ping.loss })"></span>
+              <span class="badge b-gray" x-show="tools.ping.avg != null"
+                    x-text="t('mín {min} · méd {avg} · máx {max} ms', { min: tools.ping.min, avg: tools.ping.avg, max: tools.ping.max })"></span>
+            </div>
+            <div class="card p-0 overflow-x-auto"><table class="table">
+              <thead><tr><th>#</th><th>Host</th><th>Tempo</th><th>TTL</th><th>Status</th></tr></thead>
+              <tbody><template x-for="(r, i) in tools.ping.replies" :key="i"><tr>
+                <td x-text="r.seq"></td><td class="mono" x-text="r.host || '—'"></td><td x-text="r.time != null ? r.time + ' ms' : '—'"></td>
+                <td x-text="r.ttl || '—'"></td><td x-text="r.status || 'ok'"></td></tr></template></tbody>
+            </table></div>
+          </div>
+        </template>
+        <template x-if="tools.trace">
+          <div class="card space-y-3">
+            <div class="font-semibold text-white">🧭 Traceroute <span class="mono text-slate-400" x-text="tools.trace.address"></span></div>
+            <div class="card p-0 overflow-x-auto"><table class="table">
+              <thead><tr><th>Salto</th><th>Endereço</th><th>Perda</th><th>Último</th><th>Média</th><th>Melhor</th><th>Pior</th></tr></thead>
+              <tbody><template x-for="h in tools.trace.hops" :key="h.hop"><tr>
+                <td x-text="h.hop"></td><td class="mono" x-text="h.address || '*'"></td><td x-text="h.loss !== '' ? h.loss + '%' : '—'"></td>
+                <td x-text="h.last ?? '—'"></td><td x-text="h.avg ?? '—'"></td><td x-text="h.best ?? '—'"></td><td x-text="h.worst ?? '—'"></td></tr></template></tbody>
+            </table></div>
+            <p class="hint">Tempos em ms. "*" = o salto não respondeu (comum em roteadores de operadora).</p>
+          </div>
+        </template>
+      </section>
+
+      <!-- ===================== CHECAGEM DE SEGURANÇA ===================== -->
+      <section data-tour="sec-security" x-show="tab === 'security'" class="space-y-4">
+        <div class="card space-y-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="font-semibold text-white">🛡️ Checagem de segurança <span class="badge b-blue">🖧 <span x-text="curRouter?.name"></span></span></div>
+            <div class="ml-auto flex flex-wrap gap-2">
+              <button class="btn" @click="checkUpdateNow()" :disabled="busy">⬆️ Verificar atualização</button>
+              <button class="btn-primary" @click="loadSecurity()" :disabled="sec.loading">🔄 Verificar de novo</button>
+            </div>
+          </div>
+          <p class="text-sm text-slate-400">Confere o que mais expõe um MikroTik e o painel: port forward para o painel, firewall de entrada, serviços abertos, usuário admin e atualização do RouterOS. Só lê, não muda nada.</p>
+          <div class="flex flex-wrap gap-2" x-show="sec.findings">
+            <span class="badge b-green" x-text="t('{n} ok', { n: secCount(`ok`) })"></span>
+            <span class="badge b-amber" x-text="t('{n} atenção', { n: secCount(`warn`) })"></span>
+            <span class="badge b-red" x-text="t('{n} problema(s)', { n: secCount(`fail`) })"></span>
+          </div>
+          <p class="text-sm text-slate-400" x-show="sec.loading">Verificando…</p>
+        </div>
+        <template x-for="f in sec.findings || []" :key="f.id + f.title">
+          <div class="card flex gap-3" :class="f.level === 'fail' ? 'border-red-900' : f.level === 'warn' ? 'border-amber-900' : ''">
+            <div class="text-xl" x-text="f.level === 'ok' ? '✅' : f.level === 'warn' ? '⚠️' : '❌'"></div>
+            <div class="space-y-1 min-w-0">
+              <div class="font-medium text-white" x-text="f.title"></div>
+              <div class="text-sm text-slate-400" x-show="f.detail" x-text="f.detail"></div>
+              <div x-show="f.fix" class="text-xs mono bg-slate-950 border border-slate-800 rounded-lg p-2 break-all" x-text="f.fix"></div>
+            </div>
+          </div>
+        </template>
       </section>
 
       <!-- ===================== CONFIGURAÇÕES ===================== -->
@@ -655,6 +775,19 @@
               </div>
 
               <div class="card space-y-4">
+                <div class="font-semibold text-white">🌐 Idioma</div>
+                <label class="block"><span class="label">Idioma desta tela (só neste navegador)</span>
+                  <select class="input" @change="setLang($event.target.value)">
+                    <template x-for="l in LANGS" :key="l.code"><option :value="l.code" :selected="l.code === LANG" x-text="l.name"></option></template>
+                  </select></label>
+                <label class="block"><span class="label">Idioma dos alertas e eventos (Discord, Telegram)</span>
+                  <select class="input" x-model="settings.language">
+                    <template x-for="l in LANGS" :key="l.code"><option :value="l.code" :selected="l.code === settings.language" x-text="l.name"></option></template>
+                  </select>
+                  <span class="hint block">Vale para todos os usuários, a partir dos próximos avisos.</span></label>
+              </div>
+
+              <div class="card space-y-4">
                 <div class="font-semibold text-white">📈 Monitoramento</div>
                 <label class="block"><span class="label">Interface WAN (para gráfico de internet) <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span></span>
                   <input class="input mono" x-model="rtForm.wan_interface" list="wan-ifaces" placeholder="vazio = detectar automaticamente (rota padrão)">
@@ -691,7 +824,7 @@
                 <tr>
                   <td class="whitespace-nowrap text-slate-400" x-text="fmtDate(a.ts)"></td>
                   <td x-text="a.username"></td>
-                  <td class="font-medium" x-text="a.action"></td>
+                  <td class="font-medium" x-text="t(a.action)"></td>
                   <td class="text-slate-400 text-xs" x-text="a.detail"></td>
                 </tr>
               </template>
@@ -793,7 +926,7 @@
             <p>Para comandos, use <b>🌐 WebFig → Terminal</b>. O painel não tem um terminal próprio de propósito: isso exigiria dar a ele acesso total aos roteadores, e o usuário <span class="mono">wgpanel</span> é limitado justamente para que, se o painel fosse invadido, ninguém controlasse os seus MikroTiks.</p>
             <h3>Na tela Roteadores</h3>
             <ul>
-              <li>🟢 / 🔴 status, modelo, versão, CPU, memória e quantos clientes VPN e portas cada um tem.</li>
+              <li>🟢 / 🔴 status, modelo, versão, CPU, memória e quantos clientes VPN e portas cada um tem. <span class="badge b-amber">⬆️ RouterOS … disponível</span> aparece quando há atualização (veja <a @click="scrollHelp('seccheck')">Checagem de segurança</a>).</li>
               <li><b>🔌 Testar</b> — confere a conexão; para roteadores via túnel, procura sozinho a porta certa da API.</li>
               <li><b>🌐 WebFig</b> — abre a página do próprio MikroTik numa nova aba (também no topo, ao lado do seletor). Lá você entra com o <b>seu</b> usuário e tem o <b>Terminal</b>, igual ao do Winbox. Para clientes, funciona pelo túnel. Se o navegador avisar de certificado (https autoassinado), é esperado: avance.</li>
               <li><b>✏️ Editar</b> — nome, endereços da VPN e (exceto o principal) URL, usuário e senha.</li>
@@ -927,6 +1060,16 @@
             <button class="btn" @click="tab='nat'">Ir para Liberação de portas →</button>
           </div>
 
+          <div id="help-tools" class="card space-y-3">
+            <h2>🛠️ Ferramentas <span class="badge b-blue">admin</span></h2>
+            <p>Testes feitos <b>pelo próprio MikroTik</b> escolhido no seletor do topo — é como rodar o comando no terminal dele, sem abrir o Winbox.</p>
+            <ul>
+              <li><b>📶 Ping</b> — confere se o roteador alcança um endereço e quanto tempo a resposta leva. Bom para testar um cliente da VPN (ex.: <span class="mono">10.10.0.2</span>), um servidor da rede (ex.: o do Minecraft) ou a internet (<span class="mono">8.8.8.8</span>).</li>
+              <li><b>🧭 Traceroute</b> — mostra o caminho até o destino, salto a salto. Ajuda a ver onde a conexão para ou fica lenta. Saltos com "*" não responderam (comum em roteadores de operadora).</li>
+            </ul>
+            <p>Com vários roteadores, troque no seletor para testar a partir do MikroTik de um cliente (ex.: ele alcança a câmera da rede dele?).</p>
+          </div>
+
           <div id="help-monitor" class="card space-y-3">
             <h2>📈 Gráficos e consumo</h2>
             <ul>
@@ -952,8 +1095,25 @@
               <li><b>Discord</b> — no canal desejado: Editar canal → Integrações → Webhooks → Novo webhook → Copiar URL. Cole no painel e ative.</li>
               <li><b>Telegram</b> — crie um bot com o <b>@BotFather</b> (/newbot), mande uma mensagem para o bot e pegue o Chat ID em <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span>.</li>
               <li><b>Quando avisar</b> — escolha quais eventos geram mensagem. Valem para todos os roteadores; cada aviso diz de qual roteador é. A queda de um roteador de cliente só é avisada depois que ele já esteve online (não alerta enquanto o script ainda não foi colado).</li>
+              <li><b>Avisos do roteador</b> — "Atualização do RouterOS disponível" (verificada uma vez por dia) e, se quiser, "Configuração do MikroTik mudou" (quando o backup automático guarda uma cópia nova).</li>
+              <li><b>Idioma</b> — os avisos e eventos saem no idioma escolhido em Configurações → 🌐 Idioma.</li>
               <li>Use <b>Salvar e enviar teste</b> para confirmar que chegou.</li>
             </ul>
+          </div>
+
+          <div id="help-seccheck" class="card space-y-3">
+            <h2>🛡️ Checagem de segurança <span class="badge b-blue">admin</span></h2>
+            <p>Confere no roteador escolhido os pontos que mais expõem um MikroTik e o painel. <b>Só lê</b>: nada é alterado. Cada item mostra ✅ ok, ⚠️ atenção ou ❌ problema, e o comando para corrigir.</p>
+            <ul>
+              <li><b>Acesso ao painel</b> — avisa se você abriu o painel por um IP público (ele deve ficar só na rede local e na VPN).</li>
+              <li><b>Port forward para o painel</b> — procura regras de NAT que levem a porta do painel para a internet.</li>
+              <li><b>Firewall de entrada</b> — confere se existe a regra que bloqueia acessos da internet ao roteador (chain input). Sem ela, Winbox, WebFig, API e DNS podem ficar abertos.</li>
+              <li><b>Serviços</b> — Telnet/FTP ligados (enviam senha sem criptografia) e serviços que aceitam qualquer endereço.</li>
+              <li><b>Usuários</b> — o usuário padrão <span class="mono">admin</span> ativo e o usuário <span class="mono">wgpanel</span> sem restrição de endereço.</li>
+              <li><b>DNS aberto</b> — DNS do roteador respondendo para a internet.</li>
+              <li><b>Atualização do RouterOS</b> — o painel pergunta ao roteador uma vez por dia se há versão nova (e avisa no Discord/Telegram). <b>⬆️ Verificar atualização</b> consulta na hora. Para atualizar: faça um backup e, no terminal, <span class="mono">/system package update install</span> (o roteador reinicia).</li>
+            </ul>
+            <p class="hint">A checagem cobre os erros mais comuns, não substitui uma auditoria completa. O aviso de versão nova também aparece nos cartões dos roteadores.</p>
           </div>
 
           <div id="help-users" class="card space-y-3">
@@ -970,6 +1130,7 @@
             <ul>
               <li><b>Baixar backup</b> — arquivo com tudo do painel: roteadores cadastrados (com as senhas de API), interfaces, clientes (com chaves), MikroTiks remotos, portas, configurações, alertas e usuários. Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN e nos roteadores.</li>
               <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado. O que faltar é recriado só no <b>roteador principal</b>; os dos outros roteadores entram no painel (eles já estão configurados nos MikroTiks deles). Aceita backups de versões antigas.</li>
+              <li><b>🕒 Backup automático do MikroTik</b> — todo dia (ou toda semana) o painel exporta a configuração de cada roteador (sem senhas) e guarda uma cópia <b>só quando algo mudou</b>, até o limite escolhido. <b>🔍 O que mudou</b> compara com a cópia anterior (linhas com + entraram, com − saíram); <b>⬇️ .rsc</b> baixa o arquivo. Ficam na pasta <span class="mono">data/</span> do painel. Precisa da permissão <span class="mono">ftp</span> no usuário <span class="mono">wgpanel</span> (veja <a @click="scrollHelp('problems')">Problemas comuns</a>).</li>
               <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do <b>roteador escolhido no seletor</b>, dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
             </ul>
             <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik):</p>
@@ -988,6 +1149,7 @@
               <li><b>Keepalive / MTU</b> — avançado; os padrões funcionam na maioria dos casos. (DNS e redes acessíveis ficam em cada interface: VPN → ⚙️.)</li>
               <li><b>Guardar a chave privada dos clientes no MikroTik</b> — ligado por padrão. Permite que qualquer painel importe os clientes com QR Code. Quem for admin do MikroTik consegue ver as chaves, e elas vão junto nos backups do roteador.</li>
               <li><b>Identificação do tráfego da internet (NAT)</b> <span class="badge b-blue">🖧</span> — mantenha "Lista de interfaces WAN" se o seu MikroTik usa a configuração padrão.</li>
+              <li><b>🌐 Idioma</b> — o idioma desta tela (fica salvo neste navegador; também dá para trocar na tela de login e no menu lateral) e o idioma dos alertas e eventos (vale para todos).</li>
               <li><b>Interface WAN</b> <span class="badge b-blue">🖧</span> — vazio = detectar sozinho pela rota padrão (recomendado). Preencha só para forçar outra.</li>
               <li><b>Considerar offline após</b> — tempo sem handshake até um cliente aparecer offline. Mínimo seguro: 150 s (abaixo disso surgem alertas falsos).</li>
               <li><b>Guardar histórico</b> — por quantos dias manter os dados dos gráficos.</li>
@@ -1031,6 +1193,7 @@
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/discussions" target="_blank" rel="noopener">Discussions</a></b> — ideias, dúvidas de instalação e uso, troca de experiências.</li>
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/issues/new/choose" target="_blank" rel="noopener">Issues</a></b> — formulários para 💡 sugerir uma função ou 🐛 relatar um problema.</li>
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">Releases</a></b> — versões novas (Docker e container no MikroTik) e o que mudou em cada uma.</li>
+              <li><b>Traduções</b> — cada idioma é um arquivo em <span class="mono">static/i18n/</span> (telas e manual) e <span class="mono">app/locales/</span> (mensagens do servidor). Correções são bem-vindas como pull request.</li>
             </ul>
             <p class="text-amber-300">⚠️ Ao relatar algo, nunca cole senhas, chaves da VPN, o arquivo <span class="mono">.env</span> nem backups. Falhas de segurança: relate em privado (Security → Report a vulnerability).</p>
             <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
@@ -1056,6 +1219,7 @@
               <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
               <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>
               <tr><td><b>"Fora do ar" no serviço</b></td><td>O painel não conseguiu conectar no servidor interno: ele está desligado, o programa não está rodando ou a porta interna está errada.</td></tr>
+              <tr><td><b>"Precisa da permissão 'ftp'"</b> (backup automático ou atualização)</td><td>Painéis instalados antes da versão 1.3 criaram o usuário <span class="mono">wgpanel</span> sem acesso a arquivos. No terminal do MikroTik, como admin: <span class="mono">/user group set [find name=wgpanel] policy=read,write,api,rest-api,test,sensitive,ftp</span>. A permissão "ftp" só libera arquivos; não liga o serviço FTP.</td></tr>
               <tr><td><b>Esqueci a senha do painel</b></td><td>Outro admin pode redefinir em Usuários. Sem nenhum admin: apague a pasta <span class="mono">data/</span> (perde os dados do painel — faça backup antes) e reinicie.</td></tr>
             </table>
           </div>
@@ -1068,7 +1232,18 @@
 <!-- ===================== MODAIS ===================== -->
 <div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start md:items-center justify-center p-4 overflow-y-auto"
      @keydown.escape.window="modal = null" @mousedown.self="if (modal !== 'setup') modal = null">
-  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl my-8">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="modal === 'diff' ? 'max-w-4xl' : 'max-w-xl'">
+
+    <!-- O que mudou entre dois backups automáticos -->
+    <template x-if="modal === 'diff'">
+      <div class="p-6 space-y-4">
+        <h3 class="text-lg font-semibold text-white">🔍 O que mudou <span class="mono text-sm text-slate-400" x-text="diff.name"></span></h3>
+        <div class="mono text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 overflow-auto max-h-[60vh] whitespace-pre"><template x-for="(l, i) in diff.lines" :key="i"><div
+          :class="l.startsWith('+') && !l.startsWith('+++') ? 'text-green-300' : l.startsWith('-') && !l.startsWith('---') ? 'text-red-300' : l.startsWith('@@') ? 'text-blue-300' : 'text-slate-400'" x-text="l || ' '"></div></template></div>
+        <p class="hint">Linhas com + entraram e com − saíram, em relação ao backup anterior.</p>
+        <div class="flex justify-end"><button class="btn" @click="modal = null">Fechar</button></div>
+      </div>
+    </template>
 
     <!-- Configuração inicial do WireGuard -->
     <template x-if="modal === 'setup' && setup">
@@ -1154,7 +1329,7 @@
                   <td class="mono text-xs"><span x-text="p.interface"></span>
                     <span class="badge b-amber" x-show="!p.interface_managed" title="Adote esta interface em '+ Nova interface' antes de importar">fora do painel</span></td>
                   <td class="mono text-xs" x-text="p.allowed_address"></td>
-                  <td class="text-xs" x-text="p.last_handshake ? p.last_handshake + ' atrás' : 'nunca'"></td>
+                  <td class="text-xs" x-text="p.last_handshake ? t('{time} atrás', { time: p.last_handshake }) : 'nunca'"></td>
                 </tr>
               </template>
             </tbody>
@@ -1318,12 +1493,12 @@
           <select class="input" x-model="form.template" @change="applyTemplate()">
             <option value="">— personalizado —</option>
             <template x-for="(items, cat) in templateGroups" :key="cat">
-              <optgroup :label="cat">
-                <template x-for="t in items" :key="t.id"><option :value="t.id" x-text="`${t.name} (${protoLabel(t.protocol)} ${t.port})`"></option></template>
+              <optgroup :label="t(cat)">
+                <template x-for="tp in items" :key="tp.id"><option :value="tp.id" x-text="`${t(tp.name)} (${protoLabel(tp.protocol)} ${tp.port})`"></option></template>
               </optgroup>
             </template>
           </select></label>
-        <div x-show="selectedTemplate?.warning" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="selectedTemplate?.warning"></div>
+        <div x-show="selectedTemplate?.warning" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="t(selectedTemplate?.warning || '')"></div>
         <label class="block"><span class="label">Nome *</span><input class="input" x-model="form.name" required placeholder="Ex.: Minecraft do servidor"></label>
         <div class="grid grid-cols-3 gap-3">
           <label class="block"><span class="label">Protocolo</span>

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..db import User, audit, iso
+from ..i18n import tr
 from ..security import get_db, hash_password, require_admin
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -38,7 +39,7 @@ def list_users(_: User = Depends(require_admin), db: Session = Depends(get_db)):
 @router.post("")
 def create_user(body: UserIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == body.username).first():
-        raise HTTPException(400, "Já existe um usuário com esse nome")
+        raise HTTPException(400, tr("Já existe um usuário com esse nome"))
     user = User(username=body.username, password_hash=hash_password(body.password), role=body.role)
     db.add(user)
     db.commit()
@@ -50,7 +51,7 @@ def create_user(body: UserIn, admin: User = Depends(require_admin), db: Session 
 def update_user(user_id: int, body: UserUpdate, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
-        raise HTTPException(404, "Usuário não encontrado")
+        raise HTTPException(404, tr("Usuário não encontrado"))
     if body.role and body.role != user.role:
         if body.role == "viewer":
             _ensure_other_admin(db, user)
@@ -66,9 +67,9 @@ def update_user(user_id: int, body: UserUpdate, admin: User = Depends(require_ad
 def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if not user:
-        raise HTTPException(404, "Usuário não encontrado")
+        raise HTTPException(404, tr("Usuário não encontrado"))
     if user.id == admin.id:
-        raise HTTPException(400, "Você não pode remover o próprio usuário")
+        raise HTTPException(400, tr("Você não pode remover o próprio usuário"))
     _ensure_other_admin(db, user)
     db.delete(user)
     db.commit()

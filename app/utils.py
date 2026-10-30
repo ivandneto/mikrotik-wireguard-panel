@@ -6,6 +6,8 @@ import re
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
+from .i18n import tr
+
 TAG = "[wgpanel]"  # marca tudo que o painel cria no MikroTik
 
 _UNITS = {"w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1, "ms": 0}
@@ -60,10 +62,10 @@ def parse_ports(spec: str) -> list[tuple[int, int]]:
         else:
             start = end = int(part)
         if not (1 <= start <= end <= 65535):
-            raise ValueError(f"Porta inválida: {part}")
+            raise ValueError(tr("Porta inválida: {port}", port=part))
         ranges.append((start, end))
     if not ranges:
-        raise ValueError("Informe ao menos uma porta")
+        raise ValueError(tr("Informe ao menos uma porta"))
     return ranges
 
 
@@ -91,7 +93,7 @@ def is_private(ip: str) -> bool:
 
 def fmt_duration(seconds: int | None) -> str:
     if seconds is None:
-        return "nunca"
+        return tr("nunca")
     parts = []
     for label, size in (("d", 86400), ("h", 3600), ("min", 60)):
         if seconds >= size:

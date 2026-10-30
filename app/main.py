@@ -11,9 +11,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import __version__
 from .config import config
+from .i18n import current_lang, pick
 from .db import SessionLocal, User, init_db
 from .mikrotik import MikroTikError, close_all
-from .routers import alerts, auth, backup, mikrotiks, monitor, nat, settings, users, wireguard
+from .routers import alerts, auth, backup, mikrotiks, monitor, nat, settings, tools, users, wireguard
 from .security import hash_password
 from .services import collector
 
@@ -66,6 +67,13 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def request_language(request: Request, call_next):
+    """Mensagens da API no idioma de quem está usando (o painel envia X-Lang)."""
+    current_lang.set(pick(request.headers.get("x-lang") or request.headers.get("accept-language")))
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def no_stale_frontend(request: Request, call_next):
     """Faz o navegador revalidar HTML/JS/CSS a cada carga (barato, via ETag): após atualizar o painel,
     a versão nova aparece sem precisar de Ctrl+F5."""
@@ -81,7 +89,7 @@ async def mikrotik_error_handler(_request: Request, exc: MikroTikError):
     return JSONResponse(status_code=502, content={"detail": f"MikroTik: {exc}"})
 
 
-for module in (auth, mikrotiks, wireguard, nat, monitor, alerts, users, settings, backup):
+for module in (auth, mikrotiks, wireguard, nat, monitor, alerts, users, settings, backup, tools):
     app.include_router(module.router)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

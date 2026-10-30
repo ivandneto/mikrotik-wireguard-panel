@@ -29,6 +29,11 @@ DEFAULTS = {
     "online_threshold": 180,
     "retention_days": 30,
     # Alertas
+    "auto_backup_enabled": True,  # exporta a configuração de cada MikroTik e guarda só quando muda
+    "auto_backup_interval": "daily",
+    "auto_backup_keep": 14,
+    "update_check_enabled": True,
+    "language": "pt-BR",  # idioma dos alertas e eventos
     "alerts": {
         "telegram_enabled": False,
         "telegram_token": "",
@@ -44,6 +49,8 @@ DEFAULTS = {
             "nat_expired": True,
             "router_down": True,
             "router_up": True,
+            "router_update": True,
+            "config_changed": False,
         },
     },
 }

@@ -5,13 +5,14 @@ import time
 from datetime import timedelta
 
 from ..config import config
+from ..i18n import current_lang, tr
 from ..db import (Event, NatRule, NatSample, Peer, PeerSample, Router, SessionLocal, SystemSample, WgInterface, iso,
                   utcnow)
 from ..mikrotik import MikroTikError, client_for, mt, use
 from ..security import decrypt, encrypt
 from ..settings_store import get_settings
 from ..utils import fmt_duration, parse_duration, to_int
-from . import nat_ops
+from . import auto_tasks, nat_ops
 from .alerts import notify
 
 logger = logging.getLogger("wgpanel.collector")
@@ -26,6 +27,7 @@ _prev = {"wan": {}, "router_online": {}, "nat": {}, "peer_online": {}, "health":
          "nat_missing": {}}
 _wake = asyncio.Event()
 _lock = asyncio.Lock()
+_tasks: set[asyncio.Task] = set()
 _pending: list[tuple] = []  # alertas enviados só após o commit (evita travar o SQLite)
 _last_prune = 0.0
 
@@ -66,6 +68,7 @@ async def _collect():
     db = SessionLocal()
     try:
         settings = get_settings(db)
+        current_lang.set(settings.get("language") or "pt-BR")  # alertas e eventos no idioma escolhido
         router_ids = [r.id for r in db.query(Router).filter(Router.enabled.is_(True)).all()]
     finally:
         db.close()
@@ -78,6 +81,11 @@ async def _collect():
     for rid, result in zip(router_ids, results):
         if isinstance(result, Exception):
             logger.error("Erro coletando o roteador %s: %r", rid, result)
+    # backup automático e verificação de atualização: em segundo plano, sem atrasar a coleta
+    online = [rid for rid in router_ids if state["routers"].get(rid, {}).get("online")]
+    task = asyncio.create_task(auto_tasks.run(online, settings, multi))
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
     db = SessionLocal()
     try:
         _prune(db, settings)
@@ -133,12 +141,12 @@ def _router_down(router: Router, st: dict, prefix: str, error: str):
     st.update(online=False, error=error, updated=iso(utcnow()))
     # roteador de cliente recém-cadastrado ainda nem recebeu o script: só avisa se já esteve online
     if was_online is True or (was_online is None and router.is_main):
-        _queue("router_down", f"{prefix}MikroTik inacessível", error, "error")
+        _queue("router_down", prefix + tr("MikroTik inacessível"), error, "error")
 
 
 def _router_up(router: Router, st: dict, prefix: str):
     if st["online"] is False:
-        _queue("router_up", f"{prefix}MikroTik voltou a responder", router.url, "success")
+        _queue("router_up", prefix + tr("MikroTik voltou a responder"), router.url, "success")
 
 
 async def _detect_wan() -> str | None:
@@ -213,11 +221,11 @@ async def _collect_peers(db, router: Router, settings: dict, now, prefix: str):
         label = "Site" if peer.kind == "site" else "VPN"
         if previous is not None and previous != online and peer.enabled:
             if online:
-                _queue("peer_connect", f"{prefix}{label}: {peer.name} conectou",
-                       f"IP na VPN {peer.ip} · origem {endpoint or 'desconhecida'}", "success")
+                _queue("peer_connect", prefix + tr("{kind}: {name} conectou", kind=label, name=peer.name),
+                       tr("IP na VPN {ip} · origem {origin}", ip=peer.ip, origin=endpoint or tr("desconhecida")), "success")
             else:
-                _queue("peer_disconnect", f"{prefix}{label}: {peer.name} desconectou",
-                       f"Último handshake há {fmt_duration(handshake)}", "warn")
+                _queue("peer_disconnect", prefix + tr("{kind}: {name} desconectou", kind=label, name=peer.name),
+                       tr("Último handshake há {time}", time=fmt_duration(handshake)), "warn")
         _prev["peer_online"][peer.id] = online
 
         if row:
@@ -261,8 +269,9 @@ async def _collect_nat(db, router: Router, now, prefix: str):
             await nat_ops.remove_rule(rule)
             rule.enabled, rule.expired, rule.mikrotik_ids = False, True, []
             db.commit()
-            _queue("nat_expired", f"{prefix}Porta fechada: {rule.name}",
-                   f"{rule.protocol.upper()} {rule.external_port} → {rule.internal_ip} expirou e foi removida", "info")
+            _queue("nat_expired", prefix + tr("Porta fechada: {name}", name=rule.name),
+                   tr("{proto} {port} → {ip} expirou e foi removida",
+                      proto=rule.protocol.upper(), port=rule.external_port, ip=rule.internal_ip), "info")
 
     rows = {r[".id"]: r for r in await mt.get(nat_ops.NAT_PATH)}
 
@@ -291,8 +300,8 @@ async def _collect_nat(db, router: Router, now, prefix: str):
 
         was_missing = _prev["nat_missing"].get(rule.id, False)
         if missing and not was_missing:
-            _queue("nat_missing", f"{prefix}Regra NAT ausente: {rule.name}",
-                   "A regra foi removida ou alterada direto no MikroTik. Use 'Recriar' no painel.", "error")
+            _queue("nat_missing", prefix + tr("Regra NAT ausente: {name}", name=rule.name),
+                   tr("A regra foi removida ou alterada direto no MikroTik. Use 'Recriar' no painel."), "error")
         _prev["nat_missing"][rule.id] = missing
 
         state["nat"][rule.id] = {
@@ -318,9 +327,11 @@ def _health_transition(rule: NatRule, ok: bool, prefix: str):
     _prev["health"][rule.id] = current
     target = f"{rule.internal_ip}:{_check_port(rule)}"
     if current is False and last is not False:
-        _queue("service_down", f"{prefix}Serviço fora do ar: {rule.name}", f"{target} não responde", "error")
+        _queue("service_down", prefix + tr("Serviço fora do ar: {name}", name=rule.name),
+               tr("{target} não responde", target=target), "error")
     elif current is True and last is False:
-        _queue("service_up", f"{prefix}Serviço voltou: {rule.name}", f"{target} respondendo novamente", "success")
+        _queue("service_up", prefix + tr("Serviço voltou: {name}", name=rule.name),
+               tr("{target} respondendo novamente", target=target), "success")
     return current
 
 

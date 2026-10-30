@@ -18,6 +18,11 @@ class SettingsIn(BaseModel):
     wg_store_keys_on_router: bool = True
     online_threshold: int = Field(180, ge=30, le=3600)
     retention_days: int = Field(30, ge=1, le=365)
+    auto_backup_enabled: bool = True
+    auto_backup_interval: str = Field("daily", pattern=r"^(daily|weekly)$")
+    auto_backup_keep: int = Field(14, ge=1, le=365)
+    update_check_enabled: bool = True
+    language: str = Field("pt-BR", pattern=r"^(pt-BR|en|es|fr|de|it|ru|zh|ja)$")  # alertas e eventos
 
 
 @router.get("")

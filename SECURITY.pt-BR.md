@@ -100,6 +100,8 @@ Se o passo 3 abrir o painel, ele está exposto: revise o item 1 imediatamente.
 
 ## 5. Outras boas práticas
 
+- Rode a **🛡️ Segurança** no painel (grupo Monitoramento): ela confere em cada roteador port forward para o painel, regra de firewall de entrada ausente, serviços abertos, usuário `admin` padrão, DNS aberto e atualização do RouterOS — só lê, e mostra o comando para corrigir cada item.
+
 - **Senha forte** no `admin` do painel e troque a senha inicial (menu → 🔑 Trocar senha).
 - Crie usuários **Somente leitura** para quem só acompanha.
 - No MikroTik, use o usuário **`wgpanel`** com grupo limitado (veja `mikrotik-setup.rsc`) — **nunca o admin**.

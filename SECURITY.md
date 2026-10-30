@@ -100,6 +100,8 @@ If step 3 opens the panel, it is exposed: review item 1 immediately.
 
 ## 5. Other good practices
 
+- Run **🛡️ Security** in the panel (Monitoring group): it checks each router for a port forward to the panel, a missing input firewall rule, open services, the default `admin` user, open DNS and RouterOS updates — read-only, with the command to fix each item.
+
 - A **strong password** for the panel's `admin`, and change the initial password (menu → 🔑 Trocar senha / *Change password*).
 - Create **read-only** users for people who only need to watch.
 - On the MikroTik, use the **`wgpanel`** user with a limited group (see `mikrotik-setup.rsc`) — **never the admin**.

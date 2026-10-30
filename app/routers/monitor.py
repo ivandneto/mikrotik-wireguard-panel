@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from .. import __version__
 from ..config import config
+from ..i18n import tr
 from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, Router, SystemSample, User, WgInterface, iso, utcnow
 from ..routerctx import current_router, use_router
 from ..security import current_user, get_db, require_admin
-from ..services import collector
+from ..services import auto_tasks, collector
 
 router = APIRouter(prefix="/api/monitor", tags=["monitor"], dependencies=[Depends(use_router)])
 
@@ -62,7 +63,8 @@ def overview(_: User = Depends(current_user), db: Session = Depends(get_db)):
         "routers": [{"id": r.id, "name": r.name, "is_main": r.is_main, "enabled": r.enabled,
                      "online": collector.state["routers"].get(r.id, {}).get("online"),
                      "error": collector.state["routers"].get(r.id, {}).get("error"),
-                     "resource": collector.state["routers"].get(r.id, {}).get("resource")}
+                     "resource": collector.state["routers"].get(r.id, {}).get("resource"),
+                     "update": auto_tasks.router_state(r.id).get("update")}
                     for r in db.query(Router).order_by(Router.is_main.desc(), Router.name).all()],
         "vpn": {
             "configured": db.query(WgInterface).filter(WgInterface.router_id == rt.id).count() > 0,
@@ -120,7 +122,7 @@ def peer_history(peer_id: int, hours: int = Query(24, ge=1, le=24 * 90), _: User
                  db: Session = Depends(get_db)):
     peer = db.get(Peer, peer_id)
     if not peer:
-        raise HTTPException(404, "Cliente não encontrado")
+        raise HTTPException(404, tr("Cliente não encontrado"))
     start = utcnow() - timedelta(hours=hours)
     rows = (db.query(PeerSample).filter(PeerSample.peer_id == peer_id, PeerSample.ts >= start)
             .order_by(PeerSample.ts).all())
@@ -141,7 +143,7 @@ def nat_history(rule_id: int, hours: int = Query(24, ge=1, le=24 * 90), _: User 
                 db: Session = Depends(get_db)):
     rule = db.get(NatRule, rule_id)
     if not rule:
-        raise HTTPException(404, "Regra não encontrada")
+        raise HTTPException(404, tr("Regra não encontrada"))
     start = utcnow() - timedelta(hours=hours)
     rows = (db.query(NatSample).filter(NatSample.rule_id == rule_id, NatSample.ts >= start)
             .order_by(NatSample.ts).all())
