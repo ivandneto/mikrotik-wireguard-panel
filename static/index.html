@@ -58,12 +58,12 @@
 
   <main class="flex-1 min-w-0">
     <!-- ===== Barra superior ===== -->
-    <header class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 flex items-center gap-3">
-      <select class="input md:hidden w-auto" x-model="tab">
+    <header class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
+      <select class="input md:hidden flex-1 min-w-0" x-model="tab">
         <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="(t.group ? navGroups[t.group] + ' › ' : '') + t.icon + ' ' + t.label"></option></template>
       </select>
       <h1 class="hidden md:block text-lg font-semibold text-white" x-text="tabs.find(t => t.id === tab)?.label"></h1>
-      <select class="input w-auto max-w-[14rem] py-1.5 text-sm" data-tour="router-select" title="Roteador que você está vendo"
+      <select class="input w-auto min-w-0 max-w-[40%] md:max-w-[14rem] py-1.5 text-sm" data-tour="router-select" title="Roteador que você está vendo"
               x-show="routerList.length" :value="routerId" @change="switchRouter(Number($event.target.value))">
         <template x-for="r in routerList" :key="r.id">
           <option :value="r.id" :selected="r.id === routerId" x-text="routerDot(r) + ' ' + r.name"></option>
@@ -71,7 +71,7 @@
       </select>
       <a class="btn hidden sm:inline-flex" x-show="overview?.mikrotik_url" :href="webfigUrl(overview?.mikrotik_url)" target="_blank" rel="noopener noreferrer"
          :title="'Abrir o WebFig de ' + (curRouter?.name || '') + ' (página do MikroTik, com Terminal) numa nova aba'">🌐 <span class="hidden lg:inline">WebFig</span></a>
-      <div class="ml-auto flex items-center gap-3 text-sm" data-tour="status">
+      <div class="ml-auto flex items-center gap-2 md:gap-3 text-sm" data-tour="status">
         <template x-if="router.online === true">
           <span class="badge b-green"><span class="dot pulse"></span> MikroTik online</span>
         </template>
@@ -359,7 +359,7 @@
       <section x-show="tab === 'nat'" class="space-y-4">
         <div class="flex flex-wrap items-center gap-2">
           <input class="input max-w-xs" placeholder="Buscar liberação…" x-model="nat.filter">
-          <div class="ml-auto flex gap-2">
+          <div class="ml-auto flex flex-wrap gap-2">
             <button class="btn" data-tour="nat-all" @click="loadRouterRules()">🔍 Ver todas as regras do MikroTik</button>
             <button class="btn-primary" data-tour="nat-new" x-show="isAdmin" @click="newRule()">＋ Liberar porta</button>
           </div>

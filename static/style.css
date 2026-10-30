@@ -76,7 +76,11 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .help a:hover { text-decoration: underline; }
 .help .table td { font-size: .85rem; color: #cbd5e1; }
 .help .table td:first-child { white-space: nowrap; width: 1%; }
-.help > div { scroll-margin-top: 5rem; }
+.help > div { scroll-margin-top: 5rem; min-width: 0; }
+@media (max-width: 640px) {
+  .help .table td:first-child { white-space: normal; width: auto; }
+  .help .mono { overflow-wrap: anywhere; }
+}
 
 /* Menu lateral agrupado */
 .nav-group { display: flex; align-items: center; width: 100%; padding: .35rem .8rem; border-radius: .4rem;

@@ -33,6 +33,39 @@ A web panel to **create and manage WireGuard VPNs**, **connect and manage your c
 
 ---
 
+## 📸 Screenshots
+
+> Demo data (fictional routers, clients and IPs). The interface is in Brazilian Portuguese.
+
+<p align="center"><a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="Dashboard"></a><br><sub><b>Dashboard</b> — all your routers, CPU/memory, connected VPN clients, WAN traffic and recent events</sub></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/vpn.png"><img src="docs/screenshots/vpn.png" alt="<b>WireGuard VPN</b> — clients with status, last handshake, source IP and traffic; multiple interfaces as tabs"></a><br><sub><b>WireGuard VPN</b> — clients with status, last handshake, source IP and traffic; multiple interfaces as tabs</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/qrcode.png"><img src="docs/screenshots/qrcode.png" alt="<b>QR Code</b> — scan with the WireGuard app; remote (DDNS) or local endpoint"></a><br><sub><b>QR Code</b> — scan with the WireGuard app; remote (DDNS) or local endpoint</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/site-to-site.png"><img src="docs/screenshots/site-to-site.png" alt="<b>Other MikroTik (site-to-site)</b> — tunnels to clients' routers, one-way or two-way"></a><br><sub><b>Other MikroTik (site-to-site)</b> — tunnels to clients' routers, one-way or two-way</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/routers.png"><img src="docs/screenshots/routers.png" alt="<b>Routers</b> — manage several MikroTiks, with a WebFig button for each"></a><br><sub><b>Routers</b> — manage several MikroTiks, with a WebFig button for each</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/port-forwarding.png"><img src="docs/screenshots/port-forwarding.png" alt="<b>Port forwarding</b> — whitelist, temporary rules and traffic per port"></a><br><sub><b>Port forwarding</b> — whitelist, temporary rules and traffic per port</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/new-port.png"><img src="docs/screenshots/new-port.png" alt="<b>Open a port</b> — ready-made templates for game servers and apps"></a><br><sub><b>Open a port</b> — ready-made templates for game servers and apps</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/monitoring.png"><img src="docs/screenshots/monitoring.png" alt="<b>Charts and usage</b> — traffic history and usage per VPN client"></a><br><sub><b>Charts and usage</b> — traffic history and usage per VPN client</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/events.png"><img src="docs/screenshots/events.png" alt="<b>Events</b> — everything that happened, also sent as alerts"></a><br><sub><b>Events</b> — everything that happened, also sent as alerts</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/alerts.png"><img src="docs/screenshots/alerts.png" alt="<b>Alerts</b> — Telegram and Discord, pick which events notify you"></a><br><sub><b>Alerts</b> — Telegram and Discord, pick which events notify you</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/manual.png"><img src="docs/screenshots/manual.png" alt="<b>Built-in manual</b> — every screen explained, plus a guided tour"></a><br><sub><b>Built-in manual</b> — every screen explained, plus a guided tour</sub></td>
+  </tr>
+</table>
+
+<p align="center"><a href="docs/screenshots/mobile.png"><img src="docs/screenshots/mobile.png" alt="Phone" width="260"></a>&nbsp;&nbsp;&nbsp;<a href="docs/screenshots/tour.png"><img src="docs/screenshots/tour.png" alt="Guided tour" width="520"></a><br><sub><b>Works on your phone</b> · <b>Guided tour</b> on first login</sub></p>
+
+---
+
 ## Choose your installation
 
 The panel runs in two ways. Both have **exactly the same features**; only where it runs changes. Ready-made files are in **[Releases](../../releases/latest)**.

@@ -31,6 +31,39 @@ Painel web em português para **criar e gerenciar VPN WireGuard**, **ligar e ger
 
 ---
 
+## 📸 Telas
+
+> Dados de demonstração (roteadores, clientes e IPs fictícios).
+
+<p align="center"><a href="docs/screenshots/dashboard.png"><img src="docs/screenshots/dashboard.png" alt="Painel"></a><br><sub><b>Painel</b> — todos os seus roteadores, CPU/memória, clientes VPN conectados, tráfego da WAN e eventos recentes</sub></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/vpn.png"><img src="docs/screenshots/vpn.png" alt="<b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas"></a><br><sub><b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/qrcode.png"><img src="docs/screenshots/qrcode.png" alt="<b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/site-to-site.png"><img src="docs/screenshots/site-to-site.png" alt="<b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/routers.png"><img src="docs/screenshots/routers.png" alt="<b>Roteadores</b> — gerencie vários MikroTiks, com botão WebFig em cada um"></a><br><sub><b>Roteadores</b> — gerencie vários MikroTiks, com botão WebFig em cada um</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/port-forwarding.png"><img src="docs/screenshots/port-forwarding.png" alt="<b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta"></a><br><sub><b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/new-port.png"><img src="docs/screenshots/new-port.png" alt="<b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações"></a><br><sub><b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/monitoring.png"><img src="docs/screenshots/monitoring.png" alt="<b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN"></a><br><sub><b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/events.png"><img src="docs/screenshots/events.png" alt="<b>Eventos</b> — tudo o que aconteceu, também enviado como alerta"></a><br><sub><b>Eventos</b> — tudo o que aconteceu, também enviado como alerta</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/alerts.png"><img src="docs/screenshots/alerts.png" alt="<b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam"></a><br><sub><b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/manual.png"><img src="docs/screenshots/manual.png" alt="<b>Manual no painel</b> — cada tela explicada, mais o tour guiado"></a><br><sub><b>Manual no painel</b> — cada tela explicada, mais o tour guiado</sub></td>
+  </tr>
+</table>
+
+<p align="center"><a href="docs/screenshots/mobile.png"><img src="docs/screenshots/mobile.png" alt="Celular" width="260"></a>&nbsp;&nbsp;&nbsp;<a href="docs/screenshots/tour.png"><img src="docs/screenshots/tour.png" alt="Tour guiado" width="520"></a><br><sub><b>Funciona no celular</b> · <b>Tour guiado</b> no primeiro acesso</sub></p>
+
+---
+
 ## Escolha sua instalação
 
 O painel roda de duas formas. As duas têm **exatamente as mesmas funções**; muda só onde ele fica ligado. Os arquivos prontos estão em **[Releases](../../releases/latest)**.
