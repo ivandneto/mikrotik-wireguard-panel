@@ -19,7 +19,7 @@
       <span class="text-2xl">🛡️</span>
       <div>
         <div class="font-semibold text-white leading-tight">WG Panel</div>
-        <div class="text-xs text-slate-500">MikroTik</div>
+        <div class="text-xs text-slate-500">MikroTik <span x-show="overview?.version" x-text="'· v' + overview?.version" title="Versão do painel"></span></div>
       </div>
     </div>
     <template x-for="e in navTree" :key="e.key">
@@ -1033,7 +1033,7 @@
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">Releases</a></b> — versões novas (Docker e container no MikroTik) e o que mudou em cada uma.</li>
             </ul>
             <p class="text-amber-300">⚠️ Ao relatar algo, nunca cole senhas, chaves da VPN, o arquivo <span class="mono">.env</span> nem backups. Falhas de segurança: relate em privado (Security → Report a vulnerability).</p>
-            <p class="hint">Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
+            <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
           </div>
 
           <div id="help-problems" class="card space-y-3">
@@ -1051,7 +1051,7 @@
               <tr><td><b>Túnel Online, mas não abre a rede do cliente</b></td><td>Confira se a rede informada no cliente está certa (✏️) e se o aparelho de lá aceita conexões de outra rede (firewall do Windows, câmeras com restrição). Se o MikroTik do cliente não usa a lista LAN padrão, crie nele uma regra accept para a interface <span class="mono">wg-central</span>.</td></tr>
               <tr><td><b>"Conflita com a sua rede" ao criar Outro MikroTik</b></td><td>A rede do cliente é igual (ou se sobrepõe) à sua ou à de outro cliente. Mude a faixa da LAN do cliente (ex.: 192.168.10.0/24) antes de criar o túnel.</td></tr>
               <tr><td><b>Peer removido pelo Winbox</b></td><td>O painel mostra "Ausente no MikroTik". Use 🔁 para recriar ou 🗑️ no painel para remover de vez — removendo pelo painel, as rotas e regras dele também são limpas.</td></tr>
-              <tr><td><b>Atualizei o painel e não vi a mudança</b></td><td>Recarregue a página. Se o painel roda no MikroTik, troque a imagem do container (veja o README).</td></tr>
+              <tr><td><b>Atualizei o painel e não vi a mudança</b></td><td>Confira a versão no menu lateral (embaixo de "WG Panel") e recarregue a página. Se o painel roda no MikroTik, troque a imagem do container pelo arquivo <span class="mono">wgpanel-mikrotik-arm64-vX.Y.Z.tar</span> da versão nova (veja o README); o <span class="mono">/container print</span> mostra a versão no comentário.</td></tr>
               <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Use o QR de <b>Acesso remoto</b> fora de casa. Verifique se o endereço remoto (DDNS) está certo em Configurações.</td></tr>
               <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
               <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>

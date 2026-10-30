@@ -36,7 +36,7 @@ O painel roda de duas formas. As duas têm **exatamente as mesmas funções**; m
 | | 🐳 **Docker** (PC, servidor, Raspberry Pi) | 🖧 **Container no MikroTik** |
 |---|---|---|
 | Onde roda | Em qualquer máquina com Docker, ligada 24h | Dentro do próprio roteador (RouterOS 7, ARM64 — ex.: RB5009) |
-| Arquivo da Release | `wgpanel-docker-amd64.tar.gz` + `docker-compose.yml` + `env.example` | `wgpanel-mikrotik-arm64.tar` |
+| Arquivo da Release | `wgpanel-docker-amd64-vX.Y.Z.tar.gz` + `docker-compose.yml` + `env.example` | `wgpanel-mikrotik-arm64-vX.Y.Z.tar` |
 | Precisa de | Docker | Pacote `container` no RouterOS + pendrive/SSD USB |
 | Alerta "MikroTik caiu" | ✅ Funciona (o painel fica fora do roteador) | ❌ Não existe (se o roteador cai, o painel cai junto) |
 | Atualizar | Baixar a Release nova → `docker load` → `docker compose up -d` | Trocar a imagem do container (stop → remove → add → start) |
@@ -83,9 +83,9 @@ Para conferir o endereço DDNS: `/ip cloud print` → campo `dns-name`.
 
 Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou Raspberry Pi).
 
-**Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64.tar.gz`, `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
+**Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64.tar.gz
+docker load -i wgpanel-docker-amd64-v1.2.2.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -190,7 +190,7 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 
 - **Backup do painel:** aba **Backup → Baixar backup**. Contém as chaves privadas da VPN, então guarde em local seguro.
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
-- **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
+- **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
 - **Reinstalar ou trocar de máquina:** restaure o backup em **Backup → Restaurar** (traz tudo). Sem backup, em **VPN WireGuard** use **Adotar e importar clientes**: a interface e os clientes voltam do próprio MikroTik.
 
 ---
@@ -214,10 +214,9 @@ Testado em um **RB5009 com RouterOS 7.24.4**: o painel usa ~60 MB de RAM e a ima
 
 > Desvantagem: se o roteador travar, o painel cai junto, então não existe o alerta "MikroTik inacessível".
 
-**1. Pegar a imagem ARM64:** baixe `wgpanel-mikrotik-arm64.tar` da [Release mais recente](../../releases/latest) — ou gere a partir do código (no PC, com Docker):
+**1. Pegar a imagem ARM64:** baixe `wgpanel-mikrotik-arm64-vX.Y.Z.tar` da [Release mais recente](../../releases/latest) (X.Y.Z = versão) — ou gere a partir do código (no PC, com Docker):
 ```bash
-docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm64 \
-  --output type=docker,dest=dist/wgpanel-arm64.tar .
+bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.Z.tar (e a versão Docker)
 ```
 
 **2. Preparar o roteador** (terminal, usuário administrador):
@@ -249,14 +248,21 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` (da Release ou de `dist/`) para o `usb1` na janela **Files** do Winbox — no comando abaixo use o nome exato do arquivo — e rode:
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.2.2` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.2.2.tar comment="WG Panel v1.2.2" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
+O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").
 Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a regra do [SECURITY.md](SECURITY.md), item 3). Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo (traz tudo). Se só precisar da VPN, abra **VPN WireGuard** no painel novo e clique em **Adotar e importar clientes** — com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code. Desligue o antigo para não receber alertas em dobro.
 
-**Atualizar:** gere a imagem nova, envie, e rode `/container stop wgpanel`, `/container remove wgpanel` e o `/container add …` de novo (os dados ficam em `usb1/wgpanel/data`).
+**Atualizar para uma versão nova** (os dados ficam em `usb1/wgpanel/data` e não são apagados):
+```
+/container stop wgpanel
+/container remove wgpanel
+/file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
+```
+Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.2.3.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
 

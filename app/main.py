@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
+from . import __version__
 from .config import config
 from .db import SessionLocal, User, init_db
 from .mikrotik import MikroTikError, close_all
@@ -52,7 +53,8 @@ async def lifespan(_app: FastAPI):
     await close_all()
 
 
-app = FastAPI(title="MikroTik WG Panel", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
+app = FastAPI(title="MikroTik WireGuard Panel", version=__version__, lifespan=lifespan, docs_url="/api/docs",
+              redoc_url=None)
 app.add_middleware(
     SessionMiddleware,
     secret_key=config.SECRET_KEY,
@@ -97,4 +99,4 @@ def login_page():
 
 @app.get("/health", include_in_schema=False)
 def health():
-    return {"ok": True, "router_online": collector.state["routers"].get(1, {}).get("online")}
+    return {"ok": True, "version": __version__, "router_online": collector.state["routers"].get(1, {}).get("online")}

@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from .. import __version__
 from ..config import config
 from ..db import AuditLog, Event, NatRule, NatSample, Peer, PeerSample, Router, SystemSample, User, WgInterface, iso, utcnow
 from ..routerctx import current_router, use_router
@@ -56,6 +57,7 @@ def overview(_: User = Depends(current_user), db: Session = Depends(get_db)):
         "router_name": rt.name,
         "mikrotik_url": rt.url,
         "poll_interval": config.POLL_INTERVAL,
+        "version": __version__,
         # resumo de todos os roteadores, para o seletor e o painel
         "routers": [{"id": r.id, "name": r.name, "is_main": r.is_main, "enabled": r.enabled,
                      "online": collector.state["routers"].get(r.id, {}).get("online"),
