@@ -1,28 +1,28 @@
-name: 💡 Ideia / sugestão
-description: Sugira uma função nova ou uma melhoria
+name: 💡 Ideia / Feature idea
+description: "Sugira uma função nova ou melhoria / Suggest a new feature or improvement"
 title: "[Ideia] "
 labels: ["ideia"]
 body:
   - type: markdown
     attributes:
-      value: "Obrigado pela sugestão! Para conversas mais abertas, use também a aba **Discussions**."
+      value: "Obrigado pela sugestão! Pode escrever em português ou inglês. Para conversas mais abertas, use também a aba **Discussions**.\n\nThanks for the suggestion! Portuguese or English are both fine. For open-ended conversations, also try the **Discussions** tab."
   - type: textarea
     id: problema
     attributes:
-      label: Qual problema isso resolveria?
-      description: Conte a situação do dia a dia em que você sentiu falta disso.
-      placeholder: "Ex.: tenho 10 clientes e queria ver todos os túneis numa tela só..."
+      label: "Qual problema isso resolveria? / What problem would this solve?"
+      description: "Conte a situação do dia a dia em que você sentiu falta disso. / Describe the everyday situation where you missed this."
+      placeholder: "Ex.: tenho 10 clientes e queria ver todos os túneis numa tela só... / I have 10 clients and want to see all tunnels on one screen..."
     validations:
       required: true
   - type: textarea
     id: ideia
     attributes:
-      label: Como você imagina a solução?
-      placeholder: "Ex.: uma aba com um mapa dos roteadores..."
+      label: "Como você imagina a solução? / How do you picture the solution?"
+      placeholder: "Ex.: uma aba com um mapa dos roteadores... / A tab with a map of the routers..."
     validations:
       required: true
   - type: dropdown
     id: area
     attributes:
-      label: Área do painel
-      options: ["VPN WireGuard", "Outro MikroTik / Roteadores", "Liberação de portas", "Monitoramento / Alertas", "Instalação (Docker / container)", "Outra"]
+      label: "Área do painel / Panel area"
+      options: ["VPN WireGuard", "Outro MikroTik / Roteadores (Other MikroTik / Routers)", "Liberação de portas (Port forwarding)", "Monitoramento / Alertas (Monitoring / Alerts)", "Instalação (Installation: Docker / container)", "Outra (Other)"]

@@ -1,43 +1,44 @@
-name: 🐛 Problema
-description: Algo não funcionou como deveria
+name: 🐛 Problema / Bug report
+description: "Algo não funcionou como deveria / Something didn't work as expected"
 title: "[Problema] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: "⚠️ **Não cole senhas, chaves da VPN, o arquivo .env nem backups.** Troque IPs públicos e DDNS por XXX."
+      value: "⚠️ **Não cole senhas, chaves da VPN, o arquivo .env nem backups.** Troque IPs públicos e DDNS por XXX.\n\n⚠️ **Do not paste passwords, VPN keys, the .env file or backups.** Replace public IPs and DDNS names with XXX.\n\nPode escrever em português ou inglês. / Portuguese or English are both fine."
   - type: textarea
     id: oque
     attributes:
-      label: O que aconteceu?
-      placeholder: "Ex.: ao criar um Outro MikroTik, apareceu o erro..."
+      label: "O que aconteceu? / What happened?"
+      placeholder: "Ex.: ao criar um Outro MikroTik, apareceu o erro... / When creating an Other MikroTik, I got the error..."
     validations:
       required: true
   - type: textarea
     id: passos
     attributes:
-      label: Como reproduzir
-      placeholder: "1. Fui em VPN → Outro MikroTik\n2. ...\n3. Apareceu o erro ..."
+      label: "Como reproduzir / Steps to reproduce"
+      placeholder: "1. Fui em VPN → Outro MikroTik / Went to VPN → Other MikroTik\n2. ...\n3. Apareceu o erro / Got the error ..."
     validations:
       required: true
   - type: input
     id: versao
     attributes:
-      label: Versão do painel
-      placeholder: "Ex.: 1.2.0"
+      label: "Versão do painel / Panel version"
+      description: "Aparece no menu lateral, embaixo de \"WG Panel\". / Shown in the sidebar, below \"WG Panel\"."
+      placeholder: "Ex.: 1.2.2"
   - type: dropdown
     id: instalacao
     attributes:
-      label: Como o painel está rodando
-      options: ["Docker (PC/servidor)", "Container no MikroTik", "Sem Docker (Python)"]
+      label: "Como o painel está rodando / How the panel is running"
+      options: ["Docker (PC/servidor · server)", "Container no MikroTik (on the MikroTik)", "Sem Docker (without Docker, Python)"]
   - type: input
     id: routeros
     attributes:
-      label: Modelo e versão do RouterOS
+      label: "Modelo e versão do RouterOS / Router model and RouterOS version"
       placeholder: "Ex.: RB5009, 7.24.4"
   - type: textarea
     id: logs
     attributes:
-      label: Logs ou mensagens de erro (opcional)
-      description: "docker compose logs, mensagem na tela ou do terminal do MikroTik — sem senhas."
+      label: "Logs ou mensagens de erro (opcional) / Logs or error messages (optional)"
+      description: "docker compose logs, mensagem na tela ou do terminal do MikroTik — sem senhas. / docker compose logs, on-screen or MikroTik terminal messages — no passwords."
       render: text

@@ -1,57 +1,59 @@
-# 🔒 Segurança
+# 🔒 Security
 
-> ## ⚠️ NUNCA exponha o painel na internet
-> O painel tem acesso de configuração aos seus MikroTiks (VPN, firewall, NAT). Se alguém de fora conseguir abrir a tela de login, ele pode tentar adivinhar a senha e, entrando, mexer nos seus roteadores.
+🇺🇸 **English** · 🇧🇷 [Português](SECURITY.pt-BR.md)
+
+> ## ⚠️ NEVER expose the panel to the internet
+> The panel has configuration access to your MikroTiks (VPN, firewall, NAT). If someone outside can reach the login page, they can try to guess the password and, once in, change your routers.
 >
-> **Acesse o painel só pela rede local ou pela VPN WireGuard.** Para usar de fora de casa, conecte primeiro na VPN e então abra o painel — é para isso que ela existe.
+> **Access the panel only from the local network or through the WireGuard VPN.** To use it away from home, connect to the VPN first and then open the panel — that's what the VPN is for.
 
-Este guia mostra **como garantir isso** nas duas formas de instalação e como **testar** que ficou fechado.
+This guide shows **how to make sure of that** for both installation types and how to **test** that it is closed.
 
 ---
 
-## 1. Regra de ouro: não crie liberação de porta para o painel
+## 1. Golden rule: do not create a port forward to the panel
 
-O painel só fica exposto na internet se existir um **port forward (dst-nat)** apontando para ele. Então:
+The panel is only exposed to the internet if there is a **port forward (dst-nat)** pointing to it. So:
 
-- **Não** use a tela "Liberação de portas" (nem o Winbox) para liberar a porta do painel (`8080`, ou a que você usar).
-- **Não** coloque o painel numa VPS/servidor com IP público sem firewall.
+- **Do not** use the "Liberação de portas" (*Port forwarding*) screen (or Winbox) to open the panel's port (`8080`, or whichever you use).
+- **Do not** put the panel on a VPS/server with a public IP and no firewall.
 
-Confira no MikroTik se não existe nenhuma regra assim (troque `8080` pela sua porta):
+Check on the MikroTik that no such rule exists (replace `8080` with your port):
 
 ```
 /ip firewall nat print where dst-port=8080
 /ip firewall nat print where to-ports=8080
 ```
 
-As duas listas devem vir **vazias**. Se aparecer algo, remova.
+Both lists must come back **empty**. If anything shows up, remove it.
 
 ---
 
-## 2. Versão Docker (PC, servidor, Raspberry Pi)
+## 2. Docker version (PC, server, Raspberry Pi)
 
-### 2.1 Publique a porta só no IP da rede local
+### 2.1 Publish the port only on the local network IP
 
-Por padrão o `docker-compose.yml` publica `8080:8080`, ou seja, em **todas** as interfaces da máquina. Se a máquina tiver mais de uma rede (ou um IP público), restrinja ao IP dela na LAN:
+By default `docker-compose.yml` publishes `8080:8080`, i.e. on **all** of the machine's interfaces. If the machine has more than one network (or a public IP), restrict it to its LAN IP:
 
 ```yaml
     ports:
-      - "192.168.88.61:8080:8080"   # troque pelo IP desta máquina na sua rede
+      - "192.168.88.61:8080:8080"   # replace with this machine's IP on your network
 ```
 
-Se só **este** computador vai abrir o painel, use `127.0.0.1:8080:8080`.
+If only **this** computer will open the panel, use `127.0.0.1:8080:8080`.
 
-Depois: `docker compose up -d`.
+Then: `docker compose up -d`.
 
-### 2.2 Libere a porta só para a LAN e para a VPN no firewall da máquina
+### 2.2 Allow the port only for the LAN and the VPN in the machine's firewall
 
-**Windows** (PowerShell como Administrador) — troque `10.10.0.0/24` pela faixa da sua VPN:
+**Windows** (PowerShell as Administrator) — replace `10.10.0.0/24` with your VPN range:
 
 ```powershell
-New-NetFirewallRule -DisplayName "WG Panel (só LAN e VPN)" -Direction Inbound -Protocol TCP -LocalPort 8080 `
+New-NetFirewallRule -DisplayName "WG Panel (LAN and VPN only)" -Direction Inbound -Protocol TCP -LocalPort 8080 `
   -RemoteAddress LocalSubnet,10.10.0.0/24 -Action Allow
 ```
 
-**Linux** — atenção: o Docker **ignora o ufw** nas portas publicadas. Por isso o passo 2.1 (publicar só no IP da LAN) é o que realmente protege. Se quiser filtrar por origem também, use a chain `DOCKER-USER`:
+**Linux** — note: Docker **bypasses ufw** for published ports. That's why step 2.1 (publish only on the LAN IP) is what actually protects you. If you also want to filter by source, use the `DOCKER-USER` chain:
 
 ```bash
 sudo iptables -I DOCKER-USER -p tcp --dport 8080 -j DROP
@@ -59,56 +61,56 @@ sudo iptables -I DOCKER-USER -p tcp --dport 8080 -s 192.168.88.0/24 -j ACCEPT
 sudo iptables -I DOCKER-USER -p tcp --dport 8080 -s 10.10.0.0/24 -j ACCEPT
 ```
 
-### 2.3 Fique de fora da internet por padrão
+### 2.3 Stay off the internet by default
 
-Na configuração de fábrica do MikroTik, o firewall já bloqueia tudo que vem da internet e não tem port forward. Mantenha assim (veja o item 1).
+With MikroTik's factory configuration, the firewall already blocks everything coming from the internet that has no port forward. Keep it that way (see item 1).
 
 ---
 
-## 3. Versão container dentro do MikroTik
+## 3. Container version inside the MikroTik
 
-O painel fica em `172.20.0.2`, numa rede interna do roteador. Ele **não** é alcançável da internet enquanto não existir port forward (item 1), porque o firewall padrão descarta o que vem da WAN sem dst-nat.
+The panel lives at `172.20.0.2`, on an internal network of the router. It is **not** reachable from the internet as long as there is no port forward (item 1), because the default firewall drops what comes from the WAN without dst-nat.
 
-Para deixar **explícito** que só a sua rede local e a VPN entram — mesmo que alguém crie uma regra por engano — cole no terminal do MikroTik (ajuste as faixas):
+To make it **explicit** that only your local network and the VPN get in — even if someone creates a rule by mistake — paste this into the MikroTik terminal (adjust the ranges):
 
 ```
-/ip firewall address-list add list=wgpanel-acesso address=192.168.88.0/24 comment="WG Panel: rede local"
+/ip firewall address-list add list=wgpanel-acesso address=192.168.88.0/24 comment="WG Panel: local network"
 /ip firewall address-list add list=wgpanel-acesso address=10.10.0.0/24 comment="WG Panel: VPN"
-/ip firewall filter add chain=forward action=drop protocol=tcp dst-address=172.20.0.2 dst-port=8080 src-address-list=!wgpanel-acesso comment="WG Panel: painel so para LAN e VPN" place-before=[:pick [/ip firewall filter find where dynamic=no] 0]
+/ip firewall filter add chain=forward action=drop protocol=tcp dst-address=172.20.0.2 dst-port=8080 src-address-list=!wgpanel-acesso comment="WG Panel: panel only for LAN and VPN" place-before=[:pick [/ip firewall filter find where dynamic=no] 0]
 ```
 
-(A última linha é um comando só; o `place-before` coloca a regra no topo do firewall, antes das regras que liberam o tráfego.)
+(The last line is a single command; `place-before` puts the rule at the top of the firewall, before the rules that accept traffic.)
 
-A regra descarta qualquer acesso ao painel que **não** venha da rede local ou da VPN — inclusive da internet e dos MikroTiks de clientes.
+The rule drops any access to the panel that does **not** come from the local network or the VPN — including from the internet and from clients' MikroTiks.
 
-> Se você usa mais faixas de VPN (ex.: `10.20.0.0/24` para outra interface) e quer abrir o painel por elas, adicione-as na lista `wgpanel-acesso`.
-
----
-
-## 4. Teste: o painel está mesmo fechado para a internet?
-
-1. No celular, **desligue o Wi-Fi** e **desligue a VPN** (use só o 4G).
-2. Abra `http://SEU-DDNS:8080` (ex.: `http://xxxx.sn.mynetname.net:8080`).
-3. **Não pode abrir.** Deve dar erro ou ficar carregando até expirar.
-4. Agora **ligue a VPN** e abra `http://IP-DO-PAINEL:8080` (ex.: `http://192.168.88.61:8080` ou `http://172.20.0.2:8080`). **Deve abrir.**
-
-Se o passo 3 abrir o painel, ele está exposto: revise o item 1 imediatamente.
+> If you use more VPN ranges (e.g. `10.20.0.0/24` for another interface) and want to open the panel through them, add them to the `wgpanel-acesso` list.
 
 ---
 
-## 5. Outras boas práticas
+## 4. Test: is the panel really closed to the internet?
 
-- **Senha forte** no `admin` do painel e troque a senha inicial (menu → 🔑 Trocar senha).
-- Crie usuários **Somente leitura** para quem só acompanha.
-- No MikroTik, use o usuário **`wgpanel`** com grupo limitado (veja `mikrotik-setup.rsc`) — **nunca o admin**.
-- Restrinja a API do MikroTik às redes de onde o painel acessa: `/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24` (ajuste as faixas).
-- O painel roda em **HTTP**. Dentro da rede local e da VPN (que já é criptografada) isso é aceitável. Se quiser HTTPS, coloque um proxy reverso (Caddy, Nginx) na frente e defina `COOKIE_SECURE=true` no `.env`.
-- Guarde com cuidado: o `.env`, a pasta `data/` (banco e `secret.key`) e os backups exportados — eles contêm senhas e as chaves da VPN.
-- A opção "Guardar a chave privada dos clientes no MikroTik" faz as chaves irem também para os backups do roteador.
-- Mantenha o RouterOS e o painel atualizados.
+1. On your phone, **turn off Wi-Fi** and **turn off the VPN** (use only 4G).
+2. Open `http://YOUR-DDNS:8080` (e.g. `http://xxxx.sn.mynetname.net:8080`).
+3. **It must not open.** It should fail or keep loading until it times out.
+4. Now **turn on the VPN** and open `http://PANEL-IP:8080` (e.g. `http://192.168.88.61:8080` or `http://172.20.0.2:8080`). **It must open.**
+
+If step 3 opens the panel, it is exposed: review item 1 immediately.
 
 ---
 
-## Encontrou uma falha de segurança?
+## 5. Other good practices
 
-**Não abra uma Issue pública.** Use **Security → Report a vulnerability** neste repositório (aviso privado). Descreva o problema, como reproduzir e a versão do painel.
+- A **strong password** for the panel's `admin`, and change the initial password (menu → 🔑 Trocar senha / *Change password*).
+- Create **read-only** users for people who only need to watch.
+- On the MikroTik, use the **`wgpanel`** user with a limited group (see `mikrotik-setup.rsc`) — **never the admin**.
+- Restrict the MikroTik API to the networks the panel connects from: `/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24` (adjust the ranges).
+- The panel runs over **HTTP**. Inside the local network and the VPN (which is already encrypted) this is acceptable. If you want HTTPS, put a reverse proxy (Caddy, Nginx) in front of it and set `COOKIE_SECURE=true` in `.env`.
+- Keep these safe: `.env`, the `data/` folder (database and `secret.key`) and exported backups — they contain passwords and VPN keys.
+- The "Store the clients' private key on the MikroTik" option means the keys also end up in the router's backups.
+- Keep RouterOS and the panel up to date.
+
+---
+
+## Found a security vulnerability?
+
+**Do not open a public Issue.** Use **Security → Report a vulnerability** in this repository (private report). Describe the problem, how to reproduce it and the panel version. English or Portuguese is fine.
