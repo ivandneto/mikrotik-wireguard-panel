@@ -717,7 +717,7 @@
             <p>Siga esta ordem na primeira vez. Cada item mostra se já está feito:</p>
             <ol class="space-y-2">
               <li class="flex gap-2"><span x-text="router.online ? '✅' : '⬜'"></span><span><b>Conectar ao MikroTik</b> — o selo no topo deve estar <span class="badge b-green">MikroTik online</span>. Se não estiver, veja <a @click="scrollHelp('problems')">Problemas comuns</a>.</span></li>
-              <li class="flex gap-2"><span x-text="overview?.vpn.configured ? '✅' : '⬜'"></span><span><b>Criar a primeira interface WireGuard</b> — em <a @click="tab='vpn'">VPN WireGuard</a> → Iniciar configuração. O painel prepara tudo no MikroTik.</span></li>
+              <li class="flex gap-2"><span x-text="overview?.vpn.configured ? '✅' : '⬜'"></span><span><b>Criar (ou adotar) a interface WireGuard</b> — em <a @click="tab='vpn'">VPN WireGuard</a> → Iniciar configuração. Se o MikroTik já tiver WireGuard (ex.: painel reinstalado), use <b>Adotar e importar clientes</b>.</span></li>
               <li class="flex gap-2"><span x-text="overview?.vpn.total ? '✅' : '⬜'"></span><span><b>Cadastrar o primeiro dispositivo</b> — VPN WireGuard → ＋ Novo dispositivo → escaneie o QR Code no app WireGuard.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "Salvar e enviar teste".</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Fazer um backup</b> — em <a @click="tab='backup'">Backup</a> → Baixar backup, e guarde em local seguro.</span></li>
@@ -815,6 +815,7 @@
             <h3>Interfaces (as abas no topo da tela)</h3>
             <p>Cada aba é uma interface WireGuard do MikroTik, com <b>porta</b> e <b>faixa de IPs</b> próprias. Use mais de uma para separar propósitos — por exemplo <span class="mono">wg-casa</span> para seus aparelhos e <span class="mono">wg-clientes</span> para MikroTiks de clientes. O número na aba mostra <b>online / total</b>.</p>
             <ul>
+              <li><b>Painel vazio, MikroTik com WireGuard</b> (painel novo ou reinstalado) — a tela mostra <b>"Este MikroTik já tem WireGuard"</b> com o botão <b>Adotar e importar clientes</b>: traz a interface e abre a importação; com as chaves guardadas no MikroTik, os clientes vêm com QR Code. Há também o atalho para restaurar um backup.</li>
               <li><b>＋ Nova interface</b> — cria uma interface (o painel sugere porta e faixa livres) ou <b>adota</b> uma que já existe no MikroTik.</li>
               <li><b>Faixa da VPN</b> — precisa ser diferente da sua rede (sua rede é 192.168.88.x → use 10.10.0.x).</li>
               <li><b>Redes daqui</b> — as redes da sua casa/empresa que os clientes podem alcançar.</li>
@@ -971,7 +972,12 @@
               <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado. O que faltar é recriado só no <b>roteador principal</b>; os dos outros roteadores entram no painel (eles já estão configurados nos MikroTiks deles). Aceita backups de versões antigas.</li>
               <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do <b>roteador escolhido no seletor</b>, dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
             </ul>
-            <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik): o caminho completo é Baixar backup no antigo → Restaurar no novo. Se só precisar dos clientes VPN, use <b>⬇️ Importar do MikroTik</b> no novo — com as chaves guardadas no roteador, eles vêm com QR Code. Depois desligue o painel antigo para não receber alertas em dobro.</p>
+            <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik):</p>
+            <ul>
+              <li><b>Tudo</b> (VPN, portas, alertas, usuários, roteadores): Baixar backup no antigo → Restaurar no novo.</li>
+              <li><b>Só a VPN</b>: no painel novo, em VPN WireGuard, clique em <b>Adotar e importar clientes</b> — com as chaves guardadas no roteador, eles vêm com QR Code. Alertas, usuários e portas você configura de novo.</li>
+            </ul>
+            <p>Depois desligue o painel antigo para não receber alertas em dobro.</p>
           </div>
 
           <div id="help-settings" class="card space-y-3">

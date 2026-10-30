@@ -122,6 +122,8 @@ Acesse **http://IP-DO-COMPUTADOR:8080** e entre com `admin` e a senha.
 
 ## 3. Configurar a VPN
 
+> **Painel novo ou reinstalado, mas o MikroTik já tem WireGuard?** A tela mostra **"Este MikroTik já tem WireGuard"** — clique em **Adotar e importar clientes** e a interface e os clientes voltam ao painel (com QR Code, se as chaves estiverem guardadas no MikroTik). Ou restaure um backup em **Backup → Restaurar**.
+
 1. Vá em **VPN WireGuard → Iniciar configuração**.
 2. O assistente já sugere os valores:
    - **Porta UDP** (padrão 13231).
@@ -188,7 +190,8 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 
 - **Backup do painel:** aba **Backup → Baixar backup**. Contém as chaves privadas da VPN, então guarde em local seguro.
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
-- **Atualizar o painel:** `docker compose up -d --build`.
+- **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
+- **Reinstalar ou trocar de máquina:** restaure o backup em **Backup → Restaurar** (traz tudo). Sem backup, em **VPN WireGuard** use **Adotar e importar clientes**: a interface e os clientes voltam do próprio MikroTik.
 
 ---
 
@@ -251,7 +254,7 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm
 /container add name=wgpanel file=usb1/wgpanel-arm64.tar interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
-Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a regra do [SECURITY.md](SECURITY.md), item 3). Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo. Se só precisar dos clientes VPN, use **VPN → ⬇️ Importar do MikroTik** (com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code). Desligue o antigo para não receber alertas em dobro.
+Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a regra do [SECURITY.md](SECURITY.md), item 3). Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo (traz tudo). Se só precisar da VPN, abra **VPN WireGuard** no painel novo e clique em **Adotar e importar clientes** — com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code. Desligue o antigo para não receber alertas em dobro.
 
 **Atualizar:** gere a imagem nova, envie, e rode `/container stop wgpanel`, `/container remove wgpanel` e o `/container add …` de novo (os dados ficam em `usb1/wgpanel/data`).
 
