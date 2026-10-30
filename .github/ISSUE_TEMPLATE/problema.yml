@@ -25,7 +25,7 @@ body:
     attributes:
       label: "Versão do painel / Panel version"
       description: "Aparece no menu lateral, embaixo de \"WG Panel\". / Shown in the sidebar, below \"WG Panel\"."
-      placeholder: "Ex.: 1.2.2"
+      placeholder: "Ex.: 1.2.3"
   - type: dropdown
     id: instalacao
     attributes:
