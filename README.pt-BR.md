@@ -115,7 +115,7 @@ Abra o **Winbox → New Terminal** e cole os comandos do arquivo [`mikrotik-setu
 
 O script faz o seguinte:
 
-1. Cria o grupo `wgpanel` com as permissões necessárias (`ftp` = acesso a arquivos, para o backup automático e a verificação de atualização; **não** liga o serviço FTP).
+1. Cria o grupo `wgpanel` com as permissões mínimas de que o painel precisa.
 2. Cria o usuário `wgpanel`.
 3. Ativa a API REST via HTTPS (`www-ssl`), acessível **só da sua rede**.
 4. Ativa o DDNS grátis do MikroTik (`xxxx.sn.mynetname.net`), útil se você não tem IP fixo.
@@ -132,7 +132,7 @@ Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou
 
 **Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.0.tar.gz     # use o nome exato do arquivo baixado
+docker load -i wgpanel-docker-amd64-v1.3.1.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -237,7 +237,7 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 
 - **Backup do painel:** aba **Backup → Baixar backup**. Contém as chaves privadas da VPN, então guarde em local seguro.
 - **Backup automático do MikroTik:** ligado por padrão. Todo dia (ou semana) o painel exporta a configuração de cada roteador (sem senhas) para `data/router-backups/` e guarda uma cópia só quando algo mudou. Veja e compare em **Backup → 🕒 Backup automático do MikroTik**.
-- **Atualizando da 1.2 ou anterior?** O backup automático e a verificação de atualização precisam da permissão `ftp` no usuário `wgpanel`. Como admin, no terminal do MikroTik: `/user group set [find name=wgpanel] policy=read,write,api,rest-api,test,sensitive,ftp`
+- **RouterOS 7 mais antigo?** Se o backup automático mostrar "precisa da permissão 'ftp'", o seu RouterOS não consegue mandar a exportação direto; o painel mostra o comando de uma linha que resolve (`ftp` é só acesso a arquivos — **não** liga o serviço FTP).
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
 - **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
 - **Reinstalar ou trocar de máquina:** restaure o backup em **Backup → Restaurar** (traz tudo). Sem backup, em **VPN WireGuard** use **Adotar e importar clientes**: a interface e os clientes voltam do próprio MikroTik.
@@ -297,9 +297,9 @@ bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.0` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.1` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.0.tar comment="WG Panel v1.3.0" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.1.tar comment="WG Panel v1.3.1" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
 O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").

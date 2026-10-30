@@ -141,5 +141,6 @@
  "RouterOS atualizado ({version})": "RouterOS aktuell ({version})",
  "nunca": "nie",
  "Informe ao menos uma porta": "Geben Sie mindestens einen Port an",
- "Porta inválida: {port}": "Ungültiger Port: {port}"
+ "Porta inválida: {port}": "Ungültiger Port: {port}",
+ "Não foi possível consultar a MikroTik: {error}": "MikroTik konnte nicht abgefragt werden: {error}"
 }

@@ -141,5 +141,6 @@
  "RouterOS atualizado ({version})": "RouterOS は最新です（{version}）",
  "nunca": "なし",
  "Informe ao menos uma porta": "ポートを 1 つ以上入力してください",
- "Porta inválida: {port}": "ポートが正しくありません：{port}"
+ "Porta inválida: {port}": "ポートが正しくありません：{port}",
+ "Não foi possível consultar a MikroTik: {error}": "MikroTik の更新サーバーに接続できません: {error}"
 }

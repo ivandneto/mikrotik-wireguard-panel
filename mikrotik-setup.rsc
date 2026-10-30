@@ -5,10 +5,7 @@
 
 # 1) Grupo com as permissões mínimas que o painel precisa
 #    (se der erro "rest-api", sua versão é anterior à 7.9: remova ",rest-api")
-#    "ftp" = acesso a arquivos (backup automático e verificação de atualização); NÃO liga o serviço FTP.
-#    Já tem o grupo de uma versão anterior? Rode só:
-#    /user group set [find name=wgpanel] policy=read,write,api,rest-api,test,sensitive,ftp
-/user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive,ftp comment="WG Panel"
+/user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive comment="WG Panel"
 
 # 2) Usuário do painel  >>> TROQUE A SENHA <<<
 /user add name=wgpanel group=wgpanel password="troque-esta-senha" comment="WG Panel"

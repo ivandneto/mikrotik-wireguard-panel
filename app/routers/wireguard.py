@@ -796,9 +796,8 @@ def _management_lines(managed: Router, admin_nets: list[str]) -> list[str]:
     port = urlparse(managed.url).port or 80
     return [
         "# --- " + tr_ascii("Gerenciamento pelo WG Panel: usuário LIMITADO, que só entra pelo túnel") + " ---",
-        ':do { /user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive,ftp comment="WG Panel" } '
-        'on-error={ :do { /user group add name=wgpanel policy=read,write,api,test,sensitive,ftp comment="WG Panel" } on-error={} }',
-        ':do { /user group set [find name=wgpanel] policy=read,write,api,rest-api,test,sensitive,ftp } on-error={}',
+        ':do { /user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive comment="WG Panel" } '
+        'on-error={ :do { /user group add name=wgpanel policy=read,write,api,test,sensitive comment="WG Panel" } on-error={} }',
         f':do {{ /user add name=wgpanel group=wgpanel password="{password}" address={nets} comment="WG Panel (so pelo tunel)" }} '
         f'on-error={{ /user set [find name=wgpanel] group=wgpanel password="{password}" address={nets} }}',
         "# " + tr_ascii("API REST pelo serviço www (o tráfego já vai criptografado dentro do túnel WireGuard)."),

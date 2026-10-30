@@ -141,5 +141,6 @@
  "RouterOS atualizado ({version})": "RouterOS aggiornato ({version})",
  "nunca": "mai",
  "Informe ao menos uma porta": "Indica almeno una porta",
- "Porta inválida: {port}": "Porta non valida: {port}"
+ "Porta inválida: {port}": "Porta non valida: {port}",
+ "Não foi possível consultar a MikroTik: {error}": "Impossibile contattare MikroTik: {error}"
 }

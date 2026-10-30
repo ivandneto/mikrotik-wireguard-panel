@@ -141,5 +141,6 @@
  "RouterOS atualizado ({version})": "RouterOS 已是最新（{version}）",
  "nunca": "从不",
  "Informe ao menos uma porta": "请至少填写一个端口",
- "Porta inválida: {port}": "端口无效：{port}"
+ "Porta inválida: {port}": "端口无效：{port}",
+ "Não foi possível consultar a MikroTik: {error}": "无法连接 MikroTik 更新服务器：{error}"
 }

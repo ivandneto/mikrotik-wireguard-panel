@@ -141,5 +141,6 @@
  "RouterOS atualizado ({version})": "RouterOS актуальна ({version})",
  "nunca": "никогда",
  "Informe ao menos uma porta": "Укажите хотя бы один порт",
- "Porta inválida: {port}": "Неверный порт: {port}"
+ "Porta inválida: {port}": "Неверный порт: {port}",
+ "Não foi possível consultar a MikroTik: {error}": "Не удалось связаться с сервером MikroTik: {error}"
 }

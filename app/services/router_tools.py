@@ -4,6 +4,8 @@ import asyncio
 import ipaddress
 import re
 
+import httpx
+
 from ..i18n import tr
 from ..mikrotik import MikroTik, MikroTikError
 from ..utils import split_list
@@ -24,7 +26,21 @@ def permission_error() -> str:
 # ------------------------------------------------------------------ exportação (backup automático)
 
 async def export_config(client: MikroTik) -> str:
-    """Gera um .rsc no roteador (sem senhas: o RouterOS esconde dados sensíveis), lê o conteúdo e apaga o arquivo."""
+    """Configuração do roteador em .rsc (sem senhas: o RouterOS esconde dados sensíveis).
+
+    Primeiro pede o texto direto (/execute as-string, não precisa de permissão extra); se a versão não
+    suportar, cai para gerar um arquivo, ler e apagar (precisa da permissão 'ftp')."""
+    try:
+        res = await client.request("POST", "/execute", json={"script": "/export", "as-string": ""}, timeout=120)
+        text = (res or {}).get("ret", "") if isinstance(res, dict) else ""
+        if text.lstrip().startswith("#") and "not enough permissions" not in text[:200]:
+            return text
+    except MikroTikError:
+        pass
+    return await _export_via_file(client)
+
+
+async def _export_via_file(client: MikroTik) -> str:
     await client.command("/export", {"file": EXPORT_NAME})
     fname = f"{EXPORT_NAME}.rsc"
     row = None
@@ -73,21 +89,46 @@ def normalize_export(text: str) -> str:
 
 # ------------------------------------------------------------------ atualização do RouterOS
 
+UPGRADE_URL = "https://upgrade.mikrotik.com/routeros/NEWESTa7.{channel}"
+
+
+def _version_key(v: str) -> tuple:
+    return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+
+async def _latest_from_mikrotik(channel: str) -> str:
+    """Versão mais nova do canal, direto do servidor de atualização da MikroTik ("7.25 1792678320")."""
+    async with httpx.AsyncClient(timeout=15) as http:
+        r = await http.get(UPGRADE_URL.format(channel=channel or "stable"))
+        r.raise_for_status()
+    latest = r.text.split()[0] if r.text.strip() else ""
+    return latest if re.fullmatch(r"\d+(\.\d+)+(rc\d+|beta\d+)?", latest) else ""
+
+
 async def check_update(client: MikroTik) -> dict:
-    """Pede ao roteador para consultar a MikroTik e devolve versão instalada/disponível."""
-    error = None
+    """Pede ao roteador para consultar a MikroTik; se ele recusar (falta permissão), o painel consulta
+    o servidor de atualização da MikroTik direto. Devolve versão instalada/disponível."""
+    error, checked = None, True
     try:
         await client.command("/system/package/update/check-for-updates", {})
     except MikroTikError as exc:
-        error = permission_error() if needs_permission(exc) else str(exc)
+        checked = False
+        if not needs_permission(exc):
+            error = str(exc)
     info = await client.get("/system/package/update") or {}
     if isinstance(info, list):
         info = info[0] if info else {}
     installed, latest = info.get("installed-version", ""), info.get("latest-version", "")
+    channel = info.get("channel", "")
+    if not checked or not latest:
+        try:
+            latest = await _latest_from_mikrotik(channel)
+        except httpx.HTTPError as exc:
+            error = error or tr("Não foi possível consultar a MikroTik: {error}", error=str(exc) or type(exc).__name__)
     return {
-        "installed": installed, "latest": latest, "channel": info.get("channel", ""),
+        "installed": installed, "latest": latest, "channel": channel,
         "status": info.get("status", ""), "error": error,
-        "available": bool(latest and installed and latest != installed),
+        "available": bool(latest and installed and _version_key(latest) > _version_key(installed)),
     }
 
 
@@ -137,6 +178,12 @@ async def traceroute(client: MikroTik, address: str) -> list[dict]:
 
 # ------------------------------------------------------------------ checagem de segurança
 
+# condições que limitam uma regra de firewall (sem nenhuma delas, a regra vale para tudo)
+SELECTORS = ("dst-port", "src-port", "port", "protocol", "src-address", "src-address-list", "dst-address",
+             "dst-address-list", "dst-address-type", "src-address-type", "connection-state", "connection-nat-state",
+             "connection-mark", "packet-mark", "icmp-options", "tcp-flags", "layer7-protocol", "content")
+
+
 def _finding(fid: str, level: str, title: str, detail: str = "", fix: str = "") -> dict:
     return {"id": fid, "level": level, "title": title, "detail": detail, "fix": fix}
 
@@ -177,13 +224,19 @@ async def security_check(client: MikroTik, client_ip: str, panel_ports: set[str]
             out.append(_finding("nat_panel", "ok", tr("Nenhum port forward para a porta do painel")))
 
     # 3. firewall de entrada bloqueia a internet?
-    has_drop = False
+    has_drop = dns_blocked = False
     if isinstance(filters, list):
-        # regra "drop tudo que vem da internet": sem porta/protocolo/origem, só pela interface (ou lista) de entrada
-        has_drop = any(r.get("chain") == "input" and r.get("action") == "drop" and r.get("disabled") != "true"
-                       and not (r.get("dst-port") or r.get("protocol") or r.get("src-address") or r.get("src-address-list"))
-                       and (r.get("in-interface-list") in ("!LAN", "WAN") or r.get("in-interface"))
-                       for r in filters)
+        inputs = [r for r in filters if r.get("chain") == "input" and r.get("action") in ("drop", "reject")
+                  and r.get("disabled") != "true"]
+        # regra "drop tudo que vem da internet": sem porta/protocolo/origem; só pela interface (ou lista) de
+        # entrada, ou sem condição nenhuma (a última regra do input, depois dos accepts da LAN)
+        has_drop = any(not any(r.get(k) for k in SELECTORS)
+                       and (r.get("in-interface-list") in ("!LAN", "WAN") or r.get("in-interface")
+                            or not (r.get("in-interface-list") or r.get("in-interface")))
+                       for r in inputs)
+        dns_blocked = any(r.get("protocol") in ("udp", None) and "53" in split_list(r.get("dst-port", ""))
+                          and not (r.get("src-address") or r.get("src-address-list"))
+                          for r in inputs)
         if has_drop:
             out.append(_finding("input_drop", "ok", tr("O firewall bloqueia acessos da internet ao roteador")))
         else:
@@ -229,7 +282,7 @@ async def security_check(client: MikroTik, client_ip: str, panel_ports: set[str]
     # 6. DNS aberto
     if isinstance(dns, (dict, list)):
         d = dns[0] if isinstance(dns, list) and dns else dns if isinstance(dns, dict) else {}
-        if d.get("allow-remote-requests") == "true" and not has_drop:
+        if d.get("allow-remote-requests") == "true" and not (has_drop or dns_blocked):
             out.append(_finding("dns_open", "fail", tr("O DNS do roteador pode estar aberto para a internet"),
                                 tr("Sem o bloqueio no firewall, o roteador vira um DNS aberto (usado em ataques)."),
                                 tr("Crie a regra de bloqueio da chain input (item acima).")))
