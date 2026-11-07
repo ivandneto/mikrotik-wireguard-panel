@@ -256,6 +256,8 @@ Choose which events trigger alerts. All of them are recorded in the **Events** t
 | VPN works at home but not away | Using the "local" QR away from home, CGNAT, or UDP port blocked by the ISP |
 | Forwarded port doesn't work | Server IP changed (make the lease static), Windows firewall on the server blocking, or CGNAT |
 | "Missing on MikroTik" | Someone deleted the rule/peer directly in Winbox; click 🔁 **Recreate** |
+| Container: the Principal router shows `http://192.168.88.1` | The container variables are missing or weren't loaded. See [The flash drive died](#the-flash-drive-died-or-the-panel-is-gone-reinstall-the-container) |
+| Container: "Invalid username or password" on the panel login | The panel user is `admin`, not `wgpanel` (that one is the MikroTik user). `ADMIN_PASSWORD` only applies when the data folder is empty |
 
 ---
 
@@ -316,6 +318,54 @@ Open **http://172.20.0.2:8080** (only from the local network or VPN — add the 
 Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.1.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
 
 > On RouterOS older than 7.20, replace `available-from` with `address`, and `list=`/`envlists=`/`mountlists=` with `name=`/`envlist=`/`mounts=`.
+
+### The flash drive died (or the panel is gone): reinstall the container
+
+**What is lost and what stays:** the VPN, the WireGuard clients and the NAT rules live on the MikroTik itself and **keep working**. The flash drive only holds the container image and the panel database (users, alerts, client routers). The container network (`containers` bridge, `veth-wgpanel`) stays on the router.
+
+> ⚠️ It has happened that the variables (`/container envs`) and the data folder (`/container mounts`) **disappeared from the router** along with the flash drive (possibly during a RouterOS upgrade). Without the mount, the panel writes its database inside the container and loses everything when it's recreated. That's why step 2 checks everything.
+
+**1. Format the new flash drive** (check its name with `/disk print`):
+```
+/disk format usb1 file-system=ext4 label=wgpanel   # ERASES the flash drive
+/container config set tmpdir=usb1/tmp
+```
+
+**2. Check variables and mount:**
+```
+/container envs print
+/container mounts print
+```
+If they come back empty (or incomplete), recreate them. Clear first to avoid duplicates:
+```
+/container envs remove [find list=wgpanel]
+/user set wgpanel password="WGPANEL-PASSWORD"      # same as MIKROTIK_PASSWORD below
+/container envs add list=wgpanel key=MIKROTIK_URL value=https://172.20.0.1
+/container envs add list=wgpanel key=MIKROTIK_USER value=wgpanel
+/container envs add list=wgpanel key=MIKROTIK_PASSWORD value="WGPANEL-PASSWORD"
+/container envs add list=wgpanel key=ADMIN_PASSWORD value="PANEL-PASSWORD"
+/container envs add list=wgpanel key=POLL_INTERVAL value=60
+/container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data   # only if missing
+```
+- `MIKROTIK_URL` is the address of the `www-ssl` service **as seen from inside the container**. If you changed its port, add it (e.g. `https://172.20.0.1:8443`). Check with `/ip service print where name~"www"` and make sure `172.20.0.0/24` is in `available-from`.
+- Use letters-and-numbers-only passwords while testing; change them afterwards.
+
+**3. Recreate the container** (it only reads variables and mounts when it's created):
+```
+/container stop wgpanel
+/container print          # repeat until it shows "stopped" — before that, remove fails with "cannot remove running"
+/container remove wgpanel
+/file remove usb1/wgpanel/root
+```
+Drag the `.tar` into `usb1` (Winbox → **Files**) and run the `/container add …` and `/container start wgpanel` from step 5 above.
+
+**4. Log in and recover the data:** open **http://172.20.0.2:8080** with user **`admin`** and the `ADMIN_PASSWORD` password. Without `ADMIN_PASSWORD`, the panel creates a random password and prints it in the log: `/log print where message~"senha"`.
+- Have a panel backup? **Backup → Restore** (brings everything).
+- No backup? **WireGuard VPN → Adopt and import clients**: the interface and clients come back from the MikroTik (with QR Code, if "Store the private key on the MikroTik" was enabled). Extra users, Discord/Telegram alerts and client routers must be set up again.
+
+> **Forgot the panel password?** `ADMIN_PASSWORD` is only used when the data folder is empty. To reset: `/container stop wgpanel`, `/file remove usb1/wgpanel/data`, `/container start wgpanel` — this **erases the panel's configuration** (the VPN on the MikroTik is not affected).
+
+**To avoid losing it again:** once everything works, download a backup (**Backup → Download backup**) and keep it off the router; before upgrading RouterOS, run `/export file=before-upgrade`. Prefer a USB SSD or a "High Endurance" flash drive — regular flash drives wear out from constant writes.
 
 ---
 

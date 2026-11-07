@@ -254,6 +254,8 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 | VPN funciona em casa mas não fora | Usando o QR "local" fora de casa, CGNAT, ou porta UDP bloqueada pela operadora |
 | Porta liberada não funciona | IP do servidor mudou (faça o lease estático), firewall do Windows do servidor bloqueando, ou CGNAT |
 | "Ausente no MikroTik" | Alguém apagou a regra/peer direto no Winbox; clique em 🔁 **Recriar** |
+| Container: o roteador Principal aparece como `http://192.168.88.1` | As variáveis do container sumiram ou não foram lidas. Veja [O pendrive morreu](#o-pendrive-morreu-ou-o-painel-sumiu-reinstalar-o-container) |
+| Container: "Usuário ou senha inválidos" no login do painel | O usuário do painel é `admin`, não `wgpanel` (esse é o do MikroTik). O `ADMIN_PASSWORD` só vale quando a pasta de dados está vazia |
 
 ---
 
@@ -314,6 +316,54 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.1.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
+
+### O pendrive morreu (ou o painel sumiu): reinstalar o container
+
+**O que se perde e o que fica:** a VPN, os clientes WireGuard e as regras de NAT ficam no próprio MikroTik e **continuam funcionando**. No pendrive ficam só a imagem do container e o banco do painel (usuários, alertas, roteadores de clientes). A rede do container (bridge `containers`, `veth-wgpanel`) fica no roteador.
+
+> ⚠️ Já aconteceu de as variáveis (`/container envs`) e a pasta de dados (`/container mounts`) **sumirem do roteador** junto com o pendrive (possivelmente numa atualização do RouterOS). Sem o mount, o painel grava o banco dentro do container e perde tudo ao ser recriado. Por isso o passo 2 confere tudo.
+
+**1. Formatar o pendrive novo** (confira o nome com `/disk print`):
+```
+/disk format usb1 file-system=ext4 label=wgpanel   # APAGA o pendrive
+/container config set tmpdir=usb1/tmp
+```
+
+**2. Conferir variáveis e mount:**
+```
+/container envs print
+/container mounts print
+```
+Se vierem vazios (ou incompletos), recrie. Comece limpando para não duplicar:
+```
+/container envs remove [find list=wgpanel]
+/user set wgpanel password="SENHA-DO-WGPANEL"      # a mesma do MIKROTIK_PASSWORD abaixo
+/container envs add list=wgpanel key=MIKROTIK_URL value=https://172.20.0.1
+/container envs add list=wgpanel key=MIKROTIK_USER value=wgpanel
+/container envs add list=wgpanel key=MIKROTIK_PASSWORD value="SENHA-DO-WGPANEL"
+/container envs add list=wgpanel key=ADMIN_PASSWORD value="SENHA-DO-PAINEL"
+/container envs add list=wgpanel key=POLL_INTERVAL value=60
+/container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data   # só se não existir
+```
+- `MIKROTIK_URL` é o endereço do serviço `www-ssl` **visto de dentro do container**. Se você mudou a porta, acrescente-a (ex.: `https://172.20.0.1:8443`). Confira com `/ip service print where name~"www"` e veja se `172.20.0.0/24` está no `available-from`.
+- Use senhas só com letras e números enquanto testa; troque depois.
+
+**3. Recriar o container** (ele só lê variáveis e mounts quando é criado):
+```
+/container stop wgpanel
+/container print          # repita até aparecer "stopped" — antes disso o remove falha com "cannot remove running"
+/container remove wgpanel
+/file remove usb1/wgpanel/root
+```
+Arraste o `.tar` para o `usb1` (Winbox → **Files**) e rode o `/container add …` e o `/container start wgpanel` do passo 5 acima.
+
+**4. Entrar e recuperar os dados:** abra **http://172.20.0.2:8080** com usuário **`admin`** e a senha do `ADMIN_PASSWORD`. Sem `ADMIN_PASSWORD`, o painel cria uma senha aleatória e mostra no log: `/log print where message~"senha"`.
+- Tem backup do painel? **Backup → Restaurar** (traz tudo).
+- Não tem? **VPN WireGuard → Adotar e importar clientes**: a interface e os clientes voltam do MikroTik (com QR Code, se "Guardar a chave privada no MikroTik" estava ligado). Usuários extras, alertas do Discord/Telegram e roteadores de clientes precisam ser cadastrados de novo.
+
+> **Esqueceu a senha do painel?** O `ADMIN_PASSWORD` só é usado quando a pasta de dados está vazia. Para zerar: `/container stop wgpanel`, `/file remove usb1/wgpanel/data`, `/container start wgpanel` — isso **apaga a configuração do painel** (a VPN no MikroTik não é afetada).
+
+**Para não perder de novo:** depois de tudo funcionando, baixe um backup (**Backup → Baixar backup**) e guarde fora do roteador; antes de atualizar o RouterOS, rode `/export file=antes-de-atualizar`. Prefira SSD USB ou pendrive "High Endurance" — pendrive comum se desgasta com a gravação constante.
 
 ---
 
