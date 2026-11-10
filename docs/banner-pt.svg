@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="MikroTik WireGuard Panel">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1222"/>
+      <stop offset="1" stop-color="#111c36"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.18" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1e2a44" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="320" rx="24" fill="url(#bg)"/>
+  <rect width="1280" height="320" rx="24" fill="url(#grid)" opacity="0.6"/>
+  <rect width="1280" height="320" rx="24" fill="url(#glow)"/>
+
+  <!-- túnel: dois nós ligados -->
+  <g opacity="0.55" stroke="#34d399" stroke-width="2" fill="none">
+    <path d="M1030 90 C 1090 60, 1140 120, 1200 90" stroke-dasharray="6 8"/>
+    <path d="M1030 230 C 1090 260, 1140 200, 1200 230" stroke-dasharray="6 8"/>
+    <path d="M1030 160 H 1200" stroke="#60a5fa" stroke-dasharray="10 10"/>
+  </g>
+  <g fill="#0b1222" stroke-width="3">
+    <circle cx="1030" cy="90" r="10" stroke="#34d399"/>
+    <circle cx="1030" cy="230" r="10" stroke="#34d399"/>
+    <circle cx="1030" cy="160" r="14" stroke="#60a5fa"/>
+    <circle cx="1200" cy="90" r="10" stroke="#34d399"/>
+    <circle cx="1200" cy="230" r="10" stroke="#34d399"/>
+    <circle cx="1200" cy="160" r="14" stroke="#60a5fa"/>
+  </g>
+
+  <!-- escudo -->
+  <g transform="translate(96 82)">
+    <path d="M78 0 L150 26 V84 C150 128 120 160 78 176 C36 160 6 128 6 84 V26 Z" fill="url(#shield)"/>
+    <path d="M78 14 L136 35 V84 C136 120 112 147 78 161 Z" fill="#ffffff" opacity="0.18"/>
+    <path d="M48 88 L70 110 L112 64" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g font-family="Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="290" y="150" fill="#ffffff" font-size="64" font-weight="700">WG Panel</text>
+    <text x="292" y="196" fill="#93c5fd" font-size="26" font-weight="600">MikroTik · WireGuard · RouterOS 7</text>
+    <text x="292" y="240" fill="#94a3b8" font-size="22">VPN · Portas · Vários MikroTiks · Monitoramento · Alertas</text>
+  </g>
+</svg>

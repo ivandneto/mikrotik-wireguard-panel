@@ -1,21 +1,84 @@
-# 🛡️ MikroTik WireGuard Panel
+<p align="center">
+  <img src="docs/banner-pt.svg" alt="WG Panel — MikroTik WireGuard Panel" width="100%">
+</p>
 
-🇺🇸 [English](README.md) · 🇧🇷 **Português**
+<p align="center">
+  🇺🇸 <a href="README.md">English</a> · 🇧🇷 <b>Português</b>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/ivandneto/mikrotik-wireguard-panel?label=vers%C3%A3o)](../../releases/latest)
-[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
-![RouterOS 7](https://img.shields.io/badge/RouterOS-7.x-blue)
-![Docker](https://img.shields.io/badge/Docker-pronto-2496ED)
+<p align="center">
+  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/ivandneto/mikrotik-wireguard-panel?style=for-the-badge&label=vers%C3%A3o&color=2563eb" alt="Versão"></a>
+  <a href="../../releases"><img src="https://img.shields.io/github/downloads/ivandneto/mikrotik-wireguard-panel/total?style=for-the-badge&label=downloads&color=0ea5e9" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-MIT-22c55e?style=for-the-badge" alt="Licença MIT"></a>
+  <a href="../../stargazers"><img src="https://img.shields.io/github/stars/ivandneto/mikrotik-wireguard-panel?style=for-the-badge&label=estrelas&color=f59e0b" alt="Estrelas"></a>
+  <br>
+  <img src="https://img.shields.io/badge/RouterOS-7.x-293239?style=for-the-badge&logo=mikrotik&logoColor=white" alt="RouterOS 7">
+  <img src="https://img.shields.io/badge/WireGuard-88171A?style=for-the-badge&logo=wireguard&logoColor=white" alt="WireGuard">
+  <img src="https://img.shields.io/badge/Docker-pronto-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/idiomas-9-8b5cf6?style=for-the-badge" alt="9 idiomas">
+</p>
 
-Painel web (em 9 idiomas) para **criar e gerenciar VPN WireGuard**, **ligar e gerenciar MikroTiks de clientes**, **liberar portas (NAT)** para servidores de jogos e aplicações, e **monitorar tudo**, com alertas no **Telegram** e no **Discord**. Roda em **Docker** ou como **container dentro do próprio MikroTik**.
+<p align="center">
+  <b>Um painel web para a VPN WireGuard do seu MikroTik.</b><br>
+  Crie acessos com QR Code em 1 clique, ligue os MikroTiks dos seus clientes, libere portas para jogos e aplicações<br>
+  e acompanhe tudo com alertas no Telegram e no Discord. Roda em <b>Docker</b> ou <b>dentro do próprio MikroTik</b>.
+</p>
 
-> 💬 Tem uma ideia ou dúvida? Use a aba **[Discussions](../../discussions)**. Encontrou um problema? Abra uma **[Issue](../../issues/new/choose)**.
+<p align="center">
+  <a href="../../releases/latest"><b>⬇️ Baixar</b></a> ·
+  <a href="#escolha-sua-instalação"><b>🚀 Instalar</b></a> ·
+  <a href="#-telas"><b>📸 Telas</b></a> ·
+  <a href="#3-configurar-a-vpn"><b>🔐 Configurar a VPN</b></a> ·
+  <a href="#-segurança"><b>🔒 Segurança</b></a> ·
+  <a href="../../discussions"><b>💬 Discussions</b></a>
+</p>
+
+<p align="center">
+  <a href="docs/screenshots/pt-BR/dashboard.png"><img src="docs/screenshots/pt-BR/dashboard.png" alt="WG Panel — painel" width="92%"></a>
+</p>
+
+## ✨ Destaques
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>🔐 VPN em 1 clique</h3>
+      Crie o acesso e escaneie o <b>QR Code</b> no celular, ou baixe o <b>.conf</b> para o computador. Usa o DDNS do MikroTik, então funciona de qualquer lugar.
+    </td>
+    <td width="33%" valign="top">
+      <h3>🖧 Vários MikroTiks</h3>
+      Ligue o roteador de um cliente colando um script e gerencie todos no mesmo painel, com um <b>usuário limitado</b> que só entra pelo túnel.
+    </td>
+    <td width="33%" valign="top">
+      <h3>🎮 Liberação de portas</h3>
+      Modelos prontos (Minecraft, CS2, Valheim, Plex…), whitelist de IPs e <b>liberação temporária</b> que fecha sozinha.
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>📈 Monitoramento</h3>
+      Quem está online, tráfego e consumo por cliente, CPU e memória do roteador e teste se o servidor está no ar.
+    </td>
+    <td width="33%" valign="top">
+      <h3>📣 Alertas</h3>
+      <b>Telegram</b> e <b>Discord</b>: cliente conectou ou caiu, MikroTik offline, RouterOS novo, configuração mudou.
+    </td>
+    <td width="33%" valign="top">
+      <h3>🛡️ Seguro por padrão</h3>
+      Só mexe no que ele mesmo criou (<code>[wgpanel]</code>), confere a segurança de cada roteador e registra quem fez o quê.
+    </td>
+  </tr>
+</table>
 
 > ⚠️ **Segurança: nunca exponha o painel na internet.** Acesse só pela rede local ou pela VPN. Veja o passo a passo em **[🔒 Segurança](#-segurança)**.
 
+> 💬 Tem uma ideia ou dúvida? Use a aba **[Discussions](../../discussions)**. Encontrou um problema? Abra uma **[Issue](../../issues/new/choose)**. O botão com o ícone do GitHub, no topo do painel, leva direto para cá.
+
+## 🧩 Tudo o que ele faz
+
 | Módulo | O que faz |
 |---|---|
-| 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf**, endereço **remoto** (IP fixo/DDNS) ou **local** (IP na LAN), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves, **importar peers que já existem no MikroTik** (chaves guardadas no roteador → QR funciona em qualquer painel) |
+| 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf** (sempre pelo IP fixo/DDNS, funciona de qualquer lugar), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves, **importar peers que já existem no MikroTik** (chaves guardadas no roteador → QR funciona em qualquer painel) |
 | 🖧 **Vários MikroTiks** | Gerencie o seu MikroTik e os dos clientes no mesmo painel: seletor no topo, tela **Roteadores** com status de todos e alertas com o nome de cada roteador. O MikroTik de um cliente entra pelo túnel com um **usuário limitado** (`wgpanel`, senha aleatória, login só pelo túnel) criado pelo próprio script — sem reaproveitar senhas de admin |
 | 🖧 **Outro MikroTik (site-to-site)** | Várias interfaces WireGuard (ex.: `wg-casa` e `wg-clientes`); túnel com o MikroTik de um cliente informando a rede dele, com **➡️ só eu acesso** (padrão) ou **↔️ mão dupla**; o painel cria peer, rotas e regras no seu MikroTik e gera um **script .rsc** para colar no MikroTik do cliente; monitoramento e alerta se o cliente cair |
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
@@ -44,7 +107,7 @@ Painel web (em 9 idiomas) para **criar e gerenciar VPN WireGuard**, **ligar e ge
 <table>
   <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/vpn.png"><img src="docs/screenshots/pt-BR/vpn.png" alt="VPN WireGuard"></a><br><sub><b>VPN WireGuard</b> — clientes com status, último contato, IP de origem e tráfego; várias interfaces em abas</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/qrcode.png"><img src="docs/screenshots/pt-BR/qrcode.png" alt="QR Code"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; endereço remoto (DDNS) ou local</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/qrcode.png"><img src="docs/screenshots/pt-BR/qrcode.png" alt="QR Code"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; funciona de qualquer lugar pelo DDNS</sub></td>
   </tr>
   <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/site-to-site.png"><img src="docs/screenshots/pt-BR/site-to-site.png" alt="Outro MikroTik (site-to-site)"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
@@ -132,7 +195,7 @@ Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou
 
 **Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.2.tar.gz     # use o nome exato do arquivo baixado
+docker load -i wgpanel-docker-amd64-v1.3.3.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -175,19 +238,16 @@ Acesse **http://IP-DO-COMPUTADOR:8080** e entre com `admin` e a senha.
 2. O assistente já sugere os valores:
    - **Porta UDP** (padrão 13231).
    - **Faixa da VPN** (padrão `10.10.0.1/24`). Use uma faixa que **não** exista na sua rede.
-   - **Endereço remoto:** seu IP fixo ou DDNS, usado fora de casa.
-   - **Endereço local:** IP do MikroTik na rede, usado dentro de casa.
+   - **Endereço remoto:** seu IP fixo ou DDNS. É ele que vai no QR Code e no `.conf`.
+   - **Endereço local** (opcional): IP do MikroTik na rede. Só é usado se o endereço remoto ficar vazio.
 3. Clique em **Aplicar no MikroTik**. O painel cria a interface, o IP e a regra de firewall, e coloca a VPN na lista LAN.
 4. Clique em **Novo cliente**, dê um nome e escaneie o QR Code com o app **WireGuard**.
 
-### Remoto × Local
+### Endereço no QR Code
 
-Cada cliente pode baixar dois arquivos/QR codes:
+O QR Code e o `.conf` sempre usam o **endereço remoto** (IP fixo ou DDNS). Ele funciona de qualquer lugar: no 4G, em outra casa, no trabalho e, normalmente, também dentro da própria rede.
 
-| | Quando usar | Endpoint |
-|---|---|---|
-| 🌍 **Remoto** | Fora da rede (4G, outra casa, trabalho) | IP público ou DDNS |
-| 🏠 **Local** | Dentro da mesma rede do MikroTik | IP local do MikroTik |
+Se o roteador não tiver endereço remoto configurado, o painel usa o IP interno do MikroTik e avisa que o arquivo só funciona dentro da rede. Para corrigir, preencha o endereço remoto em **Configurações** e gere o QR de novo.
 
 ### Só rede local × Toda a internet
 
@@ -251,7 +311,7 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 | "MikroTik offline" | `MIKROTIK_URL` errado, serviço `www-ssl`/`www` desativado, ou `address=` do serviço não inclui o IP do computador do painel |
 | "Usuário ou senha do MikroTik inválidos" | Senha no `.env` ou grupo sem `rest-api`/`api` |
 | Cliente VPN conecta mas não navega | Desmarcou "tratar VPN como LAN" no assistente, ou o firewall tem regras próprias que bloqueiam; marque e reaplique em **Reconfigurar** |
-| VPN funciona em casa mas não fora | Usando o QR "local" fora de casa, CGNAT, ou porta UDP bloqueada pela operadora |
+| VPN funciona em casa mas não fora | Roteador sem endereço remoto (o QR mostra o aviso de IP interno), CGNAT, ou porta UDP bloqueada pela operadora |
 | Porta liberada não funciona | IP do servidor mudou (faça o lease estático), firewall do Windows do servidor bloqueando, ou CGNAT |
 | "Ausente no MikroTik" | Alguém apagou a regra/peer direto no Winbox; clique em 🔁 **Recriar** |
 | Container: o roteador Principal aparece como `http://192.168.88.1` | As variáveis do container sumiram ou não foram lidas. Veja [O pendrive morreu](#o-pendrive-morreu-ou-o-painel-sumiu-reinstalar-o-container) |
@@ -299,9 +359,9 @@ bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.2` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.3` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.2.tar comment="WG Panel v1.3.2" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.3.tar comment="WG Panel v1.3.3" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
 O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").
@@ -313,7 +373,7 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.2.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
+Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.3.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
 

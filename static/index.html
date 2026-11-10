@@ -741,10 +741,10 @@
               <div class="font-semibold text-white">🔐 VPN — como os clientes chegam até o MikroTik <span class="badge b-blue">🖧 <span x-text="rtForm.name"></span></span></div>
               <label class="block"><span class="label">Endereço remoto (IP fixo ou DDNS)</span>
                 <input class="input mono" x-model="rtForm.endpoint_remote" placeholder="meuserver.ddns.net ou xxxx.sn.mynetname.net">
-                <p class="hint">Usado quando o cliente está fora de casa/empresa (4G, outra rede).</p></label>
+                <p class="hint">Vai em todos os QR Codes e arquivos .conf. Funciona de qualquer lugar, inclusive de dentro da rede.</p></label>
               <label class="block"><span class="label">Endereço local (IP do MikroTik na rede)</span>
                 <input class="input mono" x-model="rtForm.endpoint_local" placeholder="192.168.88.1">
-                <p class="hint">Usado por dispositivos dentro da mesma rede do MikroTik.</p></label>
+                <p class="hint">Opcional. Só é usado se o endereço remoto estiver vazio — aí o arquivo funciona apenas dentro da rede.</p></label>
               <p class="hint">DNS e redes acessíveis ficam em cada interface: VPN WireGuard → ⚙️ ao lado da interface.</p>
               <div class="grid grid-cols-2 gap-3">
                 <label class="block"><span class="label">Keepalive (s)</span><input class="input" type="number" x-model.number="settings.wg_keepalive"></label>
@@ -965,7 +965,7 @@
               <li><b>🌐 Toda a internet</b> — toda a navegação passa pelo seu MikroTik. Útil em Wi-Fi público.</li>
             </ul>
             <p>Ao trocar o modo de um dispositivo, o QR novo abre sozinho: <b>escaneie de novo</b> no aparelho (o modo fica gravado nele).</p>
-            <p><b>Acesso remoto × local:</b> no QR/arquivo, use <b>🌍 remoto</b> (IP público/DDNS) quando o aparelho estiver fora de casa e <b>🏠 local</b> (IP do MikroTik na rede) dentro dela.</p>
+            <p><b>Endereço no arquivo:</b> o QR e o .conf sempre usam o endereço remoto (DDNS ou IP público), que funciona de qualquer lugar — fora e, normalmente, também dentro da rede. O IP interno do MikroTik só é usado quando o roteador não tem endereço remoto configurado; aí o arquivo só funciona dentro da rede.</p>
 
             <h3>Status</h3>
             <table class="table">
@@ -1191,7 +1191,7 @@
 
           <div id="help-about" class="card space-y-3">
             <h2>💬 Ideias e suporte</h2>
-            <p>O painel é um projeto aberto no GitHub: <a href="https://github.com/ivandneto/mikrotik-wireguard-panel" target="_blank" rel="noopener">github.com/ivandneto/mikrotik-wireguard-panel</a>.</p>
+            <p>O painel é um projeto aberto no GitHub: <a href="https://github.com/ivandneto/mikrotik-wireguard-panel" target="_blank" rel="noopener">github.com/ivandneto/mikrotik-wireguard-panel</a>. O botão com o ícone do GitHub, no topo de todas as telas, abre essa página.</p>
             <ul>
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/discussions" target="_blank" rel="noopener">Discussions</a></b> — ideias, dúvidas de instalação e uso, troca de experiências.</li>
               <li><b><a href="https://github.com/ivandneto/mikrotik-wireguard-panel/issues/new/choose" target="_blank" rel="noopener">Issues</a></b> — formulários para 💡 sugerir uma função ou 🐛 relatar um problema.</li>
@@ -1218,7 +1218,7 @@
               <tr><td><b>"Conflita com a sua rede" ao criar Outro MikroTik</b></td><td>A rede do cliente é igual (ou se sobrepõe) à sua ou à de outro cliente. Mude a faixa da LAN do cliente (ex.: 192.168.10.0/24) antes de criar o túnel.</td></tr>
               <tr><td><b>Peer removido pelo Winbox</b></td><td>O painel mostra "Ausente no MikroTik". Use 🔁 para recriar ou 🗑️ no painel para remover de vez — removendo pelo painel, as rotas e regras dele também são limpas.</td></tr>
               <tr><td><b>Atualizei o painel e não vi a mudança</b></td><td>Confira a versão no menu lateral (embaixo de "WG Panel") e recarregue a página. Se o painel roda no MikroTik, troque a imagem do container pelo arquivo <span class="mono">wgpanel-mikrotik-arm64-vX.Y.Z.tar</span> da versão nova (veja o README); o <span class="mono">/container print</span> mostra a versão no comentário.</td></tr>
-              <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Use o QR de <b>Acesso remoto</b> fora de casa. Verifique se o endereço remoto (DDNS) está certo em Configurações.</td></tr>
+              <tr><td><b>VPN funciona em casa, mas não fora</b></td><td>Verifique se o endereço remoto (DDNS) está certo em Configurações e gere o QR de novo. Se o QR mostrar o aviso de IP interno, o roteador está sem endereço remoto.</td></tr>
               <tr><td><b>Cliente aparece Offline mas está conectado</b></td><td>Normal se ficar parado sem uso por alguns minutos com keepalive desligado. Com o padrão (25s) não acontece.</td></tr>
               <tr><td><b>Porta liberada não funciona</b></td><td>IP do servidor mudou (faça o lease estático), firewall do servidor bloqueando, programa fechado ou teste feito de dentro da própria rede (teste pelo 4G).</td></tr>
               <tr><td><b>"Fora do ar" no serviço</b></td><td>O painel não conseguiu conectar no servidor interno: ele está desligado, o programa não está rodando ou a porta interna está errada.</td></tr>
@@ -1469,11 +1469,8 @@
         <h2 class="text-lg font-semibold text-white">📱 <span x-text="qr.peer.name"></span>
           <span class="badge ml-1" :class="qr.peer.tunnel_mode === 'full' ? 'b-blue' : 'b-gray'" x-text="qr.peer.tunnel_mode === 'full' ? '🌐 Toda a internet' : '🏠 Só rede local'"></span></h2>
         <div x-show="qr.notice" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="qr.notice"></div>
-        <div class="grid grid-cols-2 gap-2">
-          <button class="btn justify-center" :class="qr.endpoint === 'remote' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'remote'; loadQr()">🌍 Acesso remoto</button>
-          <button class="btn justify-center" :class="qr.endpoint === 'local' && '!bg-blue-600 !border-blue-600'" @click="qr.endpoint = 'local'; loadQr()">🏠 Acesso local</button>
-        </div>
-        <p class="text-xs text-slate-400" x-text="qr.endpoint === 'remote' ? 'Conecta pelo IP público/DDNS — use fora da rede.' : 'Conecta pelo IP interno do MikroTik — use dentro da rede.'"></p>
+        <!-- sempre pelo DDNS/IP público (funciona de qualquer lugar); o IP interno só entra se o roteador não tiver endereço remoto -->
+        <div x-show="qr.endpoint === 'local'" class="text-sm text-amber-200 bg-amber-950/40 border border-amber-900 rounded-lg p-3">Este roteador não tem endereço remoto (DDNS ou IP público) configurado: o arquivo usa o IP interno do MikroTik e só funciona dentro da rede. Configure o endereço remoto em Configurações.</div>
         <div x-show="qr.error" class="text-sm text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-3" x-text="qr.error"></div>
         <div class="qr max-w-xs mx-auto" x-show="qr.svg" x-html="qr.svg"></div>
         <ol class="text-sm text-slate-400 space-y-1 list-decimal pl-5">
