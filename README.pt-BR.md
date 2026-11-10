@@ -112,28 +112,32 @@
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/qrcode.png"><img src="docs/screenshots/pt-BR/qrcode.png" alt="QR Code"></a><br><sub><b>QR Code</b> — escaneie com o app WireGuard; funciona de qualquer lugar pelo DDNS</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/site-to-site.png"><img src="docs/screenshots/pt-BR/site-to-site.png" alt="Outro MikroTik (site-to-site)"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/routers.png"><img src="docs/screenshots/pt-BR/routers.png" alt="Roteadores"></a><br><sub><b>Roteadores</b> — vários MikroTiks num painel só, aviso de atualização do RouterOS e WebFig</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/console.png"><img src="docs/screenshots/pt-BR/console.png" alt="Console"></a><br><sub><b>Console</b> — comandos no MikroTik sem sair do painel, com o usuário limitado e registro na Auditoria</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/site-to-site.png"><img src="docs/screenshots/pt-BR/site-to-site.png" alt="Outro MikroTik (site-to-site)"></a><br><sub><b>Outro MikroTik (site-to-site)</b> — túneis com roteadores de clientes, só eu acesso ou mão dupla</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/security.png"><img src="docs/screenshots/pt-BR/security.png" alt="Checagem de segurança"></a><br><sub><b>Checagem de segurança</b> — os erros mais comuns em cada roteador, com o comando para corrigir</sub></td>
   </tr>
   <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/port-forwarding.png"><img src="docs/screenshots/pt-BR/port-forwarding.png" alt="Liberação de portas"></a><br><sub><b>Liberação de portas</b> — whitelist, liberação temporária e tráfego por porta</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/new-port.png"><img src="docs/screenshots/pt-BR/new-port.png" alt="Liberar porta"></a><br><sub><b>Liberar porta</b> — modelos prontos para servidores de jogos e aplicações</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/security.png"><img src="docs/screenshots/pt-BR/security.png" alt="Checagem de segurança"></a><br><sub><b>Checagem de segurança</b> — os erros mais comuns em cada roteador, com o comando para corrigir</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/tools.png"><img src="docs/screenshots/pt-BR/tools.png" alt="Ferramentas"></a><br><sub><b>Ferramentas</b> — ping e traceroute feitos pelo próprio MikroTik</sub></td>
-  </tr>
-  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/backup-diff.png"><img src="docs/screenshots/pt-BR/backup-diff.png" alt="Backup automático"></a><br><sub><b>Backup automático</b> — a configuração de cada MikroTik, guardada só quando muda, com o que mudou</sub></td>
+  </tr>
+  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/monitoring.png"><img src="docs/screenshots/pt-BR/monitoring.png" alt="Gráficos e consumo"></a><br><sub><b>Gráficos e consumo</b> — histórico de tráfego e consumo por cliente VPN</sub></td>
-  </tr>
-  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/alerts.png"><img src="docs/screenshots/pt-BR/alerts.png" alt="Alertas"></a><br><sub><b>Alertas</b> — Telegram e Discord, escolha quais eventos avisam</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/settings.png"><img src="docs/screenshots/pt-BR/settings.png" alt="Configurações"></a><br><sub><b>Configurações</b> — opções por roteador e o idioma da tela e dos alertas</sub></td>
   </tr>
   <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/settings.png"><img src="docs/screenshots/pt-BR/settings.png" alt="Configurações"></a><br><sub><b>Configurações</b> — opções por roteador e o idioma da tela e dos alertas</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/events.png"><img src="docs/screenshots/pt-BR/events.png" alt="Eventos"></a><br><sub><b>Eventos</b> — tudo o que aconteceu, também enviado como alerta</sub></td>
+  </tr>
+  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/pt-BR/manual.png"><img src="docs/screenshots/pt-BR/manual.png" alt="Manual no painel"></a><br><sub><b>Manual no painel</b> — cada tela explicada, em 9 idiomas</sub></td>
+    <td width="50%" valign="top"></td>
   </tr>
 </table>
 

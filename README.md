@@ -114,28 +114,32 @@
     <td width="50%" valign="top"><a href="docs/screenshots/qrcode.png"><img src="docs/screenshots/qrcode.png" alt="QR Code"></a><br><sub><b>QR Code</b> — scan with the WireGuard app; works from anywhere through the DDNS</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/site-to-site.png"><img src="docs/screenshots/site-to-site.png" alt="Other MikroTik (site-to-site)"></a><br><sub><b>Other MikroTik (site-to-site)</b> — tunnels to clients' routers, one-way or two-way</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/routers.png"><img src="docs/screenshots/routers.png" alt="Routers"></a><br><sub><b>Routers</b> — several MikroTiks in one panel, RouterOS update notices and WebFig</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/console.png"><img src="docs/screenshots/console.png" alt="Console"></a><br><sub><b>Console</b> — commands on the MikroTik without leaving the panel, with the limited user and an audit log entry</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/site-to-site.png"><img src="docs/screenshots/site-to-site.png" alt="Other MikroTik (site-to-site)"></a><br><sub><b>Other MikroTik (site-to-site)</b> — tunnels to clients' routers, one-way or two-way</sub></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/security.png"><img src="docs/screenshots/security.png" alt="Security check"></a><br><sub><b>Security check</b> — common mistakes on each router, with the command to fix them</sub></td>
   </tr>
   <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/port-forwarding.png"><img src="docs/screenshots/port-forwarding.png" alt="Port forwarding"></a><br><sub><b>Port forwarding</b> — whitelist, temporary rules and traffic per port</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/new-port.png"><img src="docs/screenshots/new-port.png" alt="Open a port"></a><br><sub><b>Open a port</b> — ready-made templates for game servers and apps</sub></td>
   </tr>
   <tr>
-    <td width="50%" valign="top"><a href="docs/screenshots/security.png"><img src="docs/screenshots/security.png" alt="Security check"></a><br><sub><b>Security check</b> — common mistakes on each router, with the command to fix them</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/tools.png"><img src="docs/screenshots/tools.png" alt="Tools"></a><br><sub><b>Tools</b> — ping and traceroute run by the MikroTik itself</sub></td>
-  </tr>
-  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/backup-diff.png"><img src="docs/screenshots/backup-diff.png" alt="Automatic backup"></a><br><sub><b>Automatic backup</b> — each MikroTik's configuration, kept only when it changed, with a diff</sub></td>
+  </tr>
+  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/monitoring.png"><img src="docs/screenshots/monitoring.png" alt="Charts and usage"></a><br><sub><b>Charts and usage</b> — traffic history and usage per VPN client</sub></td>
-  </tr>
-  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/alerts.png"><img src="docs/screenshots/alerts.png" alt="Alerts"></a><br><sub><b>Alerts</b> — Telegram and Discord, pick which events notify you</sub></td>
-    <td width="50%" valign="top"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings"></a><br><sub><b>Settings</b> — per-router options and the language of the screen and of the alerts</sub></td>
   </tr>
   <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings"></a><br><sub><b>Settings</b> — per-router options and the language of the screen and of the alerts</sub></td>
     <td width="50%" valign="top"><a href="docs/screenshots/events.png"><img src="docs/screenshots/events.png" alt="Events"></a><br><sub><b>Events</b> — everything that happened, also sent as alerts</sub></td>
+  </tr>
+  <tr>
     <td width="50%" valign="top"><a href="docs/screenshots/manual.png"><img src="docs/screenshots/manual.png" alt="Built-in manual"></a><br><sub><b>Built-in manual</b> — every screen explained, in 9 languages</sub></td>
+    <td width="50%" valign="top"></td>
   </tr>
 </table>
 
