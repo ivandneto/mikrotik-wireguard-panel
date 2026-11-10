@@ -25,6 +25,10 @@ class TraceIn(BaseModel):
     address: str = Field(min_length=1, max_length=253)
 
 
+class ConsoleIn(BaseModel):
+    command: str = Field(min_length=1, max_length=2000)
+
+
 def _host(address: str) -> str:
     address = address.strip()
     if not router_tools.HOST_RE.match(address):
@@ -51,6 +55,24 @@ async def traceroute(body: TraceIn, _: User = Depends(require_admin)):
         return {"hops": await router_tools.traceroute(mt, _host(body.address))}
     except MikroTikError as exc:
         raise _mikrotik_error(exc)
+
+
+@router.post("/console")
+async def console(body: ConsoleIn, user: User = Depends(require_admin), db: Session = Depends(get_db),
+                  rt: Router = Depends(use_router)):
+    """Command console: runs a command on the selected MikroTik and returns its text output."""
+    command = body.command.strip()
+    if not command:
+        raise HTTPException(400, tr("Digite um comando"))
+    if router_tools.endless_command(command):
+        raise HTTPException(400, tr("Esse comando fica rodando até ser interrompido. Coloque um limite, por exemplo "
+                                    "count=4 (ping) ou duration=10s (torch, monitor-traffic)."))
+    audit(db, user.username, "comando no console do MikroTik", f"{rt.name}: {command}")  # logged even if it fails
+    try:
+        return {"output": await router_tools.run_command(mt, command)}
+    except MikroTikError as exc:
+        # 400 = the MikroTik didn't understand the command (typo): show its own message
+        raise HTTPException(exc.status if exc.status in (400, 403, 504) else 502, str(exc))
 
 
 @router.get("/security")

@@ -142,5 +142,11 @@
  "nunca": "mai",
  "Informe ao menos uma porta": "Indica almeno una porta",
  "Porta inválida: {port}": "Porta non valida: {port}",
- "Não foi possível consultar a MikroTik: {error}": "Impossibile contattare MikroTik: {error}"
+ "Não foi possível consultar a MikroTik: {error}": "Impossibile contattare MikroTik: {error}",
+ "Digite um comando": "Scrivi un comando",
+ "Esse comando fica rodando até ser interrompido. Coloque um limite, por exemplo count=4 (ping) ou duration=10s (torch, monitor-traffic).": "Questo comando continua finché non viene fermato. Aggiungi un limite, per esempio count=4 (ping) o duration=10s (torch, monitor-traffic).",
+ "Nova versão do WG Panel disponível": "Nuova versione di WG Panel disponibile",
+ "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "Versione {latest} disponibile (installata: {installed}). Come aggiornare: {url}",
+ "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "L'utente del pannello sul MikroTik non può eseguire questo comando. Usa 🌐 WebFig, che entra con il tuo utente.",
+ "O comando passou de {seconds} segundos e foi interrompido.": "Il comando ha superato {seconds} secondi ed è stato interrotto."
 }

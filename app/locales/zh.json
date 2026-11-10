@@ -142,5 +142,11 @@
  "nunca": "从不",
  "Informe ao menos uma porta": "请至少填写一个端口",
  "Porta inválida: {port}": "端口无效：{port}",
- "Não foi possível consultar a MikroTik: {error}": "无法连接 MikroTik 更新服务器：{error}"
+ "Não foi possível consultar a MikroTik: {error}": "无法连接 MikroTik 更新服务器：{error}",
+ "Digite um comando": "请输入命令",
+ "Esse comando fica rodando até ser interrompido. Coloque um limite, por exemplo count=4 (ping) ou duration=10s (torch, monitor-traffic).": "此命令会一直运行直到被停止。请加上限制，例如 count=4（ping）或 duration=10s（torch、monitor-traffic）。",
+ "Nova versão do WG Panel disponível": "WG Panel 有新版本",
+ "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "版本 {latest} 可用（已安装：{installed}）。升级方法：{url}",
+ "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "面板在 MikroTik 上的用户没有权限执行此命令。请使用 🌐 WebFig，它会用你自己的账号登录。",
+ "O comando passou de {seconds} segundos e foi interrompido.": "命令运行超过 {seconds} 秒，已被中止。"
 }

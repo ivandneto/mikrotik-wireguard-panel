@@ -8,6 +8,8 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
+
 from ..config import config
 from ..db import Router, SessionLocal
 from ..i18n import tr
@@ -134,6 +136,8 @@ async def run(router_ids: list[int], settings: dict, prefix_names: bool):
     if _lock.locked():
         return
     async with _lock:
+        if settings.get("update_check_enabled", True) and _due(panel_state().get("checked"), UPDATE_EVERY):
+            await check_panel_update()
         for rid in router_ids:
             db = SessionLocal()
             try:
@@ -162,6 +166,43 @@ async def _auto_backup(router: Router, settings: dict, prefix: str):
         # tenta de novo na próxima rodada do intervalo, sem repetir a cada coleta
         _update_state(router.id, backup_checked=_now().isoformat(), backup_error=msg)
         logger.warning("Backup automático de %s falhou: %s", router.name, msg)
+
+
+PANEL_REPO = "ivandneto/mikrotik-wireguard-panel"
+PANEL_RELEASES = f"https://github.com/{PANEL_REPO}/releases/latest"
+
+
+def panel_state() -> dict:
+    """Latest panel Release on GitHub: {"latest", "available", "url", "checked"} (empty before the first check)."""
+    return load_state().get("panel", {})
+
+
+async def check_panel_update() -> dict:
+    """Checks the latest panel Release on GitHub (once a day). Without internet, it just tries again the next day."""
+    from .. import __version__
+    state = load_state()
+    previous = state.get("panel", {})
+    info = {"checked": _now().isoformat(), "latest": previous.get("latest"), "url": previous.get("url") or PANEL_RELEASES}
+    try:
+        async with httpx.AsyncClient(timeout=15, headers={"User-Agent": f"wgpanel/{__version__}",
+                                                         "Accept": "application/vnd.github+json"}) as client:
+            resp = await client.get(f"https://api.github.com/repos/{PANEL_REPO}/releases/latest")
+        resp.raise_for_status()
+        data = resp.json()
+        info["latest"] = (data.get("tag_name") or "").lstrip("vV") or None
+        info["url"] = data.get("html_url") or PANEL_RELEASES
+        info["error"] = None
+    except (httpx.HTTPError, ValueError) as exc:
+        info["error"] = exc.__class__.__name__
+    info["available"] = bool(info["latest"]) and \
+        router_tools._version_key(info["latest"]) > router_tools._version_key(__version__)
+    state["panel"] = info
+    _save_state(state)
+    if info["available"] and previous.get("latest") != info["latest"]:
+        await notify("panel_update", tr("Nova versão do WG Panel disponível"),
+                     tr("Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}",
+                        latest=info["latest"], installed=__version__, url=info["url"]), "info")
+    return info
 
 
 async def _check_update(router: Router, prefix: str):

@@ -23,6 +23,37 @@ def permission_error() -> str:
               "No terminal do MikroTik, como admin: {command}", command=PERMISSION_FIX)
 
 
+# ------------------------------------------------------------------ command console
+
+CONSOLE_TIMEOUT = 30
+# Commands that keep running until someone stops them: without a limit they would hang the console (and the router)
+_ENDLESS = re.compile(r"(^|[\s/])(ping|torch|monitor-traffic|monitor|bandwidth-test|sniffer|flood-ping|traceroute)\b")
+_LIMIT = re.compile(r"\b(count|duration|once|max-hops)\b")
+
+
+def endless_command(command: str) -> bool:
+    return bool(_ENDLESS.search(command)) and not _LIMIT.search(command)
+
+
+async def run_command(client: MikroTik, command: str) -> str:
+    """Runs a command like in the Terminal and returns its text output (/execute as-string).
+    The panel's MikroTik user permissions apply (wgpanel is limited)."""
+    try:
+        res = await client.request("POST", "/execute", json={"script": command, "as-string": ""}, timeout=CONSOLE_TIMEOUT)
+    except MikroTikError as exc:
+        if isinstance(exc.__cause__, httpx.TimeoutException):
+            raise MikroTikError(tr("O comando passou de {seconds} segundos e foi interrompido.", seconds=CONSOLE_TIMEOUT), 504) from exc
+        if "not enough permissions" in str(exc):
+            raise MikroTikError(tr("O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, "
+                                   "que entra com o seu próprio login."), 403) from exc
+        raise
+    text = (res or {}).get("ret", "") if isinstance(res, dict) else ""
+    if "not enough permissions" in text[:200]:
+        raise MikroTikError(tr("O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, "
+                               "que entra com o seu próprio login."), 403)
+    return text
+
+
 # ------------------------------------------------------------------ exportação (backup automático)
 
 async def export_config(client: MikroTik) -> str:

@@ -86,9 +86,11 @@
 | 🎮 **Port forwarding** | Port forwards with **ready-made templates** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/both, port ranges, **IP whitelist**, **temporary rules** (close by themselves), conflict detection with existing rules |
 | 📈 **Monitoring** | Who is online, last handshake, source IP, traffic per client, usage per period, traffic per forwarded port, **check whether the server is up**, router CPU/memory/WAN, charts with history |
 | 🌐 **WebFig and Terminal** | A **🌐 WebFig** button on each router (and at the top) opens the MikroTik's web page — including the **Terminal** — in a new tab, with your own login. For clients it works through the tunnel |
+| ⌨️ **Command console** | A **⌨️ Console** button next to WebFig (at the top and on each router): runs commands on the MikroTik and shows the output without leaving the panel. Uses the limited `wgpanel` user, admins only, and every command is recorded in the **Audit log** |
 | 🛠️ **Tools** | **Ping** and **traceroute** run by the MikroTik itself (yours or a client's): does it reach the VPN client, the server, the internet? |
 | 🛡️ **Security check** | Checks each router for the usual mistakes — port forward to the panel, missing input firewall, open services, default `admin` user, open DNS — with the command to fix each one. Read-only |
 | ⬆️ **RouterOS updates** | Asks each router once a day whether a new RouterOS is available, shows it on the router cards and notifies on Discord/Telegram |
+| 🔔 **New panel version** | Checks GitHub once a day; when a new version is out, shows **⬆️ vX.Y.Z available** in the side menu, a dot on the GitHub button and a Discord/Telegram notice |
 | 📖 **Manual and tour** | Full manual inside the panel, guided tour and contextual help (❓) on every screen |
 | 🌐 **9 languages** | English, Português (Brasil), Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — screens, tour, manual, errors and alerts |
 | 📣 **Alerts** | Telegram and Discord: client connected/disconnected, service down/up, rule removed from the MikroTik, temporary port expired, MikroTik offline, RouterOS update available, configuration changed — in the language you choose |
@@ -197,7 +199,7 @@ Requirement: **Docker** (Docker Desktop on Windows, or Docker on any Linux or Ra
 
 **Option A — prebuilt image from the Release (x86-64 PC/server, fastest):** download `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = version), `docker-compose.yml` and `env.example` (rename it to `.env`) from the [latest Release](../../releases/latest) into a folder and run:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.3.tar.gz     # use the exact name of the downloaded file
+docker load -i wgpanel-docker-amd64-v1.3.4.tar.gz     # use the exact name of the downloaded file
 ```
 
 **Option B — from source** (any machine, including Raspberry Pi): clone the repository; step 2 below uses `--build` to build the image.
@@ -361,9 +363,9 @@ bash scripts/build-release.sh   # creates dist/release/wgpanel-mikrotik-arm64-vX
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.3` with the file's version** (it goes in the file name and in the container comment):
+**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.4` with the file's version** (it goes in the file name and in the container comment):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.3.tar comment="WG Panel v1.3.3" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.4.tar comment="WG Panel v1.3.4" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # once /container print shows extraction has finished
 ```
 `/container print` now shows the version in the comment, and the panel shows the version in the sidebar (below "WG Panel").
@@ -375,7 +377,7 @@ Open **http://172.20.0.2:8080** (only from the local network or VPN — add the 
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.3.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
+Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.4.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
 
 > On RouterOS older than 7.20, replace `available-from` with `address`, and `list=`/`envlists=`/`mountlists=` with `name=`/`envlist=`/`mounts=`.
 

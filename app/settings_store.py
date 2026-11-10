@@ -50,6 +50,7 @@ DEFAULTS = {
             "router_down": True,
             "router_up": True,
             "router_update": True,
+            "panel_update": True,
             "config_changed": False,
         },
     },

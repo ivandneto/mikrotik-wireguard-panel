@@ -127,6 +127,7 @@ function panel() {
     importList: null,
     importSel: [],
     qr: { peer: null, endpoint: 'remote', svg: '', error: '', notice: '' },
+    term: { lines: [], input: '', history: [], idx: -1, busy: false },
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
     sec: { findings: null, update: null, loading: false },
     autoBk: null,
@@ -146,7 +147,8 @@ function panel() {
       { id: 'backup', label: t('Backup'), icon: '💾', admin: true, group: 'adm' },
       { id: 'settings', label: t('Configurações'), icon: '⚙️', admin: true, group: 'adm' },
       { id: 'audit', label: t('Auditoria'), icon: '📜', admin: true, group: 'adm' },
-      { id: 'help', label: t('Manual'), icon: '📖' },
+      // no menu item: the manual opens from the ❓ Help button at the top, at the current screen's section
+      { id: 'help', label: t('Manual'), icon: '📖', nav: false },
     ],
 
     navGroups: { net: t('Rede'), mon: t('Monitoramento'), adm: t('Administração') },
@@ -202,13 +204,14 @@ function panel() {
       { tab: 'backup', sel: 'sec-backup', admin: true, title: t('💾 Backup'), text: t('Baixe uma cópia de tudo do painel e crie backups do MikroTik escolhido. O <b>backup automático</b> exporta a configuração de cada MikroTik todo dia (ou semana) e guarda só quando algo mudou — com <b>🔍 O que mudou</b> para comparar.') },
       { tab: 'settings', sel: 'sec-settings', admin: true, title: t('⚙️ Configurações'), text: t('Itens marcados com <b>🖧</b> são do roteador escolhido (DDNS, NAT, WAN); o resto vale para o painel todo — como a opção de <b>guardar as chaves dos clientes no MikroTik</b>, para importar com QR Code em qualquer painel.') },
       { tab: 'audit', sel: 'sec-audit', admin: true, title: t('📜 Auditoria'), text: t('Registro de quem fez o quê e quando no painel.') },
-      { tab: 'help', sel: 'help-btns', title: t('🎉 Pronto!'), text: t('Ficou com dúvida? <b>❓ Ajuda</b> abre o manual da tela atual, e o <b>📖 Manual</b> no menu tem tudo — inclusive <b>🖧 Roteadores</b> e o passo a passo do <b>🖧 Outro MikroTik</b>. Comece pelos <b>Primeiros passos</b> e veja <b>🔒 Segurança</b>: o painel nunca deve ficar exposto na internet — acesse pela rede local ou pela VPN.') },
+      { tab: 'help', sel: 'help-btns', title: t('🎉 Pronto!'), text: t('Ficou com dúvida? <b>❓ Ajuda</b> abre o manual completo, já na parte da tela em que você está — lá tem tudo, inclusive <b>🖧 Roteadores</b> e o passo a passo do <b>🖧 Outro MikroTik</b>. Comece pelos <b>Primeiros passos</b> e veja <b>🔒 Segurança</b>: o painel nunca deve ficar exposto na internet — acesse pela rede local ou pela VPN.') },
     ],
 
     fmtBytes, fmtBps, fmtDur, fmtDate, fmtAgo,
 
     get isAdmin() { return this.me?.role === 'admin'; },
     get visibleTabs() { return this.tabs.filter(t => !t.admin || this.isAdmin); },
+    get navTabs() { return this.visibleTabs.filter(t => t.nav !== false); },
     get router() { return this.overview?.router || {}; },
     get routerList() { return this.overview?.routers || []; },
     get curRouter() { return this.routerList.find(r => r.id === this.routerId) || this.routerList[0]; },
@@ -218,7 +221,7 @@ function panel() {
     // menu lateral: itens soltos e grupos, na ordem de `tabs`
     get navTree() {
       const out = [];
-      for (const t of this.visibleTabs) {
+      for (const t of this.navTabs) {
         if (!t.group) { out.push({ key: t.id, tab: t }); continue; }
         let g = out.find(e => e.group === t.group);
         if (!g) out.push(g = { key: 'g-' + t.group, group: t.group, label: this.navGroups[t.group], items: [] });
@@ -438,6 +441,44 @@ function panel() {
       await this.run(() => api('DELETE', `/api/routers/${r.id}`), t('Roteador removido do painel'));
       if (this.routerId === r.id) await this.switchRouter(this.routerList.find(x => x.is_main)?.id);
       await Promise.all([this.loadRouters(), this.loadOverview()]);
+    },
+    // ---------- command console (runs on the selected MikroTik, with the panel's limited user) ----------
+    openConsole(id) {
+      if (id && id !== this.routerId) this.switchRouter(id);
+      this.modal = 'console';
+      this.$nextTick(() => this.$refs.termInput?.focus());
+    },
+    get termPrompt() { return `[wgpanel@${this.curRouter?.name || 'MikroTik'}] >`; },
+    async runConsole() {
+      const cmd = this.term.input.trim();
+      if (!cmd || this.term.busy) return;
+      this.term.input = '';
+      this.term.idx = -1;
+      if (this.term.history.at(-1) !== cmd) this.term.history.push(cmd);
+      if (['clear', 'cls'].includes(cmd)) { this.term.lines = []; return; }
+      this.term.lines.push({ kind: 'cmd', text: `${this.termPrompt} ${cmd}` });
+      this.term.busy = true;
+      try {
+        const r = await api('POST', '/api/tools/console', { command: cmd });
+        this.term.lines.push({ kind: 'out', text: r.output.trimEnd() || t('(comando executado, sem resposta)') });
+      } catch (e) {
+        this.term.lines.push({ kind: 'err', text: e.message });
+      }
+      this.term.lines = this.term.lines.slice(-300);
+      this.term.busy = false;
+      this.$nextTick(() => {
+        const out = this.$refs.termOut;
+        if (out) out.scrollTop = out.scrollHeight;
+        this.$refs.termInput?.focus();
+      });
+    },
+    termHistory(step) {
+      const h = this.term.history;
+      if (!h.length) return;
+      let i = this.term.idx === -1 ? h.length : this.term.idx;
+      i = Math.min(h.length, Math.max(0, i + step));
+      this.term.idx = i === h.length ? -1 : i;
+      this.term.input = i === h.length ? '' : h[i];
     },
     openRouter(id, tab = 'dashboard') {
       this.switchRouter(id);

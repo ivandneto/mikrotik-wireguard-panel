@@ -84,9 +84,11 @@
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
 | 📈 **Monitoramento** | Quem está online, último handshake, IP de origem, tráfego por cliente, consumo por período, tráfego por porta liberada, **teste se o servidor está no ar**, CPU/memória/WAN do roteador, gráficos com histórico |
 | 🌐 **WebFig e Terminal** | Botão **🌐 WebFig** em cada roteador (e no topo) abre a página do MikroTik — com o **Terminal** — numa nova aba, com o seu próprio login. Para clientes, funciona pelo túnel |
+| ⌨️ **Console de comandos** | Botão **⌨️ Console** ao lado do WebFig (no topo e em cada roteador): roda comandos no MikroTik e mostra a resposta, sem sair do painel. Usa o usuário limitado `wgpanel`, só administradores usam e cada comando fica na **Auditoria** |
 | 🛠️ **Ferramentas** | **Ping** e **traceroute** feitos pelo próprio MikroTik (o seu ou o de um cliente): ele alcança o cliente da VPN, o servidor, a internet? |
 | 🛡️ **Checagem de segurança** | Confere em cada roteador os erros mais comuns — port forward para o painel, firewall de entrada ausente, serviços abertos, usuário `admin` padrão, DNS aberto — com o comando para corrigir cada um. Só lê |
 | ⬆️ **Atualização do RouterOS** | Pergunta a cada roteador uma vez por dia se há RouterOS novo, mostra nos cartões dos roteadores e avisa no Discord/Telegram |
+| 🔔 **Versão nova do painel** | Consulta o GitHub uma vez por dia; quando sai versão nova, mostra **⬆️ vX.Y.Z disponível** no menu lateral, um ponto no botão do GitHub e avisa no Discord/Telegram |
 | 📖 **Manual e tour** | Manual completo dentro do painel, tour guiado e ajuda contextual (❓) em cada tela |
 | 🌐 **9 idiomas** | Português (Brasil), English, Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — telas, tour, manual, erros e alertas. Segue o idioma do navegador; troque na tela de login, no menu lateral ou em Configurações |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline, atualização do RouterOS disponível, configuração mudou — no idioma que você escolher |
@@ -197,7 +199,7 @@ Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou
 
 **Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.3.tar.gz     # use o nome exato do arquivo baixado
+docker load -i wgpanel-docker-amd64-v1.3.4.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -361,9 +363,9 @@ bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.3` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.4` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.3.tar comment="WG Panel v1.3.3" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.4.tar comment="WG Panel v1.3.4" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
 O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").
@@ -375,7 +377,7 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.3.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
+Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.4.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
 

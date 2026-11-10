@@ -142,5 +142,11 @@
  "nunca": "なし",
  "Informe ao menos uma porta": "ポートを 1 つ以上入力してください",
  "Porta inválida: {port}": "ポートが正しくありません：{port}",
- "Não foi possível consultar a MikroTik: {error}": "MikroTik の更新サーバーに接続できません: {error}"
+ "Não foi possível consultar a MikroTik: {error}": "MikroTik の更新サーバーに接続できません: {error}",
+ "Digite um comando": "コマンドを入力してください",
+ "Esse comando fica rodando até ser interrompido. Coloque um limite, por exemplo count=4 (ping) ou duration=10s (torch, monitor-traffic).": "このコマンドは止めるまで動き続けます。count=4（ping）や duration=10s（torch、monitor-traffic）のように上限を付けてください。",
+ "Nova versão do WG Panel disponível": "WG Panel の新しいバージョンがあります",
+ "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "バージョン {latest} が利用可能です（インストール済み：{installed}）。更新方法：{url}",
+ "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "MikroTik 上のパネルのユーザーには、このコマンドを実行する権限がありません。自分のユーザーでログインする 🌐 WebFig を使ってください。",
+ "O comando passou de {seconds} segundos e foi interrompido.": "コマンドが {seconds} 秒を超えたため中止しました。"
 }

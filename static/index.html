@@ -21,6 +21,9 @@
       <div>
         <div class="font-semibold text-white leading-tight">WG Panel</div>
         <div class="text-xs text-slate-500">MikroTik <span x-show="overview?.version" x-text="'· v' + overview?.version" title="Versão do painel"></span></div>
+        <a x-show="overview?.panel_update?.available" :href="overview?.panel_update?.url" target="_blank" rel="noopener"
+           class="badge b-amber mt-1 hover:brightness-125" title="Abre a página da versão nova, com o que mudou e como atualizar"
+           x-text="'⬆️ ' + t('v{version} disponível', { version: overview?.panel_update?.latest })"></a>
       </div>
     </div>
     <template x-for="e in navTree" :key="e.key">
@@ -66,7 +69,7 @@
     <!-- ===== Barra superior ===== -->
     <header class="sticky top-0 z-20 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
       <select class="input md:hidden flex-1 min-w-0" x-model="tab">
-        <template x-for="t in visibleTabs" :key="t.id"><option :value="t.id" x-text="(t.group ? navGroups[t.group] + ' › ' : '') + t.icon + ' ' + t.label"></option></template>
+        <template x-for="t in visibleTabs.filter(t => t.nav !== false || t.id === tab)" :key="t.id"><option :value="t.id" x-text="(t.group ? navGroups[t.group] + ' › ' : '') + t.icon + ' ' + t.label"></option></template>
       </select>
       <h1 class="hidden md:block text-lg font-semibold text-white" x-text="tabs.find(t => t.id === tab)?.label"></h1>
       <select class="input w-auto min-w-0 max-w-[40%] md:max-w-[14rem] py-1.5 text-sm" data-tour="router-select" title="Roteador que você está vendo"
@@ -77,6 +80,8 @@
       </select>
       <a class="btn hidden sm:inline-flex" x-show="overview?.mikrotik_url" :href="webfigUrl(overview?.mikrotik_url)" target="_blank" rel="noopener noreferrer"
          :title="'Abrir o WebFig de ' + (curRouter?.name || '') + ' (página do MikroTik, com Terminal) numa nova aba'">🌐 <span class="hidden lg:inline">WebFig</span></a>
+      <button class="btn hidden sm:inline-flex" x-show="isAdmin && overview?.mikrotik_url" @click="openConsole()"
+         title="Console de comandos do MikroTik selecionado">⌨️ <span class="hidden lg:inline">Console</span></button>
       <div class="ml-auto flex items-center gap-2 md:gap-3 text-sm" data-tour="status">
         <template x-if="router.online === true">
           <span class="badge b-green"><span class="dot pulse"></span> MikroTik online</span>
@@ -91,7 +96,10 @@
         <button class="btn" @click="forceRefresh()" :disabled="busy" title="Coletar agora">⟳</button>
         <button class="btn" data-tour="help-btns" @click="startTour()" title="Tour guiado pelo painel">🎓 <span class="hidden sm:inline">Tour</span></button>
         <button class="btn" @click="openHelp(tab)" title="Manual desta tela">❓ <span class="hidden sm:inline">Ajuda</span></button>
-        <a class="btn" href="https://github.com/ivandneto/mikrotik-wireguard-panel" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub">
+        <a class="btn relative" :href="overview?.panel_update?.available ? overview.panel_update.url : 'https://github.com/ivandneto/mikrotik-wireguard-panel'"
+           target="_blank" rel="noopener" aria-label="GitHub"
+           :title="overview?.panel_update?.available ? t('Nova versão do painel disponível: v{version}', { version: overview.panel_update.latest }) : 'GitHub'">
+          <span x-show="overview?.panel_update?.available" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-slate-950"></span>
           <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         </a>
       </div>
@@ -236,6 +244,7 @@
                   <span class="flex gap-2">
                     <button class="btn" @click="testRouter(r)">🔌 Testar</button>
                     <a class="btn" :href="webfigUrl(r.url)" target="_blank" rel="noopener noreferrer" title="Abrir a página do MikroTik (com Terminal) numa nova aba">🌐 WebFig</a>
+                    <button class="btn" @click="openConsole(r.id)" title="Console de comandos deste MikroTik">⌨️ Console</button>
                     <button class="btn" @click="editRouter(r)">✏️ Editar</button>
                     <button class="btn" x-show="!r.is_main" @click="deleteRouter(r)">🗑️</button>
                   </span>
@@ -925,13 +934,14 @@
             <p>Túneis criados antes desta opção: use 🛠️ na linha do cliente (VPN) — o painel gera só o trecho de gerenciamento.</p>
             <h3>Por que um usuário limitado (e não o admin do Winbox)?</h3>
             <p>Se o painel fosse invadido, senhas de admin dariam controle total sobre os roteadores dos clientes. O usuário <span class="mono">wgpanel</span> não muda senhas nem usuários e <b>só consegue entrar pelo túnel</b> — pela internet ele não funciona.</p>
-            <h3>Terminal</h3>
-            <p>Para comandos, use <b>🌐 WebFig → Terminal</b>. O painel não tem um terminal próprio de propósito: isso exigiria dar a ele acesso total aos roteadores, e o usuário <span class="mono">wgpanel</span> é limitado justamente para que, se o painel fosse invadido, ninguém controlasse os seus MikroTiks.</p>
+            <h3>⌨️ Console</h3>
+            <p>O <b>⌨️ Console</b> (no topo, ao lado do WebFig, e em cada roteador) roda comandos no MikroTik, um por vez, e mostra a resposta — também nos roteadores de clientes, pelo túnel. Ele usa o usuário <span class="mono">wgpanel</span> do painel, que é limitado de propósito (não muda senhas nem usuários, e se o painel fosse invadido ninguém controlaria seus MikroTiks). Para isso, ou para comandos interativos, use <b>🌐 WebFig → Terminal</b>, com o seu próprio login. Comandos que não param sozinhos precisam de limite (<span class="mono">/ping 8.8.8.8 count=4</span>). Só administradores usam, e cada comando fica registrado na Auditoria.</p>
             <h3>Na tela Roteadores</h3>
             <ul>
               <li>🟢 / 🔴 status, modelo, versão, CPU, memória e quantos clientes VPN e portas cada um tem. <span class="badge b-amber">⬆️ RouterOS … disponível</span> aparece quando há atualização (veja <a @click="scrollHelp('seccheck')">Checagem de segurança</a>).</li>
               <li><b>🔌 Testar</b> — confere a conexão; para roteadores via túnel, procura sozinho a porta certa da API.</li>
               <li><b>🌐 WebFig</b> — abre a página do próprio MikroTik numa nova aba (também no topo, ao lado do seletor). Lá você entra com o <b>seu</b> usuário e tem o <b>Terminal</b>, igual ao do Winbox. Para clientes, funciona pelo túnel. Se o navegador avisar de certificado (https autoassinado), é esperado: avance.</li>
+              <li><b>⌨️ Console</b> — roda comandos neste MikroTik sem sair do painel (veja Console, acima).</li>
               <li><b>✏️ Editar</b> — nome, endereços da VPN e (exceto o principal) URL, usuário e senha.</li>
               <li><b>🗑️</b> — tira o roteador do painel (não mexe na configuração dele).</li>
               <li><b>＋ Adicionar manualmente</b> — para roteadores que o painel já alcança sem o script.</li>
@@ -1199,7 +1209,7 @@
               <li><b>Traduções</b> — cada idioma é um arquivo em <span class="mono">static/i18n/</span> (telas e manual) e <span class="mono">app/locales/</span> (mensagens do servidor). Correções são bem-vindas como pull request.</li>
             </ul>
             <p class="text-amber-300">⚠️ Ao relatar algo, nunca cole senhas, chaves da VPN, o arquivo <span class="mono">.env</span> nem backups. Falhas de segurança: relate em privado (Security → Report a vulnerability).</p>
-            <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
+            <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização. Quando sai uma versão nova, aparece <span class="badge b-amber">⬆️ vX.Y.Z disponível</span> embaixo da versão no menu lateral e um ponto no botão do GitHub, e o aviso vai para o Discord/Telegram. O painel consulta o GitHub uma vez por dia.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
           </div>
 
           <div id="help-problems" class="card space-y-3">
@@ -1235,7 +1245,7 @@
 <!-- ===================== MODAIS ===================== -->
 <div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start md:items-center justify-center p-4 overflow-y-auto"
      @keydown.escape.window="modal = null" @mousedown.self="if (modal !== 'setup') modal = null">
-  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="modal === 'diff' ? 'max-w-4xl' : 'max-w-xl'">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="['diff', 'console'].includes(modal) ? 'max-w-4xl' : 'max-w-xl'">
 
     <!-- O que mudou entre dois backups automáticos -->
     <template x-if="modal === 'diff'">
@@ -1459,6 +1469,41 @@
           <button class="btn" x-show="script.text" @click="copyScript()">📋 Copiar</button>
           <a class="btn" x-show="script.text" :href="configUrl(script.peer, 'remote')">⬇️ Baixar .rsc</a>
           <button class="btn-primary" @click="modal = null">Concluir</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Command console -->
+    <template x-if="modal === 'console'">
+      <div class="p-6 space-y-3">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-semibold text-white">⌨️ Console</h2>
+          <span class="badge b-blue">🖧 <span x-text="curRouter?.name"></span></span>
+          <button class="btn ml-auto" @click="term.lines = []" :disabled="!term.lines.length">Limpar</button>
+        </div>
+        <p class="hint">Roda comandos no MikroTik selecionado, como no Terminal, um por vez. Usa o usuário <span class="mono">wgpanel</span> do painel, que é limitado: o que ele não pode fazer, faça pelo 🌐 WebFig. Cada comando fica registrado na Auditoria.</p>
+        <div x-ref="termOut" class="mono text-xs bg-black/60 border border-slate-800 rounded-lg p-3 h-80 overflow-y-auto break-words">
+          <div x-show="!term.lines.length" class="text-slate-500 space-y-1">
+            <div>Exemplos (clique para usar):</div>
+            <template x-for="ex in ['/system resource print', '/ip address print', '/interface wireguard peers print', '/ping 8.8.8.8 count=4']" :key="ex">
+              <div><button type="button" class="text-blue-300 hover:underline" @click="term.input = ex; $refs.termInput.focus()" x-text="ex"></button></div>
+            </template>
+          </div>
+          <template x-for="(l, i) in term.lines" :key="i">
+            <div class="whitespace-pre-wrap" :class="l.kind === 'cmd' ? 'text-emerald-300' + (i ? ' mt-2' : '') : l.kind === 'err' ? 'text-red-300' : 'text-slate-200'" x-text="l.text"></div>
+          </template>
+          <div x-show="term.busy" class="text-slate-500 animate-pulse">…</div>
+        </div>
+        <form class="flex gap-2" @submit.prevent="runConsole()">
+          <span class="mono text-xs text-emerald-300 self-center hidden sm:inline whitespace-nowrap" x-text="termPrompt"></span>
+          <input x-ref="termInput" class="input mono flex-1 min-w-0" x-model="term.input" :disabled="term.busy"
+                 @keydown.arrow-up.prevent="termHistory(-1)" @keydown.arrow-down.prevent="termHistory(1)"
+                 placeholder="/system resource print" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button class="btn-primary" :disabled="term.busy || !term.input.trim()">Executar</button>
+        </form>
+        <div class="flex items-center justify-between gap-2">
+          <p class="hint">↑ ↓ comandos anteriores · <span class="mono">clear</span> limpa a tela · ping e torch precisam de limite (<span class="mono">count=4</span>, <span class="mono">duration=10s</span>)</p>
+          <button class="btn" @click="modal = null">Fechar</button>
         </div>
       </div>
     </template>
