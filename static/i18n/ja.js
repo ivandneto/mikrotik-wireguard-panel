@@ -22,6 +22,7 @@ I18N.dict = {
  "Tour guiado pelo painel": "パネルのガイドツアー",
  "Tour": "ツアー",
  "Manual desta tela": "この画面のマニュアル",
+ "GitHub": "GitHub",
  "Ajuda": "ヘルプ",
  "Não foi possível falar com o MikroTik": "MikroTik と通信できません",
  "Verifique MIKROTIK_URL, usuário/senha no arquivo": "ファイル内の MIKROTIK_URL、ユーザー/パスワードを確認してください：",

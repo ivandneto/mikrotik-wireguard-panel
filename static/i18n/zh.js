@@ -22,6 +22,7 @@ I18N.dict = {
  "Tour guiado pelo painel": "面板导览",
  "Tour": "导览",
  "Manual desta tela": "本页说明",
+ "GitHub": "GitHub",
  "Ajuda": "帮助",
  "Não foi possível falar com o MikroTik": "无法与 MikroTik 通信",
  "Verifique MIKROTIK_URL, usuário/senha no arquivo": "请检查文件中的 MIKROTIK_URL、用户名/密码",

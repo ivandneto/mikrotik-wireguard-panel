@@ -684,7 +684,8 @@ function panel() {
         this.qr.error = e.message;
       }
     },
-    configUrl(p, endpoint) { return `/api/wireguard/peers/${p.id}/config?endpoint=${endpoint}`; },
+    // link direto (<a href>) não leva o cabeçalho X-Router-Id: o roteador vai na URL
+    configUrl(p, endpoint) { return `/api/wireguard/peers/${p.id}/config?endpoint=${endpoint}&router=${this.routerId}`; },
     showPeerChart(p) {
       this.chart.target = `peer:${p.id}`;
       this.tab = 'monitor';

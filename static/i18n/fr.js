@@ -22,6 +22,7 @@ I18N.dict = {
  "Tour guiado pelo painel": "Visite guidée du panneau",
  "Tour": "Visite",
  "Manual desta tela": "Manuel de cet écran",
+ "GitHub": "GitHub",
  "Ajuda": "Aide",
  "Não foi possível falar com o MikroTik": "Impossible de communiquer avec le MikroTik",
  "Verifique MIKROTIK_URL, usuário/senha no arquivo": "Vérifiez MIKROTIK_URL, utilisateur/mot de passe dans le fichier",
