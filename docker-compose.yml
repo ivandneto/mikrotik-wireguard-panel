@@ -1,18 +1,19 @@
 services:
   wgpanel:
-    # Com a imagem da Release carregada (docker load), o compose usa ela direto.
-    # Com o código-fonte, "docker compose up -d --build" gera a imagem localmente.
+    # With the Release image loaded (docker load), compose uses it directly.
+    # From source, "docker compose up -d --build" builds the image locally.
     image: wgpanel:latest
     build: .
     container_name: wgpanel
     restart: unless-stopped
     env_file: .env
     environment:
+      # Your time zone (used in charts, events and alerts)
       - TZ=America/Sao_Paulo
     ports:
-      # ⚠️ Segurança: não crie port forward para esta porta no MikroTik.
-      # Para publicar só na rede local, troque por "IP-DESTA-MAQUINA:8080:8080" (ex.: "192.168.88.61:8080:8080")
-      # ou "127.0.0.1:8080:8080" se só este computador vai abrir o painel. Veja SECURITY.md.
+      # ⚠️ Security: do not create a port forward to this port on the MikroTik.
+      # To publish it only on the local network, use "THIS-MACHINE-IP:8080:8080" (e.g. "192.168.88.61:8080:8080")
+      # or "127.0.0.1:8080:8080" if only this computer will open the panel. See SECURITY.md.
       - "8080:8080"
     volumes:
       - ./data:/data

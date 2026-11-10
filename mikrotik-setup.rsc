@@ -1,29 +1,29 @@
-# =====================================================================
-#  Preparação do MikroTik para o WG Panel (RouterOS v7)
-#  Cole no Terminal do Winbox/WebFig, AJUSTANDO os valores marcados.
-# =====================================================================
+# ==================================================================
+#  MikroTik preparation for WG Panel (RouterOS v7)
+#  Paste into the Winbox/WebFig Terminal, CHANGING the marked values.
+# ==================================================================
 
-# 1) Grupo com as permissões mínimas que o painel precisa
-#    (se der erro "rest-api", sua versão é anterior à 7.9: remova ",rest-api")
+# 1) Group with the minimum permissions the panel needs
+#    (if you get a "rest-api" error, your version is older than 7.9: remove ",rest-api")
 /user group add name=wgpanel policy=read,write,api,rest-api,test,sensitive comment="WG Panel"
 
-# 2) Usuário do painel  >>> TROQUE A SENHA <<<
-/user add name=wgpanel group=wgpanel password="troque-esta-senha" comment="WG Panel"
+# 2) Panel user  >>> CHANGE THE PASSWORD <<<
+/user add name=wgpanel group=wgpanel password="change-this-password" comment="WG Panel"
 
-# 3) API REST com HTTPS (certificado autoassinado)
-#    >>> troque 192.168.88.1 pelo IP do seu MikroTik e 192.168.88.0/24 pela sua rede <<<
+# 3) REST API over HTTPS (self-signed certificate)
+#    >>> replace 192.168.88.1 with your MikroTik's IP and 192.168.88.0/24 with your network <<<
 /certificate add name=wgpanel-ca common-name=wgpanel-ca key-usage=key-cert-sign,crl-sign days-valid=3650
 /certificate sign wgpanel-ca
 /certificate add name=wgpanel-https common-name=192.168.88.1 subject-alt-name=IP:192.168.88.1 days-valid=3650
 /certificate sign wgpanel-https ca=wgpanel-ca
-#    RouterOS 7.20+ usa "available-from"; em versões anteriores troque por "address".
-#    10.10.0.0/24 = faixa da VPN: permite abrir WebFig/Winbox de quem estiver conectado na VPN.
+#    RouterOS 7.20+ uses "available-from"; on older versions replace it with "address".
+#    10.10.0.0/24 = the VPN range: lets whoever is connected to the VPN open WebFig/Winbox.
 /ip service set www-ssl certificate=wgpanel-https disabled=no available-from=192.168.88.0/24,10.10.0.0/24
 
-# --- Alternativa mais simples (HTTP sem criptografia, só na rede interna) ---
+# --- Simpler alternative (HTTP without encryption, internal network only) ---
 # /ip service set www disabled=no available-from=192.168.88.0/24,10.10.0.0/24
-# e use MIKROTIK_URL=http://192.168.88.1 no .env
+# and use MIKROTIK_URL=http://192.168.88.1 in .env
 
-# 4) (Opcional, recomendado) DDNS grátis do MikroTik para acesso remoto
+# 4) (Optional, recommended) MikroTik's free DDNS for remote access
 /ip cloud set ddns-enabled=yes
-# Depois rode:  /ip cloud print   -> anote o "dns-name" (xxxx.sn.mynetname.net)
+# Then run:  /ip cloud print   -> note the "dns-name" (xxxx.sn.mynetname.net)

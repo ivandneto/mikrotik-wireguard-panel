@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Gera os arquivos da Release com a versão no nome, lida de app/__init__.py:
-#   dist/release/wgpanel-docker-amd64-vX.Y.Z.tar.gz   (Docker em PC/servidor)
-#   dist/release/wgpanel-mikrotik-arm64-vX.Y.Z.tar    (container no MikroTik)
+# Builds the Release files with the version in the name, read from app/__init__.py:
+#   dist/release/wgpanel-docker-amd64-vX.Y.Z.tar.gz   (Docker on a PC/server)
+#   dist/release/wgpanel-mikrotik-arm64-vX.Y.Z.tar    (container on the MikroTik)
 #   dist/release/docker-compose.yml, dist/release/env.example
-# Uso: bash scripts/build-release.sh   (precisa de Docker com buildx)
+# Usage: bash scripts/build-release.sh   (needs Docker with buildx)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' app/__init__.py)
-[ -n "$VERSION" ] || { echo "Versão não encontrada em app/__init__.py" >&2; exit 1; }
+[ -n "$VERSION" ] || { echo "Version not found in app/__init__.py" >&2; exit 1; }
 OUT=dist/release
 rm -rf "$OUT" && mkdir -p "$OUT"
 
@@ -22,5 +22,5 @@ docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t "wgpanel:$V
 
 cp docker-compose.yml "$OUT/docker-compose.yml"
 cp .env.example "$OUT/env.example"
-echo ">> Pronto: arquivos da versão $VERSION em $OUT"
+echo ">> Done: version $VERSION files in $OUT"
 ls -la "$OUT"

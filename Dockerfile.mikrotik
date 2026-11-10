@@ -1,5 +1,5 @@
-# Imagem enxuta (Alpine) para rodar como container dentro do próprio MikroTik (RouterOS 7, ARM64).
-# Gerar o arquivo para importar no roteador:
+# Slim image (Alpine) to run as a container inside the MikroTik itself (RouterOS 7, ARM64).
+# Build the file to import on the router:
 #   docker buildx build --platform linux/arm64 -f Dockerfile.mikrotik -t wgpanel:arm64 \
 #     --output type=docker,dest=wgpanel-arm64.tar .
 FROM python:3.12-alpine
@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY requirements.txt .
-# uvicorn sem os extras [standard]: menos dependências e memória, suficiente para o painel
+# uvicorn without the [standard] extras: fewer dependencies and less memory, enough for the panel
 RUN sed -i 's/uvicorn\[standard\]/uvicorn/' requirements.txt \
     && pip install --no-cache-dir -r requirements.txt \
     && find /usr/local/lib/python3.12 -name '__pycache__' -prune -exec rm -rf {} + \

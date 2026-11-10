@@ -176,6 +176,8 @@ Abra o **Winbox → New Terminal** e cole os comandos do arquivo [`mikrotik-setu
 - `192.168.88.1` pelo IP do seu MikroTik;
 - `192.168.88.0/24` pela sua rede local.
 
+> 💡 Os comentários do arquivo estão em inglês. Os trechos que você precisa trocar estão marcados com `>>> <<<`, e a senha de exemplo é `change-this-password`.
+
 O script faz o seguinte:
 
 1. Cria o grupo `wgpanel` com as permissões mínimas de que o painel precisa.
