@@ -412,9 +412,11 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 
 ```
 /container stop wgpanel
+/container print          # repita até o wgpanel aparecer SEM o R — antes disso o remove é recusado
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
+> Se o `/container add` der **"root-dir overlap"**, o container antigo ainda existe (o remove foi feito com ele rodando): pare, espere o R sumir e remova de novo.
 Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.7.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
