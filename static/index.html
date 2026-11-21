@@ -797,6 +797,63 @@
             <p class="hint">Tempos em ms. "*" = o salto não respondeu (comum em roteadores de operadora).</p>
           </div>
         </template>
+
+        <!-- Wake-on-LAN -->
+        <div class="card space-y-3" x-show="isAdmin">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="font-semibold text-white">💻 Ligar computador (Wake-on-LAN) <span class="badge b-blue">🖧 <span x-text="curRouter?.name"></span></span></div>
+            <button class="btn-primary ml-auto" @click="newWol()" :disabled="!wol.data">＋ Adicionar computador</button>
+          </div>
+          <p class="text-sm text-slate-400">Liga a distância um computador desligado da rede deste MikroTik — útil para acessar o PC de casa ou do escritório pela VPN. O computador precisa estar <b>ligado na tomada e no cabo de rede</b>, com o <b>Wake-on-LAN ativado na BIOS/placa de rede</b>.</p>
+          <div x-show="wol.data?.error" class="text-sm text-red-300 bg-red-950/40 border border-red-900 rounded-lg p-3 break-all" x-text="wol.data?.error"></div>
+
+          <template x-if="wol.adding">
+            <form class="rounded-lg border border-slate-700 p-3 space-y-3" @submit.prevent="saveWol()">
+              <label class="block" x-show="wol.data?.candidates?.length"><span class="label">Escolher da lista de aparelhos do MikroTik (DHCP)</span>
+                <select class="input" x-model="wol.pick" @change="pickWol()">
+                  <option value="">— escolha ou preencha à mão abaixo —</option>
+                  <template x-for="c in wol.data.candidates" :key="c.mac">
+                    <option :value="c.mac" x-text="(c.online ? '🟢 ' : '⚪ ') + (c.name || t('sem nome')) + ' — ' + (c.ip || '?') + ' — ' + c.mac"></option>
+                  </template>
+                </select></label>
+              <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label class="block"><span class="label">Nome *</span><input class="input" x-model="wol.form.name" maxlength="64" placeholder="Ex.: PC do escritório" required></label>
+                <label class="block"><span class="label">MAC da placa de rede *</span><input class="input mono" x-model="wol.form.mac" placeholder="AA:BB:CC:11:22:33" required></label>
+                <label class="block"><span class="label">Rede (interface)</span>
+                  <select class="input" x-model="wol.form.interface">
+                    <option value="">automático (a rede do DHCP)</option>
+                    <template x-for="i in wol.data?.interfaces || []" :key="i"><option :value="i" x-text="i"></option></template>
+                  </select></label>
+                <label class="block"><span class="label">IP (opcional)</span><input class="input mono" x-model="wol.form.ip" placeholder="192.168.88.20"></label>
+              </div>
+              <p class="hint">Com o IP, o painel confere por ping se o computador ligou. Dica: deixe o IP do computador fixo no DHCP do MikroTik.</p>
+              <div class="flex justify-end gap-2">
+                <button type="button" class="btn" @click="wol.adding = false">Cancelar</button>
+                <button class="btn-primary" :disabled="busy">Salvar</button>
+              </div>
+            </form>
+          </template>
+
+          <div class="overflow-x-auto" x-show="wol.data"><table class="table">
+            <thead><tr><th>Computador</th><th>MAC</th><th>IP</th><th class="text-right">Ações</th></tr></thead>
+            <tbody>
+              <template x-for="d in wol.data?.devices || []" :key="d.id">
+                <tr>
+                  <td><div class="font-medium text-white" x-text="d.name"></div>
+                    <div class="text-xs mt-1" x-show="wol.status[d.id]"
+                         :class="{ up: 'text-emerald-300', down: 'text-amber-300', wait: 'text-slate-300 animate-pulse', sent: 'text-slate-300' }[wol.status[d.id]?.kind]"
+                         x-text="wol.status[d.id]?.text"></div></td>
+                  <td class="mono text-xs" x-text="d.mac"></td>
+                  <td class="mono text-xs" x-text="d.ip || '—'"></td>
+                  <td class="text-right whitespace-nowrap">
+                    <button class="btn-primary" @click="wakeWol(d)" :disabled="busy || wol.status[d.id]?.kind === 'wait'">⚡ Ligar</button>
+                    <button class="btn" @click="deleteWol(d)" title="Tirar da lista">🗑️</button></td>
+                </tr>
+              </template>
+              <tr x-show="wol.data && !wol.data.devices.length"><td colspan="4" class="text-slate-500">Nenhum computador ainda. Clique em ＋ Adicionar computador.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
       </section>
 
       <!-- ===================== CHECAGEM DE SEGURANÇA ===================== -->
@@ -1167,6 +1224,7 @@
             <ul>
               <li><b>📶 Ping</b> — confere se o roteador alcança um endereço e quanto tempo a resposta leva. Bom para testar um cliente da VPN (ex.: <span class="mono">10.10.0.2</span>), um servidor da rede (ex.: o do Minecraft) ou a internet (<span class="mono">8.8.8.8</span>).</li>
               <li><b>🧭 Traceroute</b> — mostra o caminho até o destino, salto a salto. Ajuda a ver onde a conexão para ou fica lenta. Saltos com "*" não responderam (comum em roteadores de operadora).</li>
+              <li><b>💻 Ligar computador (Wake-on-LAN)</b> — liga a distância um PC desligado da rede deste MikroTik, para usar pela VPN. Em <b>＋ Adicionar computador</b>, escolha o aparelho na lista do DHCP do roteador (ou digite o MAC); com o IP preenchido, depois de <b>⚡ Ligar</b> o painel faz ping a cada 10 segundos por até 2 minutos e avisa quando ele respondeu. O PC precisa estar na tomada e no cabo de rede, com o Wake-on-LAN ativado na BIOS e na placa de rede (no Windows, também em Gerenciador de dispositivos → placa de rede → Gerenciamento de energia). Wi-Fi geralmente não funciona.</li>
             </ul>
             <p>Com vários roteadores, troque no seletor para testar a partir do MikroTik de um cliente (ex.: ele alcança a câmera da rede dele?).</p>
           </div>

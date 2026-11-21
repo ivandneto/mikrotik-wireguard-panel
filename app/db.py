@@ -202,6 +202,19 @@ class AuditLog(Base):
     detail: Mapped[str] = mapped_column(Text, default="")
 
 
+class WolDevice(Base):
+    """A computer that can be woken up (Wake-on-LAN) through one of the routers."""
+    __tablename__ = "wol_devices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    router_id: Mapped[int] = mapped_column(Integer, index=True)
+    name: Mapped[str] = mapped_column(String(64))
+    mac: Mapped[str] = mapped_column(String(17))
+    interface: Mapped[str] = mapped_column(String(64), default="")
+    ip: Mapped[str] = mapped_column(String(45), default="")  # optional: pinged after waking to confirm it's up
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_by: Mapped[str] = mapped_column(String(64), default="")
+
+
 def init_db():
     Base.metadata.create_all(engine)
     _migrate()

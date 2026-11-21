@@ -196,5 +196,13 @@
  "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ 必须等 R 消失后再删除。如果容器仍在运行，MikroTik 会拒绝删除，第 5 步会出现“root-dir overlap”错误。用 /container print 确认 {name} 已从列表中消失。",
  "4. Enviar o arquivo novo": "4. 上传新文件",
  "5. Criar e ligar o container": "5. 创建并启动容器",
- "6. Conferir": "6. 检查"
+ "6. Conferir": "6. 检查",
+ "MAC inválido. Exemplo: AA:BB:CC:11:22:33": "MAC 无效。示例：AA:BB:CC:11:22:33",
+ "Esse computador (MAC {mac}) já está na lista": "这台电脑（MAC {mac}）已在列表中",
+ "Computador não encontrado neste roteador": "在此路由器上找不到该电脑",
+ "O usuário do painel no MikroTik não tem permissão para o Wake-on-LAN. Use o 🌐 WebFig ou dê ao grupo wgpanel a política 'test'.": "面板在 MikroTik 上的用户无权使用 Wake-on-LAN。请使用 🌐 WebFig，或给 wgpanel 组加上 'test' 策略。",
+ "2. Parar e apagar o container antigo": "2. 停止并删除旧容器",
+ "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "把这一行粘贴到 Winbox 终端。它会停止面板，等它真正停止（最多 2 分钟），删除旧容器和旧的 .tar 文件，最后显示 OK。面板的数据不会被删除。",
+ "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
 }

@@ -1,11 +1,14 @@
 """Ferramentas do roteador selecionado: ping, traceroute, checagem de segurança, backups automáticos e
 atualização do RouterOS."""
+import ipaddress
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..db import Router, User, audit
+from ..db import Router, User, WolDevice, audit, iso
 from ..i18n import tr
 from ..mikrotik import MikroTikError, mt
 from ..routerctx import use_router
@@ -73,6 +76,116 @@ async def console(body: ConsoleIn, user: User = Depends(require_admin), db: Sess
     except MikroTikError as exc:
         # 400 = the MikroTik didn't understand the command (typo): show its own message
         raise HTTPException(exc.status if exc.status in (400, 403, 504) else 502, str(exc))
+
+
+# ------------------------------------------------------------------ Wake-on-LAN
+
+MAC_RE = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
+
+
+class WolDeviceIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    mac: str
+    interface: str = Field("", max_length=64)
+    ip: str = ""
+
+
+def _wol_out(d: WolDevice) -> dict:
+    return {"id": d.id, "name": d.name, "mac": d.mac, "interface": d.interface, "ip": d.ip,
+            "created_at": iso(d.created_at), "created_by": d.created_by}
+
+
+async def _dhcp_interfaces() -> dict[str, str]:
+    """DHCP server name → the interface it serves (usually the LAN bridge)."""
+    return {s.get("name", ""): s.get("interface", "") for s in await mt.get("/ip/dhcp-server")}
+
+
+@router.get("/wol")
+async def wol_list(_: User = Depends(require_admin), db: Session = Depends(get_db), rt: Router = Depends(use_router)):
+    """Saved computers of the selected router plus suggestions from its DHCP leases."""
+    devices = db.query(WolDevice).filter(WolDevice.router_id == rt.id).order_by(WolDevice.name).all()
+    out = {"devices": [_wol_out(d) for d in devices], "candidates": [], "interfaces": [], "error": None}
+    try:
+        servers = await _dhcp_interfaces()
+        leases = await mt.get("/ip/dhcp-server/lease")
+        bridges = [b.get("name") for b in await mt.get("/interface/bridge")]
+    except MikroTikError as exc:
+        out["error"] = str(exc)
+        return out
+    seen = set()
+    for lease in leases:
+        mac = (lease.get("active-mac-address") or lease.get("mac-address") or "").upper()
+        if not MAC_RE.match(mac) or mac in seen:
+            continue
+        seen.add(mac)
+        out["candidates"].append({
+            "mac": mac, "ip": lease.get("active-address") or lease.get("address") or "",
+            "name": (lease.get("comment") or lease.get("host-name") or "").strip()[:64],
+            "interface": servers.get(lease.get("server", ""), ""),
+            "online": lease.get("status") == "bound",
+        })
+    out["candidates"].sort(key=lambda c: (not c["name"], c["name"].lower(), c["ip"]))
+    out["interfaces"] = sorted({i for i in [*servers.values(), *bridges] if i})
+    return out
+
+
+@router.post("/wol/devices")
+def wol_add(body: WolDeviceIn, user: User = Depends(require_admin), db: Session = Depends(get_db),
+            rt: Router = Depends(use_router)):
+    mac = body.mac.strip().upper().replace("-", ":")
+    if not MAC_RE.match(mac):
+        raise HTTPException(400, tr("MAC inválido. Exemplo: AA:BB:CC:11:22:33"))
+    ip = body.ip.strip()
+    if ip:
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            raise HTTPException(400, tr("IP inválido"))
+    if db.query(WolDevice).filter(WolDevice.router_id == rt.id, WolDevice.mac == mac).first():
+        raise HTTPException(400, tr("Esse computador (MAC {mac}) já está na lista", mac=mac))
+    device = WolDevice(router_id=rt.id, name=body.name.strip(), mac=mac, interface=body.interface.strip(), ip=ip,
+                       created_by=user.username)
+    db.add(device)
+    db.commit()
+    audit(db, user.username, "computador adicionado ao Wake-on-LAN", f"{rt.name}: {device.name} ({mac})")
+    return _wol_out(device)
+
+
+def _wol_or_404(db: Session, device_id: int, rt: Router) -> WolDevice:
+    device = db.get(WolDevice, device_id)
+    if not device or device.router_id != rt.id:
+        raise HTTPException(404, tr("Computador não encontrado neste roteador"))
+    return device
+
+
+@router.delete("/wol/devices/{device_id}")
+def wol_delete(device_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db),
+               rt: Router = Depends(use_router)):
+    device = _wol_or_404(db, device_id, rt)
+    db.delete(device)
+    db.commit()
+    audit(db, user.username, "computador removido do Wake-on-LAN", f"{rt.name}: {device.name} ({device.mac})")
+    return {"ok": True}
+
+
+@router.post("/wol/devices/{device_id}/wake")
+async def wol_wake(device_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db),
+                   rt: Router = Depends(use_router)):
+    """Asks the MikroTik to send the Wake-on-LAN "magic packet" to the computer's network card."""
+    device = _wol_or_404(db, device_id, rt)
+    interface = device.interface
+    try:
+        if not interface:  # not chosen: use the LAN the DHCP server serves
+            interface = next((i for i in (await _dhcp_interfaces()).values() if i), "")
+        data = {"mac": device.mac, **({"interface": interface} if interface else {})}
+        await mt.command("/tool/wol", data)
+    except MikroTikError as exc:
+        if "not enough permissions" in str(exc):
+            raise HTTPException(403, tr("O usuário do painel no MikroTik não tem permissão para o Wake-on-LAN. Use o 🌐 WebFig "
+                                        "ou dê ao grupo wgpanel a política 'test'."))
+        raise HTTPException(502, str(exc))
+    audit(db, user.username, "computador ligado pela rede (Wake-on-LAN)", f"{rt.name}: {device.name} ({device.mac})")
+    return {"ok": True, "interface": interface}
 
 
 @router.get("/update/guide")

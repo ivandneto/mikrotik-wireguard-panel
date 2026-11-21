@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..db import NatRule, Peer, Router, User, WgInterface, _migrate, audit
+from ..db import NatRule, Peer, Router, User, WgInterface, WolDevice, _migrate, audit
 from ..i18n import tr
 from ..mikrotik import MikroTikError, mt, use
 from ..mikrotik import main as main_client
@@ -263,6 +263,13 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
                 report["errors"].append(f"NAT {rule.name}: {exc}")
         db.commit()
         report["nat_created"] += 1
+
+    for item in data.get("wol_devices", []):
+        r = routers.get(item.get("router", ""), main)
+        if not db.query(WolDevice).filter(WolDevice.router_id == r.id, WolDevice.mac == item["mac"]).first():
+            db.add(WolDevice(router_id=r.id, name=item["name"], mac=item["mac"], interface=item.get("interface", ""),
+                             ip=item.get("ip", ""), created_by=user.username))
+    db.commit()
 
     for item in data.get("users", []):
         if not db.query(User).filter(User.username == item["username"]).first():
