@@ -24,6 +24,8 @@ STATE_FILE = BACKUP_DIR / "state.json"
 NAME_RE = re.compile(r"^\d{8}-\d{6}\.rsc$")
 INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
 UPDATE_EVERY = timedelta(hours=24)
+# between the daily/weekly backups, a cheap peek at the router's change history every few minutes
+CHANGE_CHECK_EVERY = timedelta(minutes=10)
 _lock = asyncio.Lock()
 
 
@@ -155,15 +157,37 @@ async def run(router_ids: list[int], settings: dict, prefix_names: bool):
                 continue
             st = router_state(rid)
             prefix = f"[{router.name}] " if prefix_names else ""
-            if settings.get("auto_backup_enabled") and _due(st.get("backup_checked"),
-                                                             INTERVALS.get(settings.get("auto_backup_interval"), INTERVALS["daily"])):
-                await _auto_backup(router, settings, prefix)
+            if settings.get("auto_backup_enabled"):
+                if _due(st.get("backup_checked"), INTERVALS.get(settings.get("auto_backup_interval"), INTERVALS["daily"])):
+                    await _auto_backup(router, settings, prefix)
+                elif _due(st.get("change_checked"), CHANGE_CHECK_EVERY):
+                    await _check_changes(router, settings, prefix, st)
             if settings.get("update_check_enabled", True) and _due(st.get("update_checked"), UPDATE_EVERY):
                 await _check_update(router, prefix)
 
 
-async def _auto_backup(router: Router, settings: dict, prefix: str):
+async def _check_changes(router: Router, settings: dict, prefix: str, st: dict):
+    """Peeks at the router's change history; exports (and maybe saves) only when it moved since the last look."""
     try:
+        marker = await router_tools.config_marker(client_for(router))
+    except MikroTikError:
+        marker = None
+    _update_state(router.id, change_checked=_now().isoformat())
+    if marker is None:
+        return  # no history available: the daily/weekly backup still covers this router
+    previous = st.get("change_marker")
+    if previous is None:
+        _update_state(router.id, change_marker=marker)  # first look: just remember where we are
+    elif marker != previous:
+        await _auto_backup(router, settings, prefix, marker)
+
+
+async def _auto_backup(router: Router, settings: dict, prefix: str, marker: str | None = None):
+    try:
+        if marker is None:  # taken before the export, so a change made during the export is caught next time
+            marker = await router_tools.config_marker(client_for(router))
+        if marker is not None:
+            _update_state(router.id, change_marker=marker, change_checked=_now().isoformat())
         res = await run_backup(router, int(settings.get("auto_backup_keep") or 14))
         if res["saved"] and not res.get("first"):
             await notify("config_changed", prefix + tr("Configuração do MikroTik mudou"),
