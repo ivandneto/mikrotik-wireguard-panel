@@ -128,6 +128,7 @@ function panel() {
     importSel: [],
     qr: { peer: null, endpoint: 'remote', svg: '', error: '', notice: '' },
     term: { lines: [], input: '', history: [], idx: -1, busy: false },
+    upd: null,
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
     sec: { findings: null, update: null, loading: false },
     autoBk: null,
@@ -443,6 +444,31 @@ function panel() {
       await this.run(() => api('DELETE', `/api/routers/${r.id}`), t('Roteador removido do painel'));
       if (this.routerId === r.id) await this.switchRouter(this.routerList.find(x => x.is_main)?.id);
       await Promise.all([this.loadRouters(), this.loadOverview()]);
+    },
+    // ---------- update guide (ready-to-paste commands for this installation) ----------
+    async openUpdateGuide() {
+      this.upd = null;
+      this.modal = 'update';
+      this.upd = await api('GET', '/api/tools/update/guide').catch(e => ({ error: e.message }));
+    },
+    async copyText(text) {
+      // navigator.clipboard only exists on HTTPS/localhost; the panel is usually opened over plain HTTP by IP
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+        else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        this.toast(t('Copiado!'));
+      } catch {
+        this.toast(t('Não deu para copiar: selecione o texto e copie à mão.'), 'err');
+      }
     },
     // ---------- command console (runs on the selected MikroTik, with the panel's limited user) ----------
     openConsole(id) {

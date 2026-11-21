@@ -90,7 +90,7 @@
 | 🛠️ **Tools** | **Ping** and **traceroute** run by the MikroTik itself (yours or a client's): does it reach the VPN client, the server, the internet? |
 | 🛡️ **Security check** | Checks each router for the usual mistakes — port forward to the panel, missing input firewall, open services, default `admin` user, open DNS — with the command to fix each one. Read-only |
 | ⬆️ **RouterOS updates** | Asks each router once a day whether a new RouterOS is available, shows it on the router cards and notifies on Discord/Telegram |
-| 🔔 **New panel version** | Checks GitHub once a day; when a new version is out, shows **⬆️ vX.Y.Z available** in the side menu, a dot on the GitHub button and a Discord/Telegram notice |
+| 🔔 **New panel version** | Checks GitHub once a day; when a new version is out, shows **⬆️ vX.Y.Z available** in the side menu, a dot on the GitHub button and a Discord/Telegram notice; clicking the badge shows **ready-to-paste update commands** for your installation |
 | 📖 **Manual and tour** | Full manual inside the panel, guided tour and contextual help (❓) on every screen |
 | 🌐 **9 languages** | English, Português (Brasil), Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — screens, tour, manual, errors and alerts |
 | 📣 **Alerts** | Telegram and Discord: client connected/disconnected, service down/up, rule removed from the MikroTik, temporary port expired, MikroTik offline, RouterOS update available, configuration changed — in the language you choose |
@@ -336,7 +336,7 @@ Choose which events trigger alerts. All of them are recorded in the **Events** t
 - **Automatic MikroTik backup:** on by default. Once a day (and whenever the 10-minute peek below notices a change) the panel exports each router's configuration (without passwords) into `data/router-backups/` and keeps a copy only when something changed. Between copies it peeks at the router's change history every 10 minutes (`/system history`, very light): if something changed, the copy comes out within minutes. See and compare them in **Backup → 🕒 Automatic MikroTik backup**.
 - **Older RouterOS 7?** If the automatic backup shows "needs the 'ftp' permission", your RouterOS can't send the export directly; the panel shows the one-line command to fix it (`ftp` is file access only — it does **not** enable the FTP service).
 - **Data lives in** `./data` (SQLite database + `secret.key`). Copy this folder for a full backup. **Without `secret.key` the stored keys cannot be read** (unless you restore from the exported JSON).
-- **Update the panel:** download the new Release and run `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` and `docker compose up -d` (or, from source, `docker compose up -d --build`). The database is migrated automatically.
+- **Update the panel:** click the **⬆️ vX.Y.Z available** badge in the side menu to see the ready-to-paste commands. Or, by hand: download the new Release and run `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` and `docker compose up -d` (or, from source, `docker compose up -d --build`). The database is migrated automatically.
 - **Reinstall or move to another machine:** restore the backup in **Backup → Restore** (brings everything back). Without a backup, use **Adopt and import clients** in **WireGuard VPN**: the interface and clients come back from the MikroTik itself.
 
 ---
@@ -405,6 +405,9 @@ bash scripts/build-release.sh   # creates dist/release/wgpanel-mikrotik-arm64-vX
 Open **http://172.20.0.2:8080** (only from the local network or VPN — add the rule from [SECURITY.md](SECURITY.md), item 3). To bring data over from an existing panel: **Backup → Download backup** on the old one, **Backup → Restore** on the new one (brings everything). If you only need the VPN, open **WireGuard VPN** on the new panel and click **Adopt and import clients** — with the "Store the private key on the MikroTik" option enabled, clients come with a QR Code. Turn off the old panel so you don't get duplicate alerts.
 
 **Update to a new version** (data stays in `usb1/wgpanel/data` and is not erased):
+
+> 💡 **Easier:** when **⬆️ vX.Y.Z available** shows up in the panel's side menu, click the badge. The panel shows these commands ready to paste, with the new version and your container's details (folder, interface, lists, memory), each with a copy button.
+
 ```
 /container stop wgpanel
 /container remove wgpanel

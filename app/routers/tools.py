@@ -75,6 +75,13 @@ async def console(body: ConsoleIn, user: User = Depends(require_admin), db: Sess
         raise HTTPException(exc.status if exc.status in (400, 403, 504) else 502, str(exc))
 
 
+@router.get("/update/guide")
+async def update_guide(_: User = Depends(require_admin)):
+    """Ready-to-paste commands to update the panel to the newest version, for the way it is installed."""
+    from ..services import update_guide as guide_service  # lazy: only needed when the window is opened
+    return await guide_service.guide()
+
+
 @router.get("/security")
 async def security(request: Request, _: User = Depends(require_admin), rt: Router = Depends(use_router)):
     ports = {"8080", str(request.url.port or "")} - {""}

@@ -31,6 +31,8 @@ class Config:
         self.SESSION_HOURS = int(os.getenv("SESSION_HOURS", "12"))
         self.COOKIE_SECURE = _bool(os.getenv("COOKIE_SECURE"), False)
         self.SECRET_KEY = os.getenv("SECRET_KEY") or self._load_or_create_secret()
+        # Where the panel runs (set by each image): "mikrotik" (container inside RouterOS), "docker" or "" (from source)
+        self.INSTALL_KIND = os.getenv("WGPANEL_INSTALL", "").strip().lower()
 
     def _load_or_create_secret(self) -> str:
         """Gera uma chave na primeira execução e guarda em DATA_DIR para sobreviver a reinícios."""

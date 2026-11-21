@@ -88,7 +88,7 @@
 | 🛠️ **Ferramentas** | **Ping** e **traceroute** feitos pelo próprio MikroTik (o seu ou o de um cliente): ele alcança o cliente da VPN, o servidor, a internet? |
 | 🛡️ **Checagem de segurança** | Confere em cada roteador os erros mais comuns — port forward para o painel, firewall de entrada ausente, serviços abertos, usuário `admin` padrão, DNS aberto — com o comando para corrigir cada um. Só lê |
 | ⬆️ **Atualização do RouterOS** | Pergunta a cada roteador uma vez por dia se há RouterOS novo, mostra nos cartões dos roteadores e avisa no Discord/Telegram |
-| 🔔 **Versão nova do painel** | Consulta o GitHub uma vez por dia; quando sai versão nova, mostra **⬆️ vX.Y.Z disponível** no menu lateral, um ponto no botão do GitHub e avisa no Discord/Telegram |
+| 🔔 **Versão nova do painel** | Consulta o GitHub uma vez por dia; quando sai versão nova, mostra **⬆️ vX.Y.Z disponível** no menu lateral, um ponto no botão do GitHub e avisa no Discord/Telegram; clicando no selo, mostra os **comandos de atualização prontos** para a sua instalação |
 | 📖 **Manual e tour** | Manual completo dentro do painel, tour guiado e ajuda contextual (❓) em cada tela |
 | 🌐 **9 idiomas** | Português (Brasil), English, Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — telas, tour, manual, erros e alertas. Segue o idioma do navegador; troque na tela de login, no menu lateral ou em Configurações |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline, atualização do RouterOS disponível, configuração mudou — no idioma que você escolher |
@@ -336,7 +336,7 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 - **Backup automático do MikroTik:** ligado por padrão. Uma vez por dia (e sempre que a espiada de 10 minutos, abaixo, notar uma alteração) o painel exporta a configuração de cada roteador (sem senhas) para `data/router-backups/` e guarda uma cópia só quando algo mudou. Entre uma cópia e outra, ele espia a cada 10 minutos o histórico de alterações do roteador (`/system history`, bem leve): se algo mudou, a cópia sai em minutos. Veja e compare em **Backup → 🕒 Backup automático do MikroTik**.
 - **RouterOS 7 mais antigo?** Se o backup automático mostrar "precisa da permissão 'ftp'", o seu RouterOS não consegue mandar a exportação direto; o painel mostra o comando de uma linha que resolve (`ftp` é só acesso a arquivos — **não** liga o serviço FTP).
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
-- **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
+- **Atualizar o painel:** clique no selo **⬆️ vX.Y.Z disponível** do menu lateral para ver os comandos prontos. Ou, à mão: baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
 - **Reinstalar ou trocar de máquina:** restaure o backup em **Backup → Restaurar** (traz tudo). Sem backup, em **VPN WireGuard** use **Adotar e importar clientes**: a interface e os clientes voltam do próprio MikroTik.
 
 ---
@@ -405,6 +405,9 @@ O `/container print` passa a mostrar a versão no comentário, e o painel mostra
 Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a regra do [SECURITY.pt-BR.md](SECURITY.pt-BR.md), item 3). Para levar os dados de um painel existente: **Backup → Baixar** no antigo, **Backup → Restaurar** no novo (traz tudo). Se só precisar da VPN, abra **VPN WireGuard** no painel novo e clique em **Adotar e importar clientes** — com a opção "Guardar a chave privada no MikroTik" ligada, eles vêm com QR Code. Desligue o antigo para não receber alertas em dobro.
 
 **Atualizar para uma versão nova** (os dados ficam em `usb1/wgpanel/data` e não são apagados):
+
+> 💡 **Mais fácil:** quando aparecer **⬆️ vX.Y.Z disponível** no menu lateral do painel, clique no selo. O painel mostra estes comandos já prontos, com a versão nova e os dados do seu container (pasta, interface, listas, memória), cada um com um botão para copiar.
+
 ```
 /container stop wgpanel
 /container remove wgpanel
