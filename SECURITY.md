@@ -112,6 +112,7 @@ If step 3 opens the panel, it is exposed: review item 1 immediately.
 - Keep these safe: `.env`, the `data/` folder (database and `secret.key`) and exported backups — they contain passwords and VPN keys.
 - The **automatic panel backup** only goes to Discord/Telegram when a **backup password** is set, and then the file is encrypted (PBKDF2 + AES). Use a **private** channel anyway, pick a long password and keep it outside the panel.
 - The "Store the clients' private key on the MikroTik" option means the keys also end up in the router's backups.
+- **Container inside the MikroTik:** RouterOS shows a container's variables (`/container envs`), passwords included, to any router user with read access. `ADMIN_PASSWORD` is only used the first time (empty data folder), so remove it afterwards: `/container envs remove [find list=wgpanel key=ADMIN_PASSWORD]` (the container keeps working; it reads variables only when created). `MIKROTIK_PASSWORD` must stay — give read access to the router only to people you trust.
 - Keep RouterOS and the panel up to date. The panel warns you when a new version is out (badge below the version in the side menu and a Discord/Telegram alert).
 
 ---

@@ -112,6 +112,7 @@ Se o passo 3 abrir o painel, ele está exposto: revise o item 1 imediatamente.
 - Guarde com cuidado: o `.env`, a pasta `data/` (banco e `secret.key`) e os backups exportados — eles contêm senhas e as chaves da VPN.
 - O **backup automático do painel** só vai para o Discord/Telegram quando existe uma **senha de backup**, e aí o arquivo sai criptografado (PBKDF2 + AES). Mesmo assim, use um canal **privado**, escolha uma senha longa e guarde-a fora do painel.
 - A opção "Guardar a chave privada dos clientes no MikroTik" faz as chaves irem também para os backups do roteador.
+- **Container dentro do MikroTik:** o RouterOS mostra as variáveis do container (`/container envs`), com as senhas, para qualquer usuário do roteador com permissão de leitura. O `ADMIN_PASSWORD` só é usado na primeira vez (pasta de dados vazia), então apague depois: `/container envs remove [find list=wgpanel key=ADMIN_PASSWORD]` (o container continua funcionando; ele só lê as variáveis quando é criado). O `MIKROTIK_PASSWORD` precisa ficar — dê acesso de leitura ao roteador só a quem você confia.
 - Mantenha o RouterOS e o painel atualizados. O painel avisa quando sai versão nova (selo embaixo da versão no menu lateral e alerta no Discord/Telegram).
 
 ---
