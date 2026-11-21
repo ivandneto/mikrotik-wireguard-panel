@@ -489,14 +489,17 @@ app/
   mikrotik.py             # cliente da API REST do RouterOS (um por roteador)
   routerctx.py            # qual roteador a requisição está usando (seletor do painel)
   db.py                   # modelos (SQLite) e migrações automáticas
-  routers/                # endpoints: mikrotiks (roteadores), wireguard, nat, monitor,
-                          #            alerts, users, backup, settings, auth
+  routers/                # endpoints: mikrotiks (roteadores), wireguard, nat, monitor, tools
+                          #            (ping, console, Wake-on-LAN), alerts, users, backup, settings, auth
   services/collector.py   # coleta periódica de todos os roteadores + histórico + alertas
-  services/alerts.py      # Telegram / Discord
+  services/alerts.py      # Telegram / Discord (mensagens e arquivos)
   services/nat_ops.py     # criação/remoção das regras de NAT
   services/router_ops.py  # remoção de roteadores do painel
-  services/router_tools.py # ping, traceroute, checagem de segurança, exportação, atualização
-  services/auto_tasks.py  # backups automáticos e verificação diária de atualização
+  services/router_tools.py # ping, traceroute, console, checagem de segurança, exportação, histórico de alterações
+  services/auto_tasks.py  # backup automático do MikroTik, espiada de 10 min, versão nova do RouterOS e do painel
+  services/panel_export.py # monta o backup do painel e protege com a senha de backup
+  services/panel_backup.py # backup automático do painel e envio ao canal de backup (Discord/Telegram)
+  services/update_guide.py # comandos de atualização prontos para esta instalação
   i18n.py + locales/      # mensagens do servidor em cada idioma
 static/                   # interface web (Alpine.js + Tailwind + Chart.js)
   i18n.js + i18n/         # traduções das telas, do tour e do manual (um arquivo por idioma)
