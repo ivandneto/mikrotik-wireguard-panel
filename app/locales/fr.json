@@ -189,5 +189,12 @@
  "Na pasta do projeto, pare o painel e rode:": "Dans le dossier du projet, arrêtez le panneau et lancez :",
  "Conferir": "Vérifier",
  "Ligue o painel de novo e aperte Ctrl+F5: o menu lateral deve mostrar v{version}.": "Redémarrez le panneau et appuyez sur Ctrl+F5 : le menu latéral doit afficher v{version}.",
- "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ Impossible de lire la configuration du conteneur sur le MikroTik : les commandes utilisent les noms par défaut du README. Vérifiez avec /container print avant de les lancer."
+ "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ Impossible de lire la configuration du conteneur sur le MikroTik : les commandes utilisent les noms par défaut du README. Vérifiez avec /container print avant de les lancer.",
+ "2. Parar o painel": "2. Arrêter le panneau",
+ "No Terminal do Winbox. Depois de parar, rode /container print a cada poucos segundos até o {name} aparecer SEM o R na frente. Pode levar alguns segundos.": "Dans le Terminal de Winbox. Après l'arrêt, lancez /container print toutes les quelques secondes jusqu'à ce que {name} apparaisse SANS le R devant. Cela peut prendre quelques secondes.",
+ "3. Apagar o container antigo": "3. Supprimer l'ancien conteneur",
+ "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ Seulement quand le R a disparu. Si le conteneur tourne encore, le MikroTik refuse de le supprimer et l'étape 5 échoue avec « root-dir overlap ». Vérifiez avec /container print que {name} a disparu de la liste.",
+ "4. Enviar o arquivo novo": "4. Envoyer le nouveau fichier",
+ "5. Criar e ligar o container": "5. Créer et démarrer le conteneur",
+ "6. Conferir": "6. Vérifier"
 }

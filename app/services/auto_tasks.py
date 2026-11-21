@@ -144,7 +144,7 @@ async def run(router_ids: list[int], settings: dict, prefix_names: bool):
     if _lock.locked():
         return
     async with _lock:
-        if settings.get("update_check_enabled", True) and _due(panel_state().get("checked"), UPDATE_EVERY):
+        if settings.get("update_check_enabled", True) and panel_check_due():
             await check_panel_update()
         if settings.get("panel_backup_enabled", True):
             from . import panel_backup  # imported here: it pulls in the export code, which isn't needed at startup
@@ -210,8 +210,21 @@ PANEL_RELEASES = f"https://github.com/{PANEL_REPO}/releases/latest"
 
 
 def panel_state() -> dict:
-    """Latest panel Release on GitHub: {"latest", "available", "url", "checked"} (empty before the first check)."""
-    return load_state().get("panel", {})
+    """Latest panel Release on GitHub: {"latest", "available", "url", "checked"} (empty before the first check).
+    "available" is always worked out against the version running now: the saved result may come from before
+    an update (it lives in the data folder, which survives the container swap)."""
+    from .. import __version__
+    state = dict(load_state().get("panel", {}))
+    latest = state.get("latest")
+    state["available"] = bool(latest) and router_tools._version_key(latest) > router_tools._version_key(__version__)
+    return state
+
+
+def panel_check_due() -> bool:
+    """Check GitHub once a day, and right away after the panel itself was updated."""
+    from .. import __version__
+    state = load_state().get("panel", {})
+    return state.get("checked_version") != __version__ or _due(state.get("checked"), UPDATE_EVERY)
 
 
 async def check_panel_update() -> dict:
@@ -219,7 +232,8 @@ async def check_panel_update() -> dict:
     from .. import __version__
     state = load_state()
     previous = state.get("panel", {})
-    info = {"checked": _now().isoformat(), "latest": previous.get("latest"), "url": previous.get("url") or PANEL_RELEASES}
+    info = {"checked": _now().isoformat(), "checked_version": __version__, "latest": previous.get("latest"),
+            "url": previous.get("url") or PANEL_RELEASES}
     try:
         async with httpx.AsyncClient(timeout=15, headers={"User-Agent": f"wgpanel/{__version__}",
                                                          "Accept": "application/vnd.github+json"}) as client:

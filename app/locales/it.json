@@ -189,5 +189,12 @@
  "Na pasta do projeto, pare o painel e rode:": "Nella cartella del progetto, ferma il pannello ed esegui:",
  "Conferir": "Verificare",
  "Ligue o painel de novo e aperte Ctrl+F5: o menu lateral deve mostrar v{version}.": "Riavvia il pannello e premi Ctrl+F5: il menu laterale deve mostrare v{version}.",
- "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ Non sono riuscito a leggere la configurazione del container sul MikroTik: i comandi usano i nomi predefiniti del README. Controlla con /container print prima di eseguirli."
+ "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ Non sono riuscito a leggere la configurazione del container sul MikroTik: i comandi usano i nomi predefiniti del README. Controlla con /container print prima di eseguirli.",
+ "2. Parar o painel": "2. Fermare il pannello",
+ "No Terminal do Winbox. Depois de parar, rode /container print a cada poucos segundos até o {name} aparecer SEM o R na frente. Pode levar alguns segundos.": "Nel Terminale di Winbox. Dopo averlo fermato, esegui /container print ogni pochi secondi finché {name} non appare SENZA la R davanti. Può richiedere qualche secondo.",
+ "3. Apagar o container antigo": "3. Rimuovere il vecchio container",
+ "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ Solo quando la R è sparita. Se il container è ancora in esecuzione, il MikroTik rifiuta la rimozione e il passo 5 dà l'errore \"root-dir overlap\". Controlla con /container print che {name} sia sparito dalla lista.",
+ "4. Enviar o arquivo novo": "4. Inviare il nuovo file",
+ "5. Criar e ligar o container": "5. Creare e avviare il container",
+ "6. Conferir": "6. Verificare"
 }

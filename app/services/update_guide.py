@@ -76,17 +76,22 @@ def _mikrotik_steps(version: str, c: dict, found: bool) -> list[dict]:
         {"title": tr("1. Baixar o arquivo da versão nova"),
          "text": tr("Baixe {file} no computador:", file=tar),
          "link": f"{REPO_URL}/releases/download/v{version}/{tar}"},
-        {"title": tr("2. Parar o painel e apagar o container antigo"),
-         "text": tr("No Terminal do Winbox. Depois do primeiro comando, rode /container print até o {name} aparecer "
-                    "parado (sem o R), e só então os outros dois.", name=name),
-         "commands": [f"/container stop [find name={name}]", f"/container remove [find name={name}]",
-                      f'/file remove [find name~"{disk}/wgpanel-mikrotik-arm64"]']},
-        {"title": tr("3. Enviar o arquivo novo"),
+        {"title": tr("2. Parar o painel"),
+         "text": tr("No Terminal do Winbox. Depois de parar, rode /container print a cada poucos segundos até o {name} "
+                    "aparecer SEM o R na frente. Pode levar alguns segundos.", name=name),
+         "commands": [f"/container stop [find name={name}]", "/container print"]},
+        {"title": tr("3. Apagar o container antigo"),
+         "text": tr("⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e "
+                    "o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.",
+                    name=name),
+         "commands": [f"/container remove [find name={name}]", f'/file remove [find name~"{disk}/wgpanel-mikrotik-arm64"]',
+                      "/container print"]},
+        {"title": tr("4. Enviar o arquivo novo"),
          "text": tr("Arraste {file} para o {disk} na janela Files do Winbox e espere a cópia terminar.", file=tar, disk=disk)},
-        {"title": tr("4. Criar e ligar o container"),
+        {"title": tr("5. Criar e ligar o container"),
          "text": tr("Rode o primeiro comando, espere o /container print mostrar que terminou de extrair, e então o start."),
          "commands": ["/container add " + " ".join(add), "/container print", f"/container start [find name={name}]"]},
-        {"title": tr("5. Conferir"),
+        {"title": tr("6. Conferir"),
          "text": tr("Abra o painel e aperte Ctrl+F5: o menu lateral deve mostrar v{version}.", version=version)
                  + ("" if found else " " + tr("⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os "
                                              "nomes padrão do README. Confira com /container print antes de rodar."))},
