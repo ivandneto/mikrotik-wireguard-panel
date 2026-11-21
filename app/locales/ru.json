@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. Остановить и удалить старый контейнер",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Вставьте эту строку в терминал Winbox. Она останавливает панель, ждёт полной остановки (до 2 минут), удаляет старый контейнер и старый файл .tar и в конце пишет OK. Данные панели не стираются.",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step.",
+ "A verificação em 2 etapas já está ativada": "Двухэтапный вход уже включён",
+ "Senha atual incorreta": "Неверный текущий пароль",
+ "A verificação em 2 etapas não está ativada": "Двухэтапный вход не включён",
+ "com código de recuperação ({left} restantes)": "с кодом восстановления (осталось {left})",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "Для своей учётной записи используйте 🔐 Вход в 2 этапа в боковом меню",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "Неверный или устаревший код. Проверьте часы на телефоне и введите новый код.",
+ "verificação em 2 etapas desativada para outro usuário": "двухэтапный вход отключён для другого пользователя",
+ "verificação em 2 etapas ativada": "двухэтапный вход включён",
+ "verificação em 2 etapas desativada": "двухэтапный вход отключён",
+ "novos códigos de recuperação gerados": "созданы новые коды восстановления"
 }

@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. 停止并删除旧容器",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "把这一行粘贴到 Winbox 终端。它会停止面板，等它真正停止（最多 2 分钟），删除旧容器和旧的 .tar 文件，最后显示 OK。面板的数据不会被删除。",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step.",
+ "A verificação em 2 etapas já está ativada": "两步验证已经开启",
+ "Senha atual incorreta": "当前密码错误",
+ "A verificação em 2 etapas não está ativada": "两步验证未开启",
+ "com código de recuperação ({left} restantes)": "使用恢复码（剩余 {left} 个）",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "你自己的账户请使用侧边菜单中的 🔐 两步登录",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "验证码无效或已过期。请检查手机时间，然后输入新的验证码。",
+ "verificação em 2 etapas desativada para outro usuário": "已为其他用户关闭两步验证",
+ "verificação em 2 etapas ativada": "两步验证已开启",
+ "verificação em 2 etapas desativada": "两步验证已关闭",
+ "novos códigos de recuperação gerados": "已生成新的恢复码"
 }

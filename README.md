@@ -96,6 +96,7 @@
 | 🌐 **9 languages** | English, Português (Brasil), Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — screens, tour, manual, errors and alerts |
 | 📣 **Alerts** | Telegram and Discord: client connected/disconnected, service down/up, rule removed from the MikroTik, temporary port expired, MikroTik offline, RouterOS update available, configuration changed — in the language you choose |
 | 👥 **Users** | Multiple users: **administrator** or **read-only** |
+| 🔐 **Two-step login** | Optional per user: besides the password, a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy…), with 8 single-use **recovery codes**. An admin can turn it off for someone who lost the phone |
 | 💾 **Backup** | **Automatic panel backup** (checked every 10 min, saved only on change), password-protected and sent to a **Discord/Telegram backup channel** together with each MikroTik's, so it survives losing the flash drive; export/import everything in the panel (JSON), create `.backup`/`.rsc` backups on the MikroTik and **automatic backups** of each MikroTik's configuration (changes caught within 10 minutes), kept **only when something changed**, with a **What changed** diff |
 | 📜 **Audit log** | Record of who created, changed or removed what, and when |
 
@@ -353,6 +354,7 @@ Choose which events trigger alerts. All of them are recorded in the **Events** t
 | Forwarded port doesn't work | Server IP changed (make the lease static), Windows firewall on the server blocking, or CGNAT |
 | "Missing on MikroTik" | Someone deleted the rule/peer directly in Winbox; click 🔁 **Recreate** |
 | Container: the Principal router shows `http://192.168.88.1` | The container variables are missing or weren't loaded. See [The flash drive died](#the-flash-drive-died-or-the-panel-is-gone-reinstall-the-container) |
+| "Invalid or expired code" on login (two-step login) | The phone's clock is off (set it to automatic) or the code was already used; wait for the next one. Lost the phone: use a recovery code, ask another admin (Users → 🔓 2-step) or, as a last resort, run `python -m app.reset_2fa <user>` where the panel runs (see [SECURITY.md](SECURITY.md#5-other-good-practices)) |
 | Container: "Invalid username or password" on the panel login | The panel user is `admin`, not `wgpanel` (that one is the MikroTik user). `ADMIN_PASSWORD` only applies when the data folder is empty |
 
 ---
@@ -500,6 +502,8 @@ app/
   services/panel_export.py # builds the panel backup and protects it with the backup password
   services/panel_backup.py # automatic panel backup and sending to the backup channel (Discord/Telegram)
   services/update_guide.py # ready-to-paste update commands for this installation
+  services/totp.py        # two-step login: 6-digit app codes (TOTP) and recovery codes
+  reset_2fa.py            # last resort: python -m app.reset_2fa <user> turns two-step login off
   i18n.py + locales/      # server messages in each language
 static/                   # web interface (Alpine.js + Tailwind + Chart.js)
   i18n.js + i18n/         # translations of screens, tour and manual (one file per language)
@@ -527,7 +531,7 @@ mikrotik-setup.rsc        # router preparation
 3. **Container on the MikroTik:** add the rule that only lets the LAN and the VPN reach `172.20.0.2:8080` (commands in SECURITY.md, item 3).
 4. **Test:** on your phone, using only 4G and **without VPN**, open `http://YOUR-DDNS:8080` — **it must not open**. Turn on the VPN and open it via the internal IP — **it must open**.
 
-Also: a strong password for the panel's `admin`, a limited `wgpanel` user on the MikroTik (never the admin), the MikroTik API restricted to your networks, and care with `.env`, `data/` and backups. Security issues: report them privately (see SECURITY.md).
+Also: a strong password for the panel's `admin` with **🔐 two-step login** turned on, a limited `wgpanel` user on the MikroTik (never the admin), the MikroTik API restricted to your networks, and care with `.env`, `data/` and backups. Security issues: report them privately (see SECURITY.md).
 
 ## 💬 Ideas, questions and contributions
 

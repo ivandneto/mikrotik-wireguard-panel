@@ -103,6 +103,7 @@ If step 3 opens the panel, it is exposed: review item 1 immediately.
 - Run **🛡️ Security** in the panel (Monitoring group): it checks each router for a port forward to the panel, a missing input firewall rule, open services, the default `admin` user, open DNS and RouterOS updates — read-only, with the command to fix each item.
 
 - A **strong password** for the panel's `admin`, and change the initial password (menu → 🔑 Trocar senha / *Change password*).
+- Turn on **🔐 Two-step login** (side menu): besides the password, login asks for the 6-digit code from an authenticator app on your phone, so a leaked password alone is not enough. Save the 8 recovery codes it shows (each works once) off the computer. Someone lost the phone? Another admin turns it off in **Users → 🔓 2-step**. Last resort (no phone, no codes, no other admin), in the terminal where the panel runs: Docker `docker exec -it wgpanel python -m app.reset_2fa admin`; container in the MikroTik `/container shell wgpanel`, then `cd /app && python -m app.reset_2fa admin`. Turning it on or off logs out the account's other sessions.
 - Create **read-only** users for people who only need to watch.
 - On the MikroTik, use the **`wgpanel`** user with a limited group (see `mikrotik-setup.rsc`) — **never the admin**.
 - Prefer **➡️ Only I access** for clients' MikroTiks. In **↔️ Two-way**, the client can open connections only to the interface's *Networks here* — never to your MikroTik, the VPN devices or other clients' networks — so keep *Networks here* down to what the client really needs.

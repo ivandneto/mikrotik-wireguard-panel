@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. Arrêter et supprimer l'ancien conteneur",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Collez cette ligne dans le Terminal de Winbox. Elle arrête le panneau, attend qu'il soit vraiment arrêté (jusqu'à 2 minutes), supprime l'ancien conteneur et l'ancien fichier .tar, et affiche OK à la fin. Les données du panneau ne sont pas effacées.",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "Le conteneur tourne encore : attendez un peu et collez cette ligne à nouveau.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK : ancien conteneur supprimé. Passez à l'étape suivante."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK : ancien conteneur supprimé. Passez à l'étape suivante.",
+ "A verificação em 2 etapas já está ativada": "La vérification en 2 étapes est déjà activée",
+ "Senha atual incorreta": "Mot de passe actuel incorrect",
+ "A verificação em 2 etapas não está ativada": "La vérification en 2 étapes n'est pas activée",
+ "com código de recuperação ({left} restantes)": "avec un code de récupération ({left} restants)",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "Pour votre propre compte, utilisez 🔐 Connexion en 2 étapes dans le menu latéral",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "Code invalide ou expiré. Vérifiez l'heure du téléphone et essayez le nouveau code.",
+ "verificação em 2 etapas desativada para outro usuário": "vérification en 2 étapes désactivée pour un autre utilisateur",
+ "verificação em 2 etapas ativada": "vérification en 2 étapes activée",
+ "verificação em 2 etapas desativada": "vérification en 2 étapes désactivée",
+ "novos códigos de recuperação gerados": "nouveaux codes de récupération générés"
 }

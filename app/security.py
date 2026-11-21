@@ -31,8 +31,12 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def password_fingerprint(user: User) -> str:
-    """Vai na sessão: trocar a senha invalida as sessões antigas."""
-    return hashlib.sha256(user.password_hash.encode()).hexdigest()[:16]
+    """Vai na sessão: trocar a senha invalida as sessões antigas.
+    Turning two-step login on or off (or a new secret) also invalidates them."""
+    base = user.password_hash
+    if user.totp_enabled:
+        base += "|totp|" + user.totp_secret_enc
+    return hashlib.sha256(base.encode()).hexdigest()[:16]
 
 
 def encrypt(value: str) -> str:

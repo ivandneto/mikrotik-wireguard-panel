@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. Alten Container stoppen und entfernen",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Fügen Sie diese Zeile im Winbox-Terminal ein. Sie stoppt das Panel, wartet, bis es wirklich aus ist (bis zu 2 Minuten), entfernt den alten Container und die alte .tar-Datei und schreibt am Ende OK. Die Daten des Panels werden nicht gelöscht.",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "Der Container läuft noch: Warten Sie kurz und fügen Sie diese Zeile erneut ein.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: alter Container entfernt. Weiter mit dem nächsten Schritt."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: alter Container entfernt. Weiter mit dem nächsten Schritt.",
+ "A verificação em 2 etapas já está ativada": "Die Anmeldung in 2 Schritten ist bereits aktiv",
+ "Senha atual incorreta": "Aktuelles Passwort ist falsch",
+ "A verificação em 2 etapas não está ativada": "Die Anmeldung in 2 Schritten ist nicht aktiv",
+ "com código de recuperação ({left} restantes)": "mit Wiederherstellungscode ({left} übrig)",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "Für dein eigenes Konto nutze 🔐 Anmeldung in 2 Schritten im Seitenmenü",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "Ungültiger oder abgelaufener Code. Prüfe die Uhr am Handy und versuche den neuen Code.",
+ "verificação em 2 etapas desativada para outro usuário": "Anmeldung in 2 Schritten für anderen Benutzer ausgeschaltet",
+ "verificação em 2 etapas ativada": "Anmeldung in 2 Schritten eingeschaltet",
+ "verificação em 2 etapas desativada": "Anmeldung in 2 Schritten ausgeschaltet",
+ "novos códigos de recuperação gerados": "neue Wiederherstellungscodes erstellt"
 }

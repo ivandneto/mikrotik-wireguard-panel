@@ -43,6 +43,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="viewer")  # admin | viewer
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # two-step login (TOTP): secret encrypted with the panel key; while totp_enabled is False it's a pending setup
+    totp_secret_enc: Mapped[str] = mapped_column(Text, default="")
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    recovery_codes_json: Mapped[str] = mapped_column(Text, default="[]")  # sha256 of the unused recovery codes
 
 
 class Setting(Base):
@@ -253,6 +257,11 @@ def _migrate():
         "wg_interfaces": {"router_id": "INTEGER NOT NULL DEFAULT 1"},
         "nat_rules": {"router_id": "INTEGER NOT NULL DEFAULT 1"},
         "system_samples": {"router_id": "INTEGER NOT NULL DEFAULT 1"},
+        "users": {
+            "totp_secret_enc": "TEXT NOT NULL DEFAULT ''",
+            "totp_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "recovery_codes_json": "TEXT NOT NULL DEFAULT '[]'",
+        },
     }
     with engine.begin() as conn:
         for table, columns in new_columns.items():
