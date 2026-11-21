@@ -205,7 +205,7 @@ Requirement: **Docker** (Docker Desktop on Windows, or Docker on any Linux or Ra
 
 **Option A — prebuilt image from the Release (x86-64 PC/server, fastest):** download `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = version), `docker-compose.yml` and `env.example` (rename it to `.env`) from the [latest Release](../../releases/latest) into a folder and run:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.9.tar.gz     # use the exact name of the downloaded file
+docker load -i wgpanel-docker-amd64-v1.3.10.tar.gz     # use the exact name of the downloaded file
 ```
 
 **Option B — from source** (any machine, including Raspberry Pi): clone the repository; step 2 below uses `--build` to build the image.
@@ -399,9 +399,9 @@ bash scripts/build-release.sh   # creates dist/release/wgpanel-mikrotik-arm64-vX
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.9` with the file's version** (it goes in the file name and in the container comment):
+**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.10` with the file's version** (it goes in the file name and in the container comment):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.9.tar comment="WG Panel v1.3.9" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.10.tar comment="WG Panel v1.3.10" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # once /container print shows extraction has finished
 ```
 `/container print` now shows the version in the comment, and the panel shows the version in the sidebar (below "WG Panel").
@@ -417,7 +417,7 @@ Open **http://172.20.0.2:8080** (only from the local network or VPN — add the 
 /container stop [find name=wgpanel]; :local n 0; :while ([/container get [find name=wgpanel] running] && $n < 60) do={ :delay 2s; :set n ($n + 1) }; :if ([/container get [find name=wgpanel] running]) do={ :put "The container is still running: wait a moment and paste this line again." } else={ /container remove [find name=wgpanel]; /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]; :put "OK: old container removed. Go on to the next step." }
 ```
 > This line stops the panel, **waits until it is really stopped** (`/container stop` returns right away, but the container takes a few seconds to stop — a `remove` before that is refused, and the later `/container add` then fails with **"root-dir overlap"**), removes the container and the old `.tar`, and prints **OK**. The data in `usb1/wgpanel/data` is not erased.
-Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.9.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
+Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.10.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
 
 > On RouterOS older than 7.20, replace `available-from` with `address`, and `list=`/`envlists=`/`mountlists=` with `name=`/`envlist=`/`mounts=`.
 
