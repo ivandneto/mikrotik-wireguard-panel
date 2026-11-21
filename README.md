@@ -82,7 +82,7 @@
 |---|---|
 | 🔐 **WireGuard VPN** | Guided first-time setup, one-click clients, **QR Code** for phones, **.conf** download (always through the static IP/DDNS, works from anywhere), "local network only" or "all internet traffic" mode, enable/disable, regenerate keys, **import peers that already exist on the MikroTik** (keys stored on the router → QR works on any panel) |
 | 🖧 **Multiple MikroTiks** | Manage your MikroTik and your clients' MikroTiks in the same panel: selector at the top, a **Routers** page with the status of all of them, and alerts tagged with each router's name. A client's MikroTik is reached through the tunnel with a **limited user** (`wgpanel`, random password, login only through the tunnel) created by the script itself — admin passwords are never reused |
-| 🖧 **Other MikroTik (site-to-site)** | Multiple WireGuard interfaces (e.g. `wg-home` and `wg-clients`); tunnel to a client's MikroTik including their network, with **➡️ one-way: only I access** (default) or **↔️ two-way**; the panel creates the peer, routes and rules on your MikroTik and generates an **.rsc script** to paste into the client's MikroTik; monitoring and an alert if the client goes down |
+| 🖧 **Other MikroTik (site-to-site)** | Multiple WireGuard interfaces (e.g. `wg-home` and `wg-clients`); tunnel to a client's MikroTik including their network, with **➡️ one-way: only I access** (default) or **↔️ two-way** (the client reaches only your network, never your router or other clients); the panel creates the peer, routes and rules on your MikroTik and generates an **.rsc script** to paste into the client's MikroTik; monitoring and an alert if the client goes down |
 | 🎮 **Port forwarding** | Port forwards with **ready-made templates** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/both, port ranges, **IP whitelist**, **temporary rules** (close by themselves), conflict detection with existing rules |
 | 📈 **Monitoring** | Who is online, last handshake, source IP, traffic per client, usage per period, traffic per forwarded port, **check whether the server is up**, router CPU/memory/WAN, charts with history |
 | 🌐 **WebFig and Terminal** | A **🌐 WebFig** button on each router (and at the top) opens the MikroTik's web page — including the **Terminal** — in a new tab, with your own login. For clients it works through the tunnel |
@@ -203,7 +203,7 @@ Requirement: **Docker** (Docker Desktop on Windows, or Docker on any Linux or Ra
 
 **Option A — prebuilt image from the Release (x86-64 PC/server, fastest):** download `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = version), `docker-compose.yml` and `env.example` (rename it to `.env`) from the [latest Release](../../releases/latest) into a folder and run:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.4.tar.gz     # use the exact name of the downloaded file
+docker load -i wgpanel-docker-amd64-v1.3.5.tar.gz     # use the exact name of the downloaded file
 ```
 
 **Option B — from source** (any machine, including Raspberry Pi): clone the repository; step 2 below uses `--build` to build the image.
@@ -261,6 +261,32 @@ If the router has no remote address configured, the panel uses the MikroTik's in
 
 - **Local network only** (split tunnel): the device reaches your network (NAS, cameras, servers) and its internet traffic keeps going out through its own connection. Faster.
 - **All internet traffic** (full tunnel): all traffic goes out through your MikroTik. Good for public Wi-Fi.
+
+### Connect a client's MikroTik (🖧 Other MikroTik)
+
+Use it when you want to reach a client's **router and whole network** (a shop, an office, a relative's home), not just one device.
+
+1. In **WireGuard VPN**, click **🖧 Other MikroTik**.
+2. Enter a name and the **client's local network** (see IP → Addresses on their MikroTik, e.g. `192.168.10.0/24`). It must be **different** from your own network.
+3. Keep **"Manage this MikroTik from the panel"** on if you want to create VPNs and ports and see charts for their router here. Enter their WebFig port (default 80).
+4. Choose **who accesses whom** (table below) and click **Create and generate script**.
+5. On the **client's MikroTik Winbox** → **New Terminal**, paste the script and press Enter (**only once**). It works on RouterOS 7, from older to the newest versions.
+6. In a few moments the client shows up as **Online** in the VPN and, if you chose to manage it, in **Routers** too.
+
+| | ➡️ **Only I access** (recommended) | ↔️ **Two-way** |
+|---|---|---|
+| You → client's router and network | ✅ | ✅ |
+| Client → your network (the interface's **Networks here**) | ❌ | ✅ |
+| Client → your MikroTik, VPN devices and other clients | ❌ | ❌ |
+| When to use | Support and management: you get in, they don't | The client really needs something on your network (a server, a system) |
+
+Replies always get through: only the **new connections** the client would open are blocked. Everything is done on **your** MikroTik, with rules and lists tagged `[wgpanel]`. The client script is the same in both modes, so you can switch modes later (✏️ Edit) without touching their router.
+
+On the client's MikroTik the script creates: the `wg-central` tunnel, routes to your network, the tunnel in the LAN list (so you can reach their router) and, if you chose to manage it, a **limited** `wgpanel` user with a random password that **can only log in through the tunnel**. It doesn't touch the client's passwords or other users.
+
+> ⚠️ The script contains the tunnel key and the `wgpanel` user's password. Send it only to whoever will paste it into the router. If it leaks, use **🔑** (Generate new keys) on that client's row and run the new script.
+
+> **Upgraded from a version before 1.3.5?** Two-way clients created earlier didn't have the limit above. Click **🔁** on each one's row (WireGuard VPN) to apply it.
 
 ---
 
@@ -367,9 +393,9 @@ bash scripts/build-release.sh   # creates dist/release/wgpanel-mikrotik-arm64-vX
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.4` with the file's version** (it goes in the file name and in the container comment):
+**5. Upload and start:** drag the `.tar` into `usb1` in Winbox's **Files** window and run the command below, **replacing `1.3.5` with the file's version** (it goes in the file name and in the container comment):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.4.tar comment="WG Panel v1.3.4" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.5.tar comment="WG Panel v1.3.5" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # once /container print shows extraction has finished
 ```
 `/container print` now shows the version in the comment, and the panel shows the version in the sidebar (below "WG Panel").
@@ -381,7 +407,7 @@ Open **http://172.20.0.2:8080** (only from the local network or VPN — add the 
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.4.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
+Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.5.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
 
 > On RouterOS older than 7.20, replace `available-from` with `address`, and `list=`/`envlists=`/`mountlists=` with `name=`/`envlist=`/`mounts=`.
 

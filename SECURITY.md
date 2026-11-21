@@ -105,6 +105,7 @@ If step 3 opens the panel, it is exposed: review item 1 immediately.
 - A **strong password** for the panel's `admin`, and change the initial password (menu → 🔑 Trocar senha / *Change password*).
 - Create **read-only** users for people who only need to watch.
 - On the MikroTik, use the **`wgpanel`** user with a limited group (see `mikrotik-setup.rsc`) — **never the admin**.
+- Prefer **➡️ Only I access** for clients' MikroTiks. In **↔️ Two-way**, the client can open connections only to the interface's *Networks here* — never to your MikroTik, the VPN devices or other clients' networks — so keep *Networks here* down to what the client really needs.
 - The **⌨️ Console** runs commands with that same limited user, so whatever `wgpanel` can't do, the console can't either — don't widen its group just to use the console; use 🌐 WebFig with your own login instead. Only administrators see the console, and every command is recorded in the **Audit log**.
 - Restrict the MikroTik API to the networks the panel connects from: `/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24` (adjust the ranges).
 - The panel runs over **HTTP**. Inside the local network and the VPN (which is already encrypted) this is acceptable. If you want HTTPS, put a reverse proxy (Caddy, Nginx) in front of it and set `COOKIE_SECURE=true` in `.env`.

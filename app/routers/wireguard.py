@@ -35,6 +35,9 @@ FILTER_PATH = "/ip/firewall/filter"
 ADDR_LIST_PATH = "/ip/firewall/address-list"
 # MikroTiks de clientes em modo "só eu acesso": conexões novas vindas deles são bloqueadas aqui
 ONE_WAY_LIST = "wgpanel-sites-one-way"
+# Two-way sites: new connections only to the central's own networks (REACH_LIST)
+TWO_WAY_LIST = "wgpanel-sites-two-way"
+REACH_LIST = "wgpanel-sites-reach"
 
 
 class InterfaceIn(BaseModel):
@@ -231,18 +234,59 @@ async def _ensure_one_way_rules():
                                               "src-address-list": ONE_WAY_LIST, "comment": comment})
 
 
+async def _ensure_two_way_rules():
+    """Two-way sites may open connections only to the central's own networks ("Redes daqui"):
+    not to the central router itself, the VPN devices or other clients' networks."""
+    existing = {r.get("comment") for r in await mt.get(FILTER_PATH)}
+    rules = [
+        ("forward", {"dst-address-list": f"!{REACH_LIST}"},
+         f"{TAG} sites mão dupla: só alcançam as redes da central (forward)"),
+        ("input", {}, f"{TAG} sites mão dupla: não abrem conexões no roteador da central (input)"),
+    ]
+    for chain, extra, comment in rules:
+        if comment not in existing:
+            await _place_on_top(FILTER_PATH, {"chain": chain, "action": "drop", "connection-state": "new",
+                                              "src-address-list": TWO_WAY_LIST, **extra, "comment": comment})
+
+
+async def _ensure_reach(iface: WgInterface):
+    """Networks two-way sites may reach: the interface's "Redes daqui"."""
+    have = {e.get("address") for e in await mt.get(ADDR_LIST_PATH, list=REACH_LIST)}
+    for net in validate_networks(iface.lan_networks):
+        if net not in have:
+            await mt.add(ADDR_LIST_PATH, {"list": REACH_LIST, "address": net,
+                                          "comment": f"{TAG} rede da central liberada para sites mão dupla"})
+
+
+async def _sync_reach(db: Session):
+    """Rebuilds REACH_LIST from the "Redes daqui" of every interface that has two-way sites."""
+    want = set()
+    for iface in _router_ifaces(db):
+        if db.query(Peer).filter(Peer.interface_id == iface.id, Peer.kind == "site", Peer.site_access == "two_way").count():
+            want.update(validate_networks(iface.lan_networks))
+    rows = await mt.get(ADDR_LIST_PATH, list=REACH_LIST)
+    for row in rows:
+        if row.get("address") not in want and row.get("comment", "").startswith(TAG):
+            await mt.remove(ADDR_LIST_PATH, row[".id"])
+    have = {row.get("address") for row in rows}
+    for net in sorted(want - have):
+        await mt.add(ADDR_LIST_PATH, {"list": REACH_LIST, "address": net,
+                                      "comment": f"{TAG} rede da central liberada para sites mão dupla"})
+
+
 def _site_list_comment(peer: Peer) -> str:
     return f"{TAG} peer:{peer.id} {peer.name}"
 
 
 async def _sync_site(peer: Peer, iface: WgInterface):
-    """Rotas para as redes do cliente e a lista de bloqueio do modo "só eu acesso"."""
+    """Routes to the client's networks and the firewall lists for "one way" / "two way" access."""
     for route_id in peer.route_ids:
         await mt.remove(ROUTE_PATH, route_id)
     peer.route_ids = []
-    for entry in await mt.get(ADDR_LIST_PATH, list=ONE_WAY_LIST):
-        if entry.get("comment", "").startswith(f"{TAG} peer:{peer.id} "):
-            await mt.remove(ADDR_LIST_PATH, entry[".id"])
+    for list_name in (ONE_WAY_LIST, TWO_WAY_LIST):
+        for entry in await mt.get(ADDR_LIST_PATH, list=list_name):
+            if entry.get("comment", "").startswith(f"{TAG} peer:{peer.id} "):
+                await mt.remove(ADDR_LIST_PATH, entry[".id"])
     if peer.kind != "site":
         return
 
@@ -255,9 +299,14 @@ async def _sync_site(peer: Peer, iface: WgInterface):
 
     if peer.site_access == "one_way":
         await _ensure_one_way_rules()
-        for address in [peer.ip.split("/")[0], *split_list(peer.remote_networks)]:
-            await mt.add(ADDR_LIST_PATH, {"list": ONE_WAY_LIST, "address": address,
-                                          "comment": _site_list_comment(peer)})
+        list_name = ONE_WAY_LIST
+    else:
+        await _ensure_two_way_rules()
+        await _ensure_reach(iface)
+        list_name = TWO_WAY_LIST
+    for address in [peer.ip.split("/")[0], *split_list(peer.remote_networks)]:
+        await mt.add(ADDR_LIST_PATH, {"list": list_name, "address": address,
+                                      "comment": _site_list_comment(peer)})
 
 
 async def _remove_site(peer: Peer):
@@ -436,6 +485,8 @@ async def setup_interface(body: InterfaceIn, user: User = Depends(require_admin)
         rt.endpoint_remote = body.endpoint_remote.strip()
     if body.endpoint_local.strip():
         rt.endpoint_local = body.endpoint_local.strip()
+    db.flush()
+    await _sync_reach(db)  # "Redes daqui" may have changed: keep what two-way sites can reach in step
     save_settings(db, {"wg_configured": True})
     db.commit()
     audit(db, user.username, "interface WireGuard configurada", f"{body.interface}: " + "; ".join(steps))
@@ -801,13 +852,17 @@ def _management_lines(managed: Router, admin_nets: list[str]) -> list[str]:
         f':do {{ /user add name=wgpanel group=wgpanel password="{password}" address={nets} comment="WG Panel (so pelo tunel)" }} '
         f'on-error={{ /user set [find name=wgpanel] group=wgpanel password="{password}" address={nets} }}',
         "# " + tr_ascii("API REST pelo serviço www (o tráfego já vai criptografado dentro do túnel WireGuard)."),
-        f':if ([/ip service get www disabled]) do={{ /ip service set www disabled=no port={port} address={nets} }}',
+        # RouterOS 7.20+ renamed the service's "address" to "available-from": try the new name, fall back to the old.
+        # If www was already on, only warn when it is restricted to some IPs (it may not include the tunnel).
+        f':if ([/ip service get www disabled]) do={{ :do {{ /ip service set www disabled=no port={port} available-from={nets} }} '
+        f'on-error={{ /ip service set www disabled=no port={port} address={nets} }} }} else={{ :local wa ""; '
+        ':do { :set wa [/ip service get www available-from] } on-error={ :do { :set wa [/ip service get www address] } on-error={} }; '
+        ':if ([:len $wa] > 0) do={ :put "'
+        + tr_ascii("ATENÇÃO: o www só aceita alguns IPs. Inclua {nets} em IP -> Services -> www.", nets=nets)
+        + '" } }',
         f':if ([/ip service get www port] != {port}) do={{ :put "'
         + tr_ascii("ATENÇÃO: o www deste roteador usa a porta {port}. Ajuste a URL dele em Roteadores no painel.",
                    port="$[/ip service get www port]") + '" }',
-        ':do { :if ([:len [/ip service get www address]] > 0) do={ :put "'
-        + tr_ascii("ATENÇÃO: o www só aceita alguns IPs. Inclua {nets} em IP -> Services -> www.", nets=nets)
-        + '" } } on-error={}',
     ]
 
 
@@ -843,7 +898,8 @@ def build_site_script(peer: Peer, iface: WgInterface, s: dict, endpoint: str, ma
         "# " + tr_ascii("Acesso: {access}", access=tr_ascii("mão dupla (os dois lados se acessam)") if two_way
                         else tr_ascii("só a central acessa este roteador e a rede dele")),
         "",
-        f'/interface wireguard add name=wg-central listen-port={iface.listen_port} '
+        # no fixed listen-port: the client only dials out, and a fixed port could clash with a WireGuard it already has
+        f'/interface wireguard add name=wg-central '
         f'private-key="{decrypt(peer.private_key_enc)}" comment="WG Panel: tunel para a central"',
         f'/interface wireguard peers add interface=wg-central name=central public-key="{iface.public_key}"{psk} '
         f'endpoint-address={host} endpoint-port={iface.listen_port} allowed-address={",".join(central)} '

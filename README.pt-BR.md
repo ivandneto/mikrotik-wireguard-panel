@@ -80,7 +80,7 @@
 |---|---|
 | 🔐 **VPN WireGuard** | Configuração inicial guiada, criação de clientes com 1 clique, **QR Code** para celular, download do **.conf** (sempre pelo IP fixo/DDNS, funciona de qualquer lugar), modo "só rede local" ou "toda a internet", ativar/desativar, regenerar chaves, **importar peers que já existem no MikroTik** (chaves guardadas no roteador → QR funciona em qualquer painel) |
 | 🖧 **Vários MikroTiks** | Gerencie o seu MikroTik e os dos clientes no mesmo painel: seletor no topo, tela **Roteadores** com status de todos e alertas com o nome de cada roteador. O MikroTik de um cliente entra pelo túnel com um **usuário limitado** (`wgpanel`, senha aleatória, login só pelo túnel) criado pelo próprio script — sem reaproveitar senhas de admin |
-| 🖧 **Outro MikroTik (site-to-site)** | Várias interfaces WireGuard (ex.: `wg-casa` e `wg-clientes`); túnel com o MikroTik de um cliente informando a rede dele, com **➡️ só eu acesso** (padrão) ou **↔️ mão dupla**; o painel cria peer, rotas e regras no seu MikroTik e gera um **script .rsc** para colar no MikroTik do cliente; monitoramento e alerta se o cliente cair |
+| 🖧 **Outro MikroTik (site-to-site)** | Várias interfaces WireGuard (ex.: `wg-casa` e `wg-clientes`); túnel com o MikroTik de um cliente informando a rede dele, com **➡️ só eu acesso** (padrão) ou **↔️ mão dupla** (o cliente alcança só a sua rede, nunca o seu roteador nem os outros clientes); o painel cria peer, rotas e regras no seu MikroTik e gera um **script .rsc** para colar no MikroTik do cliente; monitoramento e alerta se o cliente cair |
 | 🎮 **Liberação de portas** | Port forward com **modelos prontos** (Minecraft, CS2, Valheim, Palworld, Rust, ARK, FiveM, Plex…), TCP/UDP/ambos, faixas de portas, **whitelist de IPs**, **liberação temporária** (fecha sozinha), detecção de conflito com regras existentes |
 | 📈 **Monitoramento** | Quem está online, último handshake, IP de origem, tráfego por cliente, consumo por período, tráfego por porta liberada, **teste se o servidor está no ar**, CPU/memória/WAN do roteador, gráficos com histórico |
 | 🌐 **WebFig e Terminal** | Botão **🌐 WebFig** em cada roteador (e no topo) abre a página do MikroTik — com o **Terminal** — numa nova aba, com o seu próprio login. Para clientes, funciona pelo túnel |
@@ -203,7 +203,7 @@ Requisito: **Docker** (Docker Desktop no Windows, ou Docker em qualquer Linux ou
 
 **Opção A — imagem pronta da Release (PC/servidor x86-64, mais rápido):** baixe `wgpanel-docker-amd64-vX.Y.Z.tar.gz` (X.Y.Z = versão), `docker-compose.yml` e `env.example` (renomeie para `.env`) da [Release mais recente](../../releases/latest) para uma pasta e rode:
 ```bash
-docker load -i wgpanel-docker-amd64-v1.3.4.tar.gz     # use o nome exato do arquivo baixado
+docker load -i wgpanel-docker-amd64-v1.3.5.tar.gz     # use o nome exato do arquivo baixado
 ```
 
 **Opção B — a partir do código** (qualquer máquina, inclusive Raspberry Pi): clone o repositório; o passo 2 abaixo usa `--build` para gerar a imagem.
@@ -261,6 +261,32 @@ Se o roteador não tiver endereço remoto configurado, o painel usa o IP interno
 
 - **Só rede local** (split tunnel): o dispositivo acessa sua rede (NAS, câmeras, servidores) e a internet continua saindo pela conexão dele. Mais rápido.
 - **Toda a internet** (full tunnel): todo o tráfego sai pelo seu MikroTik. Bom para Wi-Fi público.
+
+### Ligar o MikroTik de um cliente (🖧 Outro MikroTik)
+
+Use quando quiser acessar o **roteador e a rede inteira** de um cliente (loja, escritório, casa de parente), e não só um aparelho.
+
+1. Em **VPN WireGuard**, clique em **🖧 Outro MikroTik**.
+2. Informe o nome e a **rede local do cliente** (veja em IP → Addresses no MikroTik dele, ex.: `192.168.10.0/24`). Ela precisa ser **diferente** da sua rede.
+3. Deixe ligado **"Gerenciar este MikroTik pelo painel"** se quiser criar VPN, portas e ver gráficos do roteador dele aqui. Informe a porta do WebFig dele (padrão 80).
+4. Escolha **quem acessa quem** (tabela abaixo) e clique em **Criar e gerar script**.
+5. No **Winbox do MikroTik do cliente** → **New Terminal**, cole o script e aperte Enter (**uma vez só**). Ele funciona no RouterOS 7, das versões antigas às mais novas.
+6. Em instantes o cliente aparece como **Online** na VPN e, se você escolheu gerenciar, também em **Roteadores**.
+
+| | ➡️ **Só eu acesso** (recomendado) | ↔️ **Mão dupla** |
+|---|---|---|
+| Você → roteador e rede do cliente | ✅ | ✅ |
+| Cliente → sua rede (as **Redes daqui** da interface) | ❌ | ✅ |
+| Cliente → seu MikroTik, aparelhos da VPN e outros clientes | ❌ | ❌ |
+| Quando usar | Suporte e gerenciamento: você entra, ele não | O cliente precisa mesmo de algo da sua rede (um servidor, um sistema) |
+
+As respostas sempre passam: o que é bloqueado são só as **conexões novas** que o cliente tentaria abrir. Tudo é feito no **seu** MikroTik, com regras e listas que levam o comentário `[wgpanel]`. O script do cliente é o mesmo nos dois modos, então dá para trocar o modo depois (✏️ Editar) sem mexer no roteador dele.
+
+O script cria no MikroTik do cliente: o túnel `wg-central`, as rotas para a sua rede, a entrada do túnel na lista LAN (para você acessar o roteador dele) e, se você escolheu gerenciar, um usuário **limitado** `wgpanel` com senha aleatória, que **só entra pelo túnel**. Ele não mexe em senhas nem em outros usuários do cliente.
+
+> ⚠️ O script contém a chave do túnel e a senha do usuário `wgpanel`. Mande só para quem vai colar no roteador. Se ele vazar, use **🔑** (Gerar novas chaves) na linha do cliente e rode o script novo.
+
+> **Atualizou de uma versão anterior à 1.3.5?** Clientes em **mão dupla** criados antes não tinham o limite acima. Clique em **🔁** na linha de cada um (VPN WireGuard) para aplicar.
 
 ---
 
@@ -367,9 +393,9 @@ bash scripts/build-release.sh   # cria dist/release/wgpanel-mikrotik-arm64-vX.Y.
 /container mounts add list=wgpanel src=usb1/wgpanel/data dst=/data
 ```
 
-**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.4` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
+**5. Enviar e iniciar:** arraste o `.tar` para o `usb1` na janela **Files** do Winbox e rode o comando abaixo, **trocando `1.3.5` pela versão do arquivo** (ela vai no nome do arquivo e no comentário do container):
 ```
-/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.4.tar comment="WG Panel v1.3.4" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
+/container add name=wgpanel file=usb1/wgpanel-mikrotik-arm64-v1.3.5.tar comment="WG Panel v1.3.5" interface=veth-wgpanel root-dir=usb1/wgpanel/root envlists=wgpanel mountlists=wgpanel dns=172.20.0.1 start-on-boot=yes logging=yes memory-max=256M
 /container start wgpanel      # quando /container print mostrar que terminou de extrair
 ```
 O `/container print` passa a mostrar a versão no comentário, e o painel mostra a versão no menu lateral (embaixo de "WG Panel").
@@ -381,7 +407,7 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 /container remove wgpanel
 /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
 ```
-Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.4.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
+Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.5.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.
 
