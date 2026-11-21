@@ -44,6 +44,11 @@ def _save_state(**values):
     STATE_FILE.write_text(json.dumps(state, indent=1), "utf-8")
 
 
+def clear_error():
+    if load_state().get("error"):
+        _save_state(error=None)
+
+
 def due() -> bool:
     last = load_state().get("checked")
     try:
@@ -185,7 +190,7 @@ async def run(force: bool = False) -> dict:
         sent, errors = await send_file(settings, name, content, message)
     error = "; ".join(errors) or None
     _save_state(checked=now, fingerprint=fp, last_name=name, last_saved=now, encrypted=bool(pw),
-                sent_to=sent, sent_at=now if sent else state.get("sent_at"), error=error)
+                sent_to=sent or state.get("sent_to") or [], sent_at=now if sent else state.get("sent_at"), error=error)
     if error:
         db = SessionLocal()
         try:

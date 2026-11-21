@@ -100,6 +100,7 @@ def auto_settings(body: AutoBackupIn, user: User = Depends(require_admin), db: S
     if body.send_telegram and not (body.telegram_token.strip() and body.telegram_chat_id.strip()):
         raise HTTPException(400, tr("Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup"))
     save_settings(db, values)
+    panel_backup.clear_error()  # an old sending error no longer applies once the settings changed
     audit(db, user.username, "backup automático do painel configurado",
           "senha alterada" if body.password is not None else "")
     return _auto_status(db)
