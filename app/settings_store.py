@@ -30,7 +30,6 @@ DEFAULTS = {
     "retention_days": 30,
     # Alertas
     "auto_backup_enabled": True,  # exporta a configuração de cada MikroTik e guarda só quando muda
-    "auto_backup_interval": "daily",
     "auto_backup_keep": 14,
     "update_check_enabled": True,
     # Automatic backup of the panel itself (clients, keys, users): local copies, optionally sent to Discord/Telegram

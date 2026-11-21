@@ -22,7 +22,8 @@ logger = logging.getLogger("wgpanel.tasks")
 BACKUP_DIR = Path(config.DATA_DIR) / "router-backups"
 STATE_FILE = BACKUP_DIR / "state.json"
 NAME_RE = re.compile(r"^\d{8}-\d{6}\.rsc$")
-INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
+# full export once a day as a safety net; changes are caught sooner by the change-history check below
+SAFETY_EVERY = timedelta(days=1)
 UPDATE_EVERY = timedelta(hours=24)
 # between the daily/weekly backups, a cheap peek at the router's change history every few minutes
 CHANGE_CHECK_EVERY = timedelta(minutes=10)
@@ -163,7 +164,7 @@ async def run(router_ids: list[int], settings: dict, prefix_names: bool):
             st = router_state(rid)
             prefix = f"[{router.name}] " if prefix_names else ""
             if settings.get("auto_backup_enabled"):
-                if _due(st.get("backup_checked"), INTERVALS.get(settings.get("auto_backup_interval"), INTERVALS["daily"])):
+                if _due(st.get("backup_checked"), SAFETY_EVERY):
                     await _auto_backup(router, settings, prefix)
                 elif _due(st.get("change_checked"), CHANGE_CHECK_EVERY):
                     await _check_changes(router, settings, prefix, st)

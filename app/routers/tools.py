@@ -105,7 +105,7 @@ def list_backups(_: User = Depends(require_admin), rt: Router = Depends(use_rout
         "backups": auto_tasks.list_backups(rt.id),
         "last_check": st.get("backup_checked"),
         "error": st.get("backup_error"),
-        "settings": {k: s[k] for k in ("auto_backup_enabled", "auto_backup_interval", "auto_backup_keep")},
+        "settings": {k: s[k] for k in ("auto_backup_enabled", "auto_backup_keep")},
     }
 
 
