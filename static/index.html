@@ -21,7 +21,10 @@
       <div>
         <div class="font-semibold text-white leading-tight">WG Panel</div>
         <div class="text-xs text-slate-500">MikroTik <span x-show="overview?.version" x-text="'· v' + overview?.version" title="Versão do painel"></span></div>
-        <a x-show="overview?.panel_update?.available" :href="overview?.panel_update?.url" target="_blank" rel="noopener"
+        <button type="button" x-show="overview?.panel_update?.available && isAdmin" @click="openUpdateGuide()"
+           class="badge b-amber mt-1 hover:brightness-125" title="Mostra os comandos prontos para atualizar esta instalação"
+           x-text="'⬆️ ' + t('v{version} disponível', { version: overview?.panel_update?.latest })"></button>
+        <a x-show="overview?.panel_update?.available && !isAdmin" :href="overview?.panel_update?.url" target="_blank" rel="noopener"
            class="badge b-amber mt-1 hover:brightness-125" title="Abre a página da versão nova, com o que mudou e como atualizar"
            x-text="'⬆️ ' + t('v{version} disponível', { version: overview?.panel_update?.latest })"></a>
       </div>
@@ -1297,7 +1300,7 @@
               <li><b>Traduções</b> — cada idioma é um arquivo em <span class="mono">static/i18n/</span> (telas e manual) e <span class="mono">app/locales/</span> (mensagens do servidor). Correções são bem-vindas como pull request.</li>
             </ul>
             <p class="text-amber-300">⚠️ Ao relatar algo, nunca cole senhas, chaves da VPN, o arquivo <span class="mono">.env</span> nem backups. Falhas de segurança: relate em privado (Security → Report a vulnerability).</p>
-            <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização. Quando sai uma versão nova, aparece <span class="badge b-amber">⬆️ vX.Y.Z disponível</span> embaixo da versão no menu lateral e um ponto no botão do GitHub, e o aviso vai para o Discord/Telegram. O painel consulta o GitHub uma vez por dia.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
+            <p class="hint">Versão do painel: <b x-text="'v' + (overview?.version || '?')"></b> (também no menu lateral, embaixo de "WG Panel"). Compare com a <a href="https://github.com/ivandneto/mikrotik-wireguard-panel/releases/latest" target="_blank" rel="noopener">última Release</a> para saber se há atualização. Quando sai uma versão nova, aparece <span class="badge b-amber">⬆️ vX.Y.Z disponível</span> embaixo da versão no menu lateral e um ponto no botão do GitHub, e o aviso vai para o Discord/Telegram. O painel consulta o GitHub uma vez por dia. <b>Clique no selo</b> para ver os comandos de atualização prontos, já com os dados da sua instalação e um botão para copiar.<br>Licença MIT. Projeto independente, não afiliado à MikroTik.</p>
           </div>
 
           <div id="help-problems" class="card space-y-3">
@@ -1333,7 +1336,7 @@
 <!-- ===================== MODAIS ===================== -->
 <div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start md:items-center justify-center p-4 overflow-y-auto"
      @keydown.escape.window="modal = null" @mousedown.self="if (modal !== 'setup') modal = null">
-  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="['diff', 'console'].includes(modal) ? 'max-w-4xl' : 'max-w-xl'">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="['diff', 'console', 'update'].includes(modal) ? 'max-w-4xl' : 'max-w-xl'">
 
     <!-- O que mudou entre dois backups automáticos -->
     <template x-if="modal === 'diff'">
@@ -1557,6 +1560,45 @@
           <button class="btn" x-show="script.text" @click="copyScript()">📋 Copiar</button>
           <a class="btn" x-show="script.text" :href="configUrl(script.peer, 'remote')">⬇️ Baixar .rsc</a>
           <button class="btn-primary" @click="modal = null">Concluir</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Update guide -->
+    <template x-if="modal === 'update'">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">📋 Como atualizar o painel
+          <span class="badge b-amber ml-1" x-show="upd?.latest" x-text="'v' + upd?.current + ' → v' + upd?.latest"></span></h2>
+        <div x-show="!upd" class="text-sm text-slate-400">Carregando…</div>
+        <div x-show="upd?.error" class="text-sm text-red-300 bg-red-950/40 border border-red-900 rounded-lg p-3" x-text="upd?.error"></div>
+        <template x-if="upd && !upd.error">
+          <div class="space-y-4">
+            <p class="text-sm text-emerald-300" x-show="!upd.latest" x-text="t('Você já está na versão mais nova (v{version}). Os comandos abaixo servem para reinstalar esta mesma versão.', { version: upd.current })"></p>
+            <p class="text-sm text-slate-300" x-text="upd.install === 'mikrotik' ? t('Este painel roda num container dentro do MikroTik. Os comandos já usam a configuração do seu container.') : upd.install === 'docker' ? t('Este painel roda no Docker (PC ou servidor).') : t('Este painel roda direto do código-fonte (sem Docker).')"></p>
+            <template x-for="(s, i) in upd.steps" :key="i">
+              <div class="rounded-lg border border-slate-800 p-3 space-y-2">
+                <div class="font-medium text-white text-sm" x-text="s.title"></div>
+                <p class="text-sm text-slate-400" x-show="s.text" x-text="s.text"></p>
+                <a class="btn" x-show="s.link" :href="s.link" target="_blank" rel="noopener">⬇️ Baixar</a>
+                <template x-if="s.commands">
+                  <div class="space-y-1">
+                    <template x-for="(c, j) in s.commands" :key="j">
+                      <div class="flex items-start gap-2">
+                        <pre class="mono text-xs bg-black/60 border border-slate-800 rounded-md px-3 py-2 flex-1 whitespace-pre-wrap break-all" x-text="c"></pre>
+                        <button type="button" class="btn !px-3" @click="copyText(c)" title="Copiar">📋</button>
+                      </div>
+                    </template>
+                    <button type="button" class="btn" x-show="s.commands.length > 1" @click="copyText(s.commands.join('
+'))">📋 Copiar todos</button>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+        <div class="flex flex-wrap justify-between gap-2">
+          <a class="btn" :href="upd?.release_url" target="_blank" rel="noopener" x-show="upd?.release_url">📰 O que mudou nesta versão</a>
+          <button class="btn-primary ml-auto" @click="modal = null">Fechar</button>
         </div>
       </div>
     </template>
