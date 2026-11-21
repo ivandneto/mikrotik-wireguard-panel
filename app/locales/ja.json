@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. 古いコンテナーを停止して削除",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "この 1 行を Winbox のターミナルに貼り付けます。パネルを停止し、完全に止まるまで待ち（最大 2 分）、古いコンテナーと古い .tar を削除し、最後に OK と表示します。パネルのデータは消えません。",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step.",
+ "A verificação em 2 etapas já está ativada": "2段階認証はすでにオンです",
+ "Senha atual incorreta": "現在のパスワードが違います",
+ "A verificação em 2 etapas não está ativada": "2段階認証はオンになっていません",
+ "com código de recuperação ({left} restantes)": "リカバリーコードで（残り {left}）",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "自分のアカウントはサイドメニューの 🔐 2段階ログイン を使ってください",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "コードが無効か期限切れです。スマホの時刻を確認し、新しいコードを入力してください。",
+ "verificação em 2 etapas desativada para outro usuário": "他のユーザーの2段階認証をオフ",
+ "verificação em 2 etapas ativada": "2段階認証をオン",
+ "verificação em 2 etapas desativada": "2段階認証をオフ",
+ "novos códigos de recuperação gerados": "新しいリカバリーコードを作成"
 }

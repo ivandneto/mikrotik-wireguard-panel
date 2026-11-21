@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. Stop and remove the old container",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Paste this line in the Winbox Terminal. It stops the panel, waits until it is really stopped (up to 2 minutes), removes the old container and the old .tar file, and prints OK at the end. The panel's data is not erased.",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step.",
+ "A verificação em 2 etapas já está ativada": "Two-step login is already on",
+ "Senha atual incorreta": "Current password is wrong",
+ "A verificação em 2 etapas não está ativada": "Two-step login is not on",
+ "com código de recuperação ({left} restantes)": "with a recovery code ({left} left)",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "For your own account, use 🔐 Two-step login in the side menu",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "Invalid or expired code. Check your phone's clock and try the new code.",
+ "verificação em 2 etapas desativada para outro usuário": "two-step login turned off for another user",
+ "verificação em 2 etapas ativada": "two-step login turned on",
+ "verificação em 2 etapas desativada": "two-step login turned off",
+ "novos códigos de recuperação gerados": "new recovery codes created"
 }

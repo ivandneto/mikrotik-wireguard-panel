@@ -64,6 +64,7 @@
         </select>
       </label>
       <button class="nav-item" @click="changeMyPassword()">🔑 Trocar senha</button>
+      <button class="nav-item" @click="openTwoFactor()">🔐 <span>Login em 2 etapas</span><span class="badge b-green ml-auto" x-show="me?.totp">ON</span></button>
       <button class="nav-item" @click="logout()">🚪 Sair</button>
     </div>
   </aside>
@@ -591,7 +592,7 @@
         <div class="flex"><button class="btn-primary ml-auto" @click="newUser()">＋ Novo usuário</button></div>
         <div class="card p-0 overflow-x-auto">
           <table class="table">
-            <thead><tr><th>Usuário</th><th>Permissão</th><th>Criado em</th><th class="text-right">Ações</th></tr></thead>
+            <thead><tr><th>Usuário</th><th>Permissão</th><th>2 etapas</th><th>Criado em</th><th class="text-right">Ações</th></tr></thead>
             <tbody>
               <template x-for="u in users" :key="u.id">
                 <tr>
@@ -601,8 +602,10 @@
                       <option value="admin">Administrador</option><option value="viewer">Somente leitura</option>
                     </select>
                   </td>
+                  <td><span class="badge" :class="u.totp ? 'b-green' : 'b-gray'" x-text="u.totp ? '🔐 ' + t('ativada') : t('não')"></span></td>
                   <td x-text="fmtDate(u.created_at)"></td>
                   <td class="text-right">
+                    <button class="btn-ghost" x-show="u.totp && u.id !== me.id" @click="resetUserTwoFactor(u)" title="Desativar a verificação em 2 etapas (celular perdido)">🔓 2 etapas</button>
                     <button class="btn-ghost" @click="resetPassword(u)">🔑 Senha</button>
                     <button class="btn-ghost" x-show="u.id !== me.id" @click="deleteUser(u)">🗑️</button>
                   </td>
@@ -1012,6 +1015,7 @@
               <li class="flex gap-2"><span>⬜</span><span><b>Ativar alertas</b> — em <a @click="tab='alerts'">Alertas</a>, configure o Discord e/ou Telegram e clique em "Salvar e enviar teste".</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Fazer um backup</b> — em <a @click="tab='backup'">Backup</a> → Baixar backup, e guarde em local seguro.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Trocar a senha do admin</b> — menu lateral → 🔑 Trocar senha.</span></li>
+              <li class="flex gap-2"><span x-text="me?.totp ? '✅' : '⬜'"></span><span><b>Ligar o login em 2 etapas</b> (recomendado) — menu lateral → 🔐 Login em 2 etapas.</span></li>
               <li class="flex gap-2"><span>⬜</span><span><b>Garantir que o painel não está na internet</b> — siga <a @click="scrollHelp('security')">🔒 Segurança</a> e faça o teste pelo 4G.</span></li>
             </ol>
             <p class="hint">Opcional: <a @click="scrollHelp('site')">ligar MikroTiks de clientes</a> ao seu (site-to-site) e <a @click="scrollHelp('routers')">gerenciá-los pelo painel</a>, e <a @click="tab='nat'">liberar portas</a> para servidores de jogos/aplicações.</p>
@@ -1046,6 +1050,7 @@
             <p>Se o item 1 abrir o painel, ele está exposto: revise a liberação de portas imediatamente.</p>
             <h3>Outras boas práticas</h3>
             <ul>
+              <li><b>Login em 2 etapas</b> (menu lateral → 🔐): mesmo que alguém descubra a senha, não entra sem o celular. Veja <a @click="scrollHelp('users')">👥 Usuários</a>.</li>
               <li>Senha forte no <span class="mono">admin</span> do painel e usuários "Somente leitura" para quem só acompanha.</li>
               <li>No MikroTik, o painel usa o usuário <span class="mono">wgpanel</span> limitado — <b>nunca</b> o admin. Restrinja a API (IP → Services) às redes de onde o painel acessa.</li>
               <li>Guarde com cuidado o <span class="mono">.env</span>, a pasta <span class="mono">data/</span> e os backups: contêm senhas e as chaves da VPN.</li>
@@ -1282,6 +1287,14 @@
               <li><b>Somente leitura</b> — vê status, gráficos e eventos, mas não altera nada nem vê QR codes/chaves. Ideal para quem só precisa acompanhar.</li>
             </ul>
             <p>Estes usuários são só do painel — não têm relação com os usuários do MikroTik.</p>
+            <h3>🔐 Login em 2 etapas</h3>
+            <p>Cada usuário liga na própria conta: menu lateral → <b>🔐 Login em 2 etapas</b>. Além da senha, o login passa a pedir o código de 6 dígitos de um app autenticador no celular (Google Authenticator, Microsoft Authenticator, Authy…). Ao ativar, o painel mostra <b>8 códigos de recuperação</b>: cada um vale uma vez, no lugar do código do app — baixe e guarde fora do computador.</p>
+            <ul>
+              <li><b>Código recusado?</b> Ele muda a cada 30 segundos. Confira se o relógio do celular está no automático e use o código novo.</li>
+              <li><b>Perdeu o celular?</b> Entre com um código de recuperação e, em 🔐 Login em 2 etapas, desative e configure de novo. Ou peça a um administrador: na tabela de usuários, <b>🔓 2 etapas</b> desativa para a pessoa entrar só com a senha.</li>
+              <li><b>Último recurso</b> (sem celular, sem códigos e sem outro admin): no terminal onde o painel roda. Docker: <span class="mono">docker exec -it wgpanel python -m app.reset_2fa admin</span>. Container no MikroTik: <span class="mono">/container shell wgpanel</span> e depois <span class="mono">cd /app &amp;&amp; python -m app.reset_2fa admin</span>.</li>
+              <li>Ligar ou desligar o login em 2 etapas desconecta as outras sessões abertas dessa conta.</li>
+            </ul>
           </div>
 
           <div id="help-backup" class="card space-y-3">
@@ -1392,9 +1405,9 @@
 </div>
 
 <!-- ===================== MODAIS ===================== -->
-<div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start md:items-center justify-center p-4 overflow-y-auto"
+<div x-show="modal" class="fixed inset-0 z-40 bg-black/70 flex items-start justify-center p-4 overflow-y-auto"
      @keydown.escape.window="modal = null" @mousedown.self="if (modal !== 'setup') modal = null">
-  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-8" :class="['diff', 'console', 'update'].includes(modal) ? 'max-w-4xl' : 'max-w-xl'">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full shadow-2xl my-4 md:my-auto" :class="['diff', 'console', 'update'].includes(modal) ? 'max-w-4xl' : 'max-w-xl'">
 
     <!-- O que mudou entre dois backups automáticos -->
     <template x-if="modal === 'diff'">
@@ -1619,6 +1632,76 @@
           <a class="btn" x-show="script.text" :href="configUrl(script.peer, 'remote')">⬇️ Baixar .rsc</a>
           <button class="btn-primary" @click="modal = null">Concluir</button>
         </div>
+      </div>
+    </template>
+
+    <!-- Two-step login -->
+    <template x-if="modal === 'twofa'">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-white">🔐 Verificação em 2 etapas</h2>
+        <div x-show="!twofa.step" class="text-sm text-slate-400">Carregando…</div>
+
+        <template x-if="twofa.step === 'start'">
+          <form class="space-y-3" @submit.prevent="twofaSetup()">
+            <p class="text-sm text-slate-300">Além da senha, o login passa a pedir um <b>código de 6 dígitos</b> que muda a cada 30 segundos, gerado por um app no seu celular: <b>Google Authenticator</b>, <b>Microsoft Authenticator</b>, <b>Authy</b> ou parecido. Mesmo que alguém descubra a sua senha, não entra sem o celular.</p>
+            <label class="block"><span class="label">Sua senha atual</span>
+              <input class="input" type="password" x-model="twofa.password" autocomplete="current-password" required></label>
+            <div class="flex justify-end gap-2"><button type="button" class="btn" @click="modal = null">Cancelar</button>
+              <button class="btn-primary" :disabled="busy || !twofa.password">Continuar</button></div>
+          </form>
+        </template>
+
+        <template x-if="twofa.step === 'scan'">
+          <form class="space-y-3" @submit.prevent="twofaEnable()">
+            <ol class="text-sm text-slate-300 space-y-1 list-decimal pl-5">
+              <li>Abra o app autenticador no celular e toque em <b>＋</b> (adicionar conta).</li>
+              <li>Escaneie o QR Code abaixo. Não consegue? Digite a chave à mão.</li>
+              <li>Digite o código de 6 dígitos que o app mostrar.</li>
+            </ol>
+            <div class="qr max-w-[14rem] mx-auto" x-html="twofa.setup?.qr_svg"></div>
+            <div class="text-center"><span class="hint">Chave:</span> <span class="mono text-sm text-slate-200 break-all" x-text="twofa.setup?.secret"></span>
+              <button type="button" class="btn-ghost text-xs" @click="copyText(twofa.setup?.secret)">📋</button></div>
+            <label class="block"><span class="label">Código de 6 dígitos</span>
+              <input id="twofa-code" class="input mono text-center text-lg tracking-widest" x-model="twofa.code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required></label>
+            <div class="flex justify-end gap-2"><button type="button" class="btn" @click="modal = null">Cancelar</button>
+              <button class="btn-primary" :disabled="busy || twofa.code.length < 6">Ativar</button></div>
+          </form>
+        </template>
+
+        <template x-if="twofa.step === 'codes'">
+          <div class="space-y-3">
+            <p class="text-sm text-emerald-300">✅ Pronto! Guarde agora os <b>códigos de recuperação</b>.</p>
+            <p class="text-sm text-slate-300">Se perder o celular, entre com um destes códigos no lugar do código do app. <b>Cada um vale uma vez.</b> Eles só aparecem agora: baixe ou anote e guarde fora do computador.</p>
+            <div class="grid grid-cols-2 gap-2 mono text-center bg-black/60 border border-slate-800 rounded-lg p-3">
+              <template x-for="c in twofa.codes" :key="c"><div class="text-slate-100" x-text="c"></div></template>
+            </div>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button class="btn" @click="copyText(twofa.codes.join('\n'))">📋 Copiar</button>
+              <button class="btn" @click="downloadRecoveryCodes()">⬇️ Baixar .txt</button>
+              <button class="btn-primary" @click="modal = null">Já guardei</button>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="twofa.step === 'manage'">
+          <div class="space-y-3">
+            <p class="text-sm text-emerald-300">🔐 A verificação em 2 etapas está <b>ativada</b> na sua conta.</p>
+            <p class="text-sm" :class="twofa.status?.recovery_left > 2 ? 'text-slate-400' : 'text-amber-300'"
+               x-text="t('Códigos de recuperação restantes: {n} de 8', { n: twofa.status?.recovery_left })"></p>
+            <p class="hint">Para desativar ou gerar códigos de recuperação novos, confirme com a senha e um código do app (ou um código de recuperação).</p>
+            <div class="grid sm:grid-cols-2 gap-3">
+              <label class="block"><span class="label">Sua senha atual</span>
+                <input class="input" type="password" x-model="twofa.password" autocomplete="current-password"></label>
+              <label class="block"><span class="label">Código do app</span>
+                <input class="input mono text-center tracking-widest" x-model="twofa.code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="000000"></label>
+            </div>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button class="btn" @click="twofaNewCodes()" :disabled="busy || !twofa.password || !twofa.code">🔄 Novos códigos de recuperação</button>
+              <button class="btn-danger" @click="twofaDisable()" :disabled="busy || !twofa.password || !twofa.code">Desativar</button>
+              <button class="btn" @click="modal = null">Fechar</button>
+            </div>
+          </div>
+        </template>
       </div>
     </template>
 

@@ -23,7 +23,8 @@ class UserUpdate(BaseModel):
 
 
 def _out(u: User) -> dict:
-    return {"id": u.id, "username": u.username, "role": u.role, "created_at": iso(u.created_at)}
+    return {"id": u.id, "username": u.username, "role": u.role, "created_at": iso(u.created_at),
+            "totp": bool(u.totp_enabled)}
 
 
 def _ensure_other_admin(db: Session, user: User):
@@ -75,3 +76,19 @@ def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session 
     db.commit()
     audit(db, admin.username, "usuário removido", user.username)
     return {"ok": True}
+
+
+@router.post("/{user_id}/2fa/reset")
+def reset_two_factor(user_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Turns off another user's two-step login (lost phone). They log in with the password and can set it up again."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, tr("Usuário não encontrado"))
+    if user.id == admin.id:
+        raise HTTPException(400, tr("Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral"))
+    user.totp_enabled = False
+    user.totp_secret_enc = ""
+    user.recovery_codes_json = "[]"
+    db.commit()  # their open sessions end; they log in with the password only from now on
+    audit(db, admin.username, "verificação em 2 etapas desativada para outro usuário", user.username)
+    return _out(user)

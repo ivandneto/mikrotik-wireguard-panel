@@ -129,6 +129,7 @@ function panel() {
     qr: { peer: null, endpoint: 'remote', svg: '', error: '', notice: '' },
     term: { lines: [], input: '', history: [], idx: -1, busy: false },
     upd: null,
+    twofa: { status: null, step: '', password: '', code: '', setup: null, codes: null },
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
     wol: { data: null, adding: false, pick: '', form: { name: '', mac: '', interface: '', ip: '' }, status: {} },
     sec: { findings: null, update: null, loading: false },
@@ -204,7 +205,7 @@ function panel() {
       { tab: 'events', sel: 'sec-events', title: t('🔔 Eventos'), text: t('Linha do tempo de tudo que aconteceu, com cores por gravidade.') },
       { tab: 'alerts', sel: 'sec-alerts', admin: true, title: t('📣 Alertas'), text: t('Receba avisos no <b>Discord</b> e/ou <b>Telegram</b>: cliente conectou/caiu, servidor fora do ar, MikroTik offline… Valem para todos os roteadores, e cada aviso diz de qual é (ex.: <span class="mono">[Padaria]</span>). Use "Salvar e enviar teste".') },
       { tab: 'security', sel: 'sec-security', admin: true, title: t('🛡️ Checagem de segurança'), text: t('Confere o roteador escolhido: port forward para o painel, firewall de entrada, serviços abertos para a internet, usuário <b>admin</b> padrão e <b>atualização do RouterOS</b> — com o comando para corrigir cada item. Só lê, não muda nada.') },
-      { tab: 'users', sel: 'sec-users', admin: true, title: t('👥 Usuários'), text: t('Crie acessos para outras pessoas: <b>Administrador</b> (pode tudo) ou <b>Somente leitura</b> (só acompanha).') },
+      { tab: 'users', sel: 'sec-users', admin: true, title: t('👥 Usuários'), text: t('Crie acessos para outras pessoas: <b>Administrador</b> (pode tudo) ou <b>Somente leitura</b> (só acompanha). Na sua conta, ligue o <b>🔐 Login em 2 etapas</b> no menu lateral: sem o código do celular, a senha sozinha não entra.') },
       { tab: 'backup', sel: 'sec-backup', admin: true, title: t('💾 Backup'), text: t('Baixe uma cópia de tudo do painel e crie backups do MikroTik escolhido. Os <b>backups automáticos</b> conferem a cada 10 minutos se o painel ou a configuração de cada MikroTik mudou e guardam uma cópia só quando muda — com <b>🔍 O que mudou</b> para comparar — e podem ir para um canal de backup no Discord/Telegram.') },
       { tab: 'settings', sel: 'sec-settings', admin: true, title: t('⚙️ Configurações'), text: t('Itens marcados com <b>🖧</b> são do roteador escolhido (DDNS, NAT, WAN); o resto vale para o painel todo — como a opção de <b>guardar as chaves dos clientes no MikroTik</b>, para importar com QR Code em qualquer painel.') },
       { tab: 'audit', sel: 'sec-audit', admin: true, title: t('📜 Auditoria'), text: t('Registro de quem fez o quê e quando no painel.') },
@@ -1048,6 +1049,58 @@ function panel() {
     async deleteUser(u) {
       if (!confirm(t('Remover o usuário {user}?', { user: u.username }))) return;
       await this.run(() => api('DELETE', `/api/users/${u.id}`), t('Usuário removido'));
+      this.users = await api('GET', '/api/users');
+    },
+    // ---------- two-step login (TOTP) ----------
+    async openTwoFactor() {
+      this.twofa = { status: null, step: '', password: '', code: '', setup: null, codes: null };
+      this.modal = 'twofa';
+      this.twofa.status = await api('GET', '/api/auth/2fa').catch(() => ({ enabled: false, recovery_left: 0 }));
+      this.twofa.step = this.twofa.status.enabled ? 'manage' : 'start';
+    },
+    async twofaSetup() {
+      const r = await this.run(() => api('POST', '/api/auth/2fa/setup', { password: this.twofa.password })).catch(() => null);
+      if (!r) return;
+      this.twofa.setup = r;
+      this.twofa.password = '';
+      this.twofa.step = 'scan';
+      this.$nextTick(() => document.getElementById('twofa-code')?.focus());
+    },
+    async twofaEnable() {
+      const r = await this.run(() => api('POST', '/api/auth/2fa/enable', { code: this.twofa.code })).catch(() => null);
+      if (!r) return;
+      this.twofa.codes = r.recovery_codes;
+      this.twofa.code = '';
+      this.twofa.step = 'codes';
+      this.me = await api('GET', '/api/auth/me').catch(() => this.me);
+    },
+    async twofaDisable() {
+      if (!confirm(t('Desativar a verificação em 2 etapas? Sua conta volta a entrar só com a senha.'))) return;
+      const r = await this.run(() => api('POST', '/api/auth/2fa/disable', { password: this.twofa.password, code: this.twofa.code }),
+        t('Verificação em 2 etapas desativada')).catch(() => null);
+      if (!r) return;
+      this.modal = null;
+      this.me = await api('GET', '/api/auth/me').catch(() => this.me);
+    },
+    async twofaNewCodes() {
+      const r = await this.run(() => api('POST', '/api/auth/2fa/recovery', { password: this.twofa.password, code: this.twofa.code })).catch(() => null);
+      if (!r) return;
+      this.twofa.codes = r.recovery_codes;
+      this.twofa.password = this.twofa.code = '';
+      this.twofa.step = 'codes';
+    },
+    downloadRecoveryCodes() {
+      const text = t('Códigos de recuperação do WG Panel ({user}). Cada um vale uma vez.', { user: this.me?.username || '' })
+        + '\n\n' + this.twofa.codes.join('\n') + '\n';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      a.download = 'wgpanel-codigos-de-recuperacao.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    async resetUserTwoFactor(u) {
+      if (!confirm(t('Desativar a verificação em 2 etapas de {user}? Use quando a pessoa perdeu o celular: ela entra só com a senha e configura de novo.', { user: u.username }))) return;
+      await this.run(() => api('POST', `/api/users/${u.id}/2fa/reset`), t('Verificação em 2 etapas desativada')).catch(() => null);
       this.users = await api('GET', '/api/users');
     },
     changeMyPassword() { this.form = { current_password: '', new_password: '' }; this.modal = 'password'; },

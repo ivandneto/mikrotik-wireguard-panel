@@ -204,5 +204,15 @@
  "2. Parar e apagar o container antigo": "2. Detener y borrar el contenedor antiguo",
  "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Pega esta línea en la Terminal de Winbox. Detiene el panel, espera a que se apague de verdad (hasta 2 minutos), borra el contenedor antiguo y el archivo .tar antiguo, y escribe OK al final. Los datos del panel no se borran.",
  "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "El contenedor sigue en marcha: espera un poco y vuelve a pegar esta línea.",
- "OK: container antigo removido. Siga para o próximo passo.": "OK: contenedor antiguo borrado. Sigue con el próximo paso."
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: contenedor antiguo borrado. Sigue con el próximo paso.",
+ "A verificação em 2 etapas já está ativada": "La verificación en 2 pasos ya está activada",
+ "Senha atual incorreta": "Contraseña actual incorrecta",
+ "A verificação em 2 etapas não está ativada": "La verificación en 2 pasos no está activada",
+ "com código de recuperação ({left} restantes)": "con código de recuperación ({left} restantes)",
+ "Para a sua própria conta, use 🔐 Login em 2 etapas no menu lateral": "Para tu propia cuenta, usa 🔐 Inicio en 2 pasos en el menú lateral",
+ "Código inválido ou vencido. Confira o relógio do celular e tente o código novo.": "Código inválido o vencido. Revisa el reloj del móvil y prueba el código nuevo.",
+ "verificação em 2 etapas desativada para outro usuário": "verificación en 2 pasos desactivada para otro usuario",
+ "verificação em 2 etapas ativada": "verificación en 2 pasos activada",
+ "verificação em 2 etapas desativada": "verificación en 2 pasos desactivada",
+ "novos códigos de recuperação gerados": "nuevos códigos de recuperación generados"
 }

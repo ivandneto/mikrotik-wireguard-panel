@@ -94,6 +94,7 @@
 | 🌐 **9 idiomas** | Português (Brasil), English, Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — telas, tour, manual, erros e alertas. Segue o idioma do navegador; troque na tela de login, no menu lateral ou em Configurações |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline, atualização do RouterOS disponível, configuração mudou — no idioma que você escolher |
 | 👥 **Usuários** | Vários usuários: **administrador** ou **somente leitura** |
+| 🔐 **Login em 2 etapas** | Opcional por usuário: além da senha, um código de 6 dígitos de um app autenticador (Google Authenticator, Microsoft Authenticator, Authy…), com 8 **códigos de recuperação** de uso único. Um admin pode desativar para quem perdeu o celular |
 | 💾 **Backup** | **Backup automático do painel** (confere a cada 10 min, salva só quando muda), protegido por senha e enviado a um **canal de backup no Discord/Telegram** junto com o de cada MikroTik, para sobreviver à perda do pendrive; exporta/importa tudo do painel (JSON), cria backup `.backup`/`.rsc` dentro do MikroTik e faz **backup automático** da configuração de cada MikroTik (mudanças pegas em até 10 minutos), guardando **só quando algo mudou**, com o **O que mudou** para comparar |
 | 📜 **Auditoria** | Registro de quem criou, alterou ou removeu o quê, e quando |
 
@@ -353,6 +354,7 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 | Porta liberada não funciona | IP do servidor mudou (faça o lease estático), firewall do Windows do servidor bloqueando, ou CGNAT |
 | "Ausente no MikroTik" | Alguém apagou a regra/peer direto no Winbox; clique em 🔁 **Recriar** |
 | Container: o roteador Principal aparece como `http://192.168.88.1` | As variáveis do container sumiram ou não foram lidas. Veja [O pendrive morreu](#o-pendrive-morreu-ou-o-painel-sumiu-reinstalar-o-container) |
+| "Código inválido ou vencido" no login (2 etapas) | O relógio do celular está errado (deixe no automático) ou o código já foi usado; espere o próximo. Perdeu o celular: use um código de recuperação, peça a outro admin (Usuários → 🔓 2 etapas) ou, em último caso, rode `python -m app.reset_2fa <usuário>` onde o painel roda (veja [SECURITY.pt-BR.md](SECURITY.pt-BR.md#5-outras-boas-práticas)) |
 | Container: "Usuário ou senha inválidos" no login do painel | O usuário do painel é `admin`, não `wgpanel` (esse é o do MikroTik). O `ADMIN_PASSWORD` só vale quando a pasta de dados está vazia |
 
 ---
@@ -500,6 +502,8 @@ app/
   services/panel_export.py # monta o backup do painel e protege com a senha de backup
   services/panel_backup.py # backup automático do painel e envio ao canal de backup (Discord/Telegram)
   services/update_guide.py # comandos de atualização prontos para esta instalação
+  services/totp.py        # login em 2 etapas: códigos de 6 dígitos do app (TOTP) e códigos de recuperação
+  reset_2fa.py            # último recurso: python -m app.reset_2fa <usuário> desliga o login em 2 etapas
   i18n.py + locales/      # mensagens do servidor em cada idioma
 static/                   # interface web (Alpine.js + Tailwind + Chart.js)
   i18n.js + i18n/         # traduções das telas, do tour e do manual (um arquivo por idioma)
@@ -527,7 +531,7 @@ mikrotik-setup.rsc        # preparação do roteador
 3. **Container no MikroTik:** adicione a regra que só deixa a LAN e a VPN chegarem em `172.20.0.2:8080` (comandos no SECURITY.pt-BR.md, item 3).
 4. **Teste:** no celular, só com 4G e **sem VPN**, abra `http://SEU-DDNS:8080` — **não pode abrir**. Ligue a VPN e abra pelo IP interno — **deve abrir**.
 
-Também: senha forte no `admin` do painel, usuário `wgpanel` limitado no MikroTik (nunca o admin), API do MikroTik restrita às suas redes e cuidado com `.env`, `data/` e backups. Falhas de segurança: relate em privado (veja SECURITY.pt-BR.md).
+Também: senha forte no `admin` do painel com o **🔐 login em 2 etapas** ligado, usuário `wgpanel` limitado no MikroTik (nunca o admin), API do MikroTik restrita às suas redes e cuidado com `.env`, `data/` e backups. Falhas de segurança: relate em privado (veja SECURITY.pt-BR.md).
 
 ## 💬 Ideias, dúvidas e contribuições
 
