@@ -196,5 +196,13 @@
  "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ R が消えてから実行してください。コンテナーがまだ動いていると MikroTik は削除を拒否し、手順 5 で「root-dir overlap」エラーになります。/container print で {name} が一覧から消えたことを確認してください。",
  "4. Enviar o arquivo novo": "4. 新しいファイルをアップロード",
  "5. Criar e ligar o container": "5. コンテナーを作成して起動",
- "6. Conferir": "6. 確認"
+ "6. Conferir": "6. 確認",
+ "MAC inválido. Exemplo: AA:BB:CC:11:22:33": "MAC が正しくありません。例：AA:BB:CC:11:22:33",
+ "Esse computador (MAC {mac}) já está na lista": "このパソコン（MAC {mac}）はすでにリストにあります",
+ "Computador não encontrado neste roteador": "このルーターにパソコンが見つかりません",
+ "O usuário do painel no MikroTik não tem permissão para o Wake-on-LAN. Use o 🌐 WebFig ou dê ao grupo wgpanel a política 'test'.": "MikroTik 上のパネルのユーザーには Wake-on-LAN の権限がありません。🌐 WebFig を使うか、wgpanel グループに 'test' ポリシーを付けてください。",
+ "2. Parar e apagar o container antigo": "2. 古いコンテナーを停止して削除",
+ "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "この 1 行を Winbox のターミナルに貼り付けます。パネルを停止し、完全に止まるまで待ち（最大 2 分）、古いコンテナーと古い .tar を削除し、最後に OK と表示します。パネルのデータは消えません。",
+ "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "The container is still running: wait a moment and paste this line again.",
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: old container removed. Go on to the next step."
 }

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from sqlalchemy.orm import Session
 
-from ..db import NatRule, Peer, Router, User, WgInterface, iso, utcnow
+from ..db import NatRule, Peer, Router, User, WgInterface, WolDevice, iso, utcnow
 from ..security import decrypt
 from ..settings_store import get_settings
 
@@ -67,6 +67,8 @@ def build_export(db: Session, include_alert_secrets: bool = True) -> dict:
         } for r in db.query(NatRule).all()],
         "users": [{"username": u.username, "password_hash": u.password_hash, "role": u.role}
                   for u in db.query(User).all()],
+        "wol_devices": [{"router": router_name.get(d.router_id, ""), "name": d.name, "mac": d.mac,
+                         "interface": d.interface, "ip": d.ip} for d in db.query(WolDevice).all()],
     }
 
 

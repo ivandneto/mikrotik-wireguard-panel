@@ -1,5 +1,5 @@
 """Operações sobre os registros de roteadores (sem tocar no MikroTik remoto)."""
-from ..db import NatRule, NatSample, Peer, PeerSample, Router, SystemSample, WgInterface
+from ..db import NatRule, NatSample, Peer, PeerSample, Router, SystemSample, WgInterface, WolDevice
 from ..mikrotik import forget_client
 from . import auto_tasks, collector
 
@@ -18,6 +18,7 @@ def delete_router_records(db, router: Router):
         collector.forget("nat", rule.id)
         db.delete(rule)
     db.query(SystemSample).filter(SystemSample.router_id == router.id).delete()
+    db.query(WolDevice).filter(WolDevice.router_id == router.id).delete()
     collector.state["routers"].pop(router.id, None)
     auto_tasks.delete_router_backups(router.id)
     forget_client(router.id)

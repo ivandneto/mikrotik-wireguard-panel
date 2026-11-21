@@ -130,6 +130,7 @@ function panel() {
     term: { lines: [], input: '', history: [], idx: -1, busy: false },
     upd: null,
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
+    wol: { data: null, adding: false, pick: '', form: { name: '', mac: '', interface: '', ip: '' }, status: {} },
     sec: { findings: null, update: null, loading: false },
     autoBk: null,
     panelBk: null,
@@ -374,6 +375,7 @@ function panel() {
       if (t === 'routers') this.loadRouters();
       if (t === 'security') this.loadSecurity();
       if (t === 'backup') { this.loadAutoBackups(); this.loadPanelBackup(); }
+      if (t === 'tools' && this.isAdmin) this.loadWol();
     },
 
     async refreshLive() {
@@ -412,6 +414,8 @@ function panel() {
       this.tools.ping = this.tools.trace = null;
       this.sec.findings = null;
       this.autoBk = null;
+      this.wol.data = null;
+      this.wol.status = {};
       await Promise.all([this.loadOverview(), this.loadPeers(), this.loadRules(), this.loadWg()]);
       this.onTab(this.tab);
       this.toast(t('Roteador: {name}', { name: this.curRouter?.name || '' }));
@@ -444,6 +448,46 @@ function panel() {
       await this.run(() => api('DELETE', `/api/routers/${r.id}`), t('Roteador removido do painel'));
       if (this.routerId === r.id) await this.switchRouter(this.routerList.find(x => x.is_main)?.id);
       await Promise.all([this.loadRouters(), this.loadOverview()]);
+    },
+    // ---------- Wake-on-LAN ----------
+    async loadWol() {
+      this.wol.data = await api('GET', '/api/tools/wol').catch(e => ({ devices: [], candidates: [], interfaces: [], error: e.message }));
+    },
+    newWol() {
+      this.wol.form = { name: '', mac: '', interface: this.wol.data?.interfaces?.[0] || '', ip: '' };
+      this.wol.pick = '';
+      this.wol.adding = true;
+    },
+    pickWol() {
+      const c = (this.wol.data?.candidates || []).find(x => x.mac === this.wol.pick);
+      if (!c) return;
+      this.wol.form = { name: this.wol.form.name || c.name, mac: c.mac, interface: c.interface || this.wol.form.interface, ip: c.ip };
+    },
+    async saveWol() {
+      const r = await this.run(() => api('POST', '/api/tools/wol/devices', this.wol.form), t('Computador salvo')).catch(() => null);
+      if (!r) return;
+      this.wol.adding = false;
+      this.loadWol();
+    },
+    async deleteWol(d) {
+      if (!confirm(t('Tirar "{name}" da lista do Wake-on-LAN?', { name: d.name }))) return;
+      await this.run(() => api('DELETE', `/api/tools/wol/devices/${d.id}`)).catch(() => null);
+      this.loadWol();
+    },
+    async wakeWol(d) {
+      const r = await this.run(() => api('POST', `/api/tools/wol/devices/${d.id}/wake`)).catch(() => null);
+      if (!r) return;
+      if (!d.ip) { this.wol.status[d.id] = { kind: 'sent', text: t('Sinal enviado. Sem IP cadastrado, não dá para conferir se ligou.') }; return; }
+      // a PC takes a while to boot: ping it every 10 s for up to 2 minutes
+      const routerAtStart = this.routerId;
+      for (let i = 1; i <= 12; i++) {
+        this.wol.status[d.id] = { kind: 'wait', text: t('Sinal enviado. Esperando o computador ligar… ({n}/12)', { n: i }) };
+        await new Promise(res => setTimeout(res, 10000));
+        if (this.routerId !== routerAtStart) return;
+        const p = await api('POST', '/api/tools/ping', { address: d.ip, count: 1 }).catch(() => null);
+        if (p && p.received > 0) { this.wol.status[d.id] = { kind: 'up', text: t('🟢 Ligou! Respondeu ao ping.') }; return; }
+      }
+      this.wol.status[d.id] = { kind: 'down', text: t('Não respondeu em 2 minutos. Ele pode demorar mais, estar com o Wake-on-LAN desligado na BIOS ou bloquear ping.') };
     },
     // ---------- update guide (ready-to-paste commands for this installation) ----------
     async openUpdateGuide() {

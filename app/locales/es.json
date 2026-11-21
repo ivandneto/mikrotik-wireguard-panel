@@ -196,5 +196,13 @@
  "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ Solo cuando la R haya desaparecido. Si el contenedor sigue en marcha, el MikroTik rechaza borrarlo y el paso 5 da el error \"root-dir overlap\". Comprueba con /container print que {name} desapareció de la lista.",
  "4. Enviar o arquivo novo": "4. Enviar el archivo nuevo",
  "5. Criar e ligar o container": "5. Crear e iniciar el contenedor",
- "6. Conferir": "6. Comprobar"
+ "6. Conferir": "6. Comprobar",
+ "MAC inválido. Exemplo: AA:BB:CC:11:22:33": "MAC no válida. Ejemplo: AA:BB:CC:11:22:33",
+ "Esse computador (MAC {mac}) já está na lista": "Ese ordenador (MAC {mac}) ya está en la lista",
+ "Computador não encontrado neste roteador": "Ordenador no encontrado en este router",
+ "O usuário do painel no MikroTik não tem permissão para o Wake-on-LAN. Use o 🌐 WebFig ou dê ao grupo wgpanel a política 'test'.": "El usuario del panel en el MikroTik no tiene permiso para Wake-on-LAN. Usa 🌐 WebFig o da al grupo wgpanel la política 'test'.",
+ "2. Parar e apagar o container antigo": "2. Detener y borrar el contenedor antiguo",
+ "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Pega esta línea en la Terminal de Winbox. Detiene el panel, espera a que se apague de verdad (hasta 2 minutos), borra el contenedor antiguo y el archivo .tar antiguo, y escribe OK al final. Los datos del panel no se borran.",
+ "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "El contenedor sigue en marcha: espera un poco y vuelve a pegar esta línea.",
+ "OK: container antigo removido. Siga para o próximo passo.": "OK: contenedor antiguo borrado. Sigue con el próximo paso."
 }

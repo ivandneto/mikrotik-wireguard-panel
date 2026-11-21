@@ -86,6 +86,7 @@
 | 🌐 **WebFig e Terminal** | Botão **🌐 WebFig** em cada roteador (e no topo) abre a página do MikroTik — com o **Terminal** — numa nova aba, com o seu próprio login. Para clientes, funciona pelo túnel |
 | ⌨️ **Console de comandos** | Botão **⌨️ Console** ao lado do WebFig (no topo e em cada roteador): roda comandos no MikroTik e mostra a resposta, sem sair do painel. Usa o usuário limitado `wgpanel`, só administradores usam e cada comando fica na **Auditoria** |
 | 🛠️ **Ferramentas** | **Ping** e **traceroute** feitos pelo próprio MikroTik (o seu ou o de um cliente): ele alcança o cliente da VPN, o servidor, a internet? |
+| 💻 **Wake-on-LAN** | Liga a distância um computador desligado da rede de qualquer MikroTik do painel, para usar pela VPN: escolha o PC na lista do DHCP do roteador, clique em **⚡ Ligar** e o painel confere por ping quando ele ligou |
 | 🛡️ **Checagem de segurança** | Confere em cada roteador os erros mais comuns — port forward para o painel, firewall de entrada ausente, serviços abertos, usuário `admin` padrão, DNS aberto — com o comando para corrigir cada um. Só lê |
 | ⬆️ **Atualização do RouterOS** | Pergunta a cada roteador uma vez por dia se há RouterOS novo, mostra nos cartões dos roteadores e avisa no Discord/Telegram |
 | 🔔 **Versão nova do painel** | Consulta o GitHub uma vez por dia; quando sai versão nova, mostra **⬆️ vX.Y.Z disponível** no menu lateral, um ponto no botão do GitHub e avisa no Discord/Telegram; clicando no selo, mostra os **comandos de atualização prontos** para a sua instalação |
@@ -411,12 +412,9 @@ Acesse **http://172.20.0.2:8080** (só pela rede local ou VPN — adicione a reg
 > 💡 **Mais fácil:** quando aparecer **⬆️ vX.Y.Z disponível** no menu lateral do painel, clique no selo. O painel mostra estes comandos já prontos, com a versão nova e os dados do seu container (pasta, interface, listas, memória), cada um com um botão para copiar.
 
 ```
-/container stop wgpanel
-/container print          # repita até o wgpanel aparecer SEM o R — antes disso o remove é recusado
-/container remove wgpanel
-/file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
+/container stop [find name=wgpanel]; :local n 0; :while ([/container get [find name=wgpanel] running] && $n < 60) do={ :delay 2s; :set n ($n + 1) }; :if ([/container get [find name=wgpanel] running]) do={ :put "O container ainda esta rodando: espere um pouco e cole esta linha de novo." } else={ /container remove [find name=wgpanel]; /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]; :put "OK: container antigo removido. Siga para o proximo passo." }
 ```
-> Se o `/container add` der **"root-dir overlap"**, o container antigo ainda existe (o remove foi feito com ele rodando): pare, espere o R sumir e remova de novo.
+> Essa linha para o painel, **espera ele desligar de verdade** (o `/container stop` volta na hora, mas o container leva alguns segundos para parar — se o `remove` vier antes, o MikroTik recusa e o `/container add` depois dá **"root-dir overlap"**), apaga o container e o `.tar` antigo, e escreve **OK**. Os dados em `usb1/wgpanel/data` não são apagados.
 Arraste o `.tar` novo (ex.: `wgpanel-mikrotik-arm64-v1.3.8.tar`) para o `usb1` e rode o `/container add …` do passo 5 com a versão nova no nome do arquivo e no comentário; depois `/container start wgpanel`. Confira a versão no menu lateral do painel.
 
 > Em RouterOS anterior à 7.20, troque `available-from` por `address`, e `list=`/`envlists=`/`mountlists=` por `name=`/`envlist=`/`mounts=`.

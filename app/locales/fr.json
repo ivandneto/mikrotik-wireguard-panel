@@ -196,5 +196,13 @@
  "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ Seulement quand le R a disparu. Si le conteneur tourne encore, le MikroTik refuse de le supprimer et l'étape 5 échoue avec « root-dir overlap ». Vérifiez avec /container print que {name} a disparu de la liste.",
  "4. Enviar o arquivo novo": "4. Envoyer le nouveau fichier",
  "5. Criar e ligar o container": "5. Créer et démarrer le conteneur",
- "6. Conferir": "6. Vérifier"
+ "6. Conferir": "6. Vérifier",
+ "MAC inválido. Exemplo: AA:BB:CC:11:22:33": "MAC invalide. Exemple : AA:BB:CC:11:22:33",
+ "Esse computador (MAC {mac}) já está na lista": "Cet ordinateur (MAC {mac}) est déjà dans la liste",
+ "Computador não encontrado neste roteador": "Ordinateur introuvable sur ce routeur",
+ "O usuário do painel no MikroTik não tem permissão para o Wake-on-LAN. Use o 🌐 WebFig ou dê ao grupo wgpanel a política 'test'.": "L'utilisateur du panneau sur le MikroTik n'a pas le droit d'utiliser le Wake-on-LAN. Utilisez 🌐 WebFig ou donnez au groupe wgpanel la politique 'test'.",
+ "2. Parar e apagar o container antigo": "2. Arrêter et supprimer l'ancien conteneur",
+ "No Terminal do Winbox, cole esta linha. Ela para o painel, espera ele desligar de verdade (até 2 minutos), apaga o container antigo e o arquivo .tar antigo, e escreve OK no fim. Os dados do painel não são apagados.": "Collez cette ligne dans le Terminal de Winbox. Elle arrête le panneau, attend qu'il soit vraiment arrêté (jusqu'à 2 minutes), supprime l'ancien conteneur et l'ancien fichier .tar, et affiche OK à la fin. Les données du panneau ne sont pas effacées.",
+ "O container ainda está rodando: espere um pouco e cole esta linha de novo.": "Le conteneur tourne encore : attendez un peu et collez cette ligne à nouveau.",
+ "OK: container antigo removido. Siga para o próximo passo.": "OK : ancien conteneur supprimé. Passez à l'étape suivante."
 }

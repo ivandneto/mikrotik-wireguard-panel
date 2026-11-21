@@ -88,6 +88,7 @@
 | 🌐 **WebFig and Terminal** | A **🌐 WebFig** button on each router (and at the top) opens the MikroTik's web page — including the **Terminal** — in a new tab, with your own login. For clients it works through the tunnel |
 | ⌨️ **Command console** | A **⌨️ Console** button next to WebFig (at the top and on each router): runs commands on the MikroTik and shows the output without leaving the panel. Uses the limited `wgpanel` user, admins only, and every command is recorded in the **Audit log** |
 | 🛠️ **Tools** | **Ping** and **traceroute** run by the MikroTik itself (yours or a client's): does it reach the VPN client, the server, the internet? |
+| 💻 **Wake-on-LAN** | Remotely turns on a computer that is off, on any MikroTik's network, so you can use it through the VPN: pick the PC from the router's DHCP list, click **⚡ Wake** and the panel pings to confirm it came on |
 | 🛡️ **Security check** | Checks each router for the usual mistakes — port forward to the panel, missing input firewall, open services, default `admin` user, open DNS — with the command to fix each one. Read-only |
 | ⬆️ **RouterOS updates** | Asks each router once a day whether a new RouterOS is available, shows it on the router cards and notifies on Discord/Telegram |
 | 🔔 **New panel version** | Checks GitHub once a day; when a new version is out, shows **⬆️ vX.Y.Z available** in the side menu, a dot on the GitHub button and a Discord/Telegram notice; clicking the badge shows **ready-to-paste update commands** for your installation |
@@ -411,12 +412,9 @@ Open **http://172.20.0.2:8080** (only from the local network or VPN — add the 
 > 💡 **Easier:** when **⬆️ vX.Y.Z available** shows up in the panel's side menu, click the badge. The panel shows these commands ready to paste, with the new version and your container's details (folder, interface, lists, memory), each with a copy button.
 
 ```
-/container stop wgpanel
-/container print          # repeat until wgpanel shows WITHOUT the R — before that, remove is refused
-/container remove wgpanel
-/file remove [find name~"usb1/wgpanel-mikrotik-arm64"]
+/container stop [find name=wgpanel]; :local n 0; :while ([/container get [find name=wgpanel] running] && $n < 60) do={ :delay 2s; :set n ($n + 1) }; :if ([/container get [find name=wgpanel] running]) do={ :put "The container is still running: wait a moment and paste this line again." } else={ /container remove [find name=wgpanel]; /file remove [find name~"usb1/wgpanel-mikrotik-arm64"]; :put "OK: old container removed. Go on to the next step." }
 ```
-> If `/container add` fails with **"root-dir overlap"**, the old container still exists (it was removed while running): stop it, wait for the R to disappear and remove it again.
+> This line stops the panel, **waits until it is really stopped** (`/container stop` returns right away, but the container takes a few seconds to stop — a `remove` before that is refused, and the later `/container add` then fails with **"root-dir overlap"**), removes the container and the old `.tar`, and prints **OK**. The data in `usb1/wgpanel/data` is not erased.
 Drag the new `.tar` (e.g. `wgpanel-mikrotik-arm64-v1.3.8.tar`) into `usb1` and run the `/container add …` from step 5 with the new version in the file name and comment; then `/container start wgpanel`. Check the version in the panel's sidebar.
 
 > On RouterOS older than 7.20, replace `available-from` with `address`, and `list=`/`envlists=`/`mountlists=` with `name=`/`envlist=`/`mounts=`.
