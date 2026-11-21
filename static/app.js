@@ -131,6 +131,8 @@ function panel() {
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
     sec: { findings: null, update: null, loading: false },
     autoBk: null,
+    panelBk: null,
+    panelBkPassword: '',
     diff: { name: '', lines: [] },
 
     tabs: [
@@ -201,7 +203,7 @@ function panel() {
       { tab: 'alerts', sel: 'sec-alerts', admin: true, title: t('📣 Alertas'), text: t('Receba avisos no <b>Discord</b> e/ou <b>Telegram</b>: cliente conectou/caiu, servidor fora do ar, MikroTik offline… Valem para todos os roteadores, e cada aviso diz de qual é (ex.: <span class="mono">[Padaria]</span>). Use "Salvar e enviar teste".') },
       { tab: 'security', sel: 'sec-security', admin: true, title: t('🛡️ Checagem de segurança'), text: t('Confere o roteador escolhido: port forward para o painel, firewall de entrada, serviços abertos para a internet, usuário <b>admin</b> padrão e <b>atualização do RouterOS</b> — com o comando para corrigir cada item. Só lê, não muda nada.') },
       { tab: 'users', sel: 'sec-users', admin: true, title: t('👥 Usuários'), text: t('Crie acessos para outras pessoas: <b>Administrador</b> (pode tudo) ou <b>Somente leitura</b> (só acompanha).') },
-      { tab: 'backup', sel: 'sec-backup', admin: true, title: t('💾 Backup'), text: t('Baixe uma cópia de tudo do painel e crie backups do MikroTik escolhido. O <b>backup automático</b> exporta a configuração de cada MikroTik todo dia (ou semana) e guarda só quando algo mudou — com <b>🔍 O que mudou</b> para comparar.') },
+      { tab: 'backup', sel: 'sec-backup', admin: true, title: t('💾 Backup'), text: t('Baixe uma cópia de tudo do painel e crie backups do MikroTik escolhido. Os <b>backups automáticos</b> conferem a cada 10 minutos se o painel ou a configuração de cada MikroTik mudou e guardam uma cópia só quando muda — com <b>🔍 O que mudou</b> para comparar — e podem ir para um canal de backup no Discord/Telegram.') },
       { tab: 'settings', sel: 'sec-settings', admin: true, title: t('⚙️ Configurações'), text: t('Itens marcados com <b>🖧</b> são do roteador escolhido (DDNS, NAT, WAN); o resto vale para o painel todo — como a opção de <b>guardar as chaves dos clientes no MikroTik</b>, para importar com QR Code em qualquer painel.') },
       { tab: 'audit', sel: 'sec-audit', admin: true, title: t('📜 Auditoria'), text: t('Registro de quem fez o quê e quando no painel.') },
       { tab: 'help', sel: 'help-btns', title: t('🎉 Pronto!'), text: t('Ficou com dúvida? <b>❓ Ajuda</b> abre o manual completo, já na parte da tela em que você está — lá tem tudo, inclusive <b>🖧 Roteadores</b> e o passo a passo do <b>🖧 Outro MikroTik</b>. Comece pelos <b>Primeiros passos</b> e veja <b>🔒 Segurança</b>: o painel nunca deve ficar exposto na internet — acesse pela rede local ou pela VPN.') },
@@ -370,7 +372,7 @@ function panel() {
       if (t === 'settings') this.loadSettings();
       if (t === 'routers') this.loadRouters();
       if (t === 'security') this.loadSecurity();
-      if (t === 'backup') this.loadAutoBackups();
+      if (t === 'backup') { this.loadAutoBackups(); this.loadPanelBackup(); }
     },
 
     async refreshLive() {
@@ -864,6 +866,56 @@ function panel() {
     async saveAutoBackupSettings() {
       await this.run(() => api('PUT', '/api/settings', this.settings), t('Configurações salvas'));
     },
+    // ---------- automatic backup of the panel itself ----------
+    async loadPanelBackup() {
+      this.panelBk = await api('GET', '/api/backup/auto').catch(() => null);
+    },
+    async savePanelBackup(changePassword = false) {
+      const s = this.panelBk.settings;
+      const body = { enabled: s.enabled, keep: s.keep, send_discord: s.send_discord, send_telegram: s.send_telegram,
+        send_mikrotik: s.send_mikrotik, discord_webhook: s.discord_webhook, telegram_token: s.telegram_token, telegram_chat_id: s.telegram_chat_id };
+      if (changePassword) body.password = this.panelBkPassword;
+      const r = await this.run(() => api('PUT', '/api/backup/auto', body),
+        changePassword ? (this.panelBkPassword ? t('Senha do backup salva') : t('Senha do backup removida')) : t('Configurações salvas')).catch(() => null);
+      if (r) { this.panelBk = r; this.panelBkPassword = ''; }
+    },
+    async removePanelBackupPassword() {
+      if (!confirm(t('Remover a senha do backup? Os próximos backups ficam sem proteção e o envio para Discord/Telegram é desligado.'))) return;
+      this.panelBk.settings.send_discord = this.panelBk.settings.send_telegram = false;
+      this.panelBkPassword = '';
+      await this.savePanelBackup(true);
+    },
+    async unlockBackup(ev) {
+      const file = ev.target.files[0];
+      ev.target.value = '';
+      if (!file) return;
+      let data;
+      try { data = JSON.parse(await file.text()); } catch { return this.toast(t('Arquivo inválido'), 'err'); }
+      if (!data.encrypted) return this.toast(t('Este arquivo não é um backup protegido'), 'err');
+      const password = prompt(t('Este backup é protegido. Digite a senha do backup:'));
+      if (!password) return;
+      try {
+        const r = await fetch('/api/backup/unlock', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Lang': LANG }, body: JSON.stringify({ data, password }) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t('Erro {status}', { status: r.status }));
+        const name = (r.headers.get('content-disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'backup.txt';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(await r.blob());
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.toast(t('Backup aberto: {name}', { name }));
+      } catch (e) {
+        this.toast(e.message, 'err');
+      }
+    },
+    async runPanelBackup() {
+      const r = await this.run(() => api('POST', '/api/backup/auto/run')).catch(() => null);
+      if (!r) return;
+      this.panelBk = r;
+      if (r.error) this.toast(t('Backup salvo, mas o envio falhou: {error}', { error: r.error }), 'err');
+      else this.toast(r.sent_to?.length ? t('Backup salvo e enviado para {where}', { where: r.sent_to.join(' e ') }) : t('Backup salvo'));
+    },
     async showBackupDiff(b) {
       const text = await this.run(() => api('GET', `/api/tools/backups/${b.name}/diff`));
       this.diff = { name: b.name, lines: text.split('\n') };
@@ -941,8 +993,13 @@ function panel() {
       if (!file) return;
       let data;
       try { data = JSON.parse(await file.text()); } catch { return this.toast(t('Arquivo inválido'), 'err'); }
+      let password = null;
+      if (data.encrypted) {
+        password = prompt(t('Este backup é protegido. Digite a senha do backup:'));
+        if (!password) return;
+      }
       const apply = confirm(t('Recriar no MikroTik os clientes e regras que não existirem lá?\n\nOK = sim (recomendado ao migrar/restaurar)\nCancelar = só importar para o painel'));
-      const r = await this.run(() => api('POST', '/api/backup/import', { data, apply_to_router: apply }));
+      const r = await this.run(() => api('POST', '/api/backup/import', { data, apply_to_router: apply, password }));
       this.toast(t('Importado: {created} clientes novos, {updated} atualizados, {nat} regras NAT, {users} usuários', { created: r.peers_created, updated: r.peers_updated, nat: r.nat_created, users: r.users_created }));
       r.errors.forEach(e => this.toast(e, 'err'));
       this.refreshLive();

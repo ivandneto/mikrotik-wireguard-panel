@@ -623,11 +623,46 @@
           <div class="font-semibold text-white">⬆️ Restaurar backup</div>
           <p class="text-sm text-slate-400">Importa um backup do painel. Itens que já existem são atualizados; nada é apagado.</p>
           <label class="btn cursor-pointer">Escolher arquivo…<input type="file" accept=".json" class="hidden" @change="importBackup($event)"></label>
+          <p class="text-sm text-slate-400 pt-2">🔓 <b>Abrir backup protegido</b> — transforma um arquivo protegido (do painel ou de um MikroTik, ex.: baixado do Discord) no arquivo legível, para guardar ou consultar.</p>
+          <label class="btn cursor-pointer">🔓 Abrir backup protegido…<input type="file" accept=".json" class="hidden" @change="unlockBackup($event)"></label>
         </div>
         <div class="card space-y-3">
           <div class="font-semibold text-white">🗄️ Backup do MikroTik</div>
           <p class="text-sm text-slate-400">Salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do roteador, dentro do próprio MikroTik (menu Files no Winbox).</p>
           <button class="btn" @click="mikrotikBackup()" :disabled="busy">Criar backup no roteador</button>
+        </div>
+        <!-- Automatic backup of the panel itself -->
+        <div class="card space-y-3 lg:col-span-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="font-semibold text-white">🛡️ Backup automático do painel</div>
+            <button class="btn ml-auto" @click="runPanelBackup()" :disabled="busy || !panelBk">▶️ Fazer agora</button>
+          </div>
+          <p class="text-sm text-slate-400">A cada 10 minutos o painel confere se algo mudou nos dados dele (clientes, chaves, portas, roteadores, usuários) e, se mudou, guarda uma cópia. Para mandar as cópias para fora do painel (Discord/Telegram), veja <b>📤 Envio para fora do painel</b>, abaixo.</p>
+          <template x-if="panelBk">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-end gap-4">
+                <label class="flex items-center gap-2 text-sm cursor-pointer pb-2">
+                  <button type="button" class="toggle" :class="panelBk.settings.enabled && 'on'" @click="panelBk.settings.enabled = !panelBk.settings.enabled"></button>
+                  <span>Ativado</span></label>
+                <label class="block"><span class="label">Guardar até (cópias)</span><input class="input w-28" type="number" min="1" max="365" x-model.number="panelBk.settings.keep"></label>
+              </div>
+              <div class="flex justify-end"><button class="btn-primary" @click="savePanelBackup()" :disabled="busy">Salvar</button></div>
+              <div x-show="panelBk.state.error" class="text-sm text-red-300 bg-red-950/40 border border-red-900 rounded-lg p-3 break-all" x-text="panelBk.state.error"></div>
+              <div class="overflow-x-auto"><table class="table">
+                <thead><tr><th>Data</th><th>Tamanho</th><th class="text-right">Ações</th></tr></thead>
+                <tbody>
+                  <template x-for="b in panelBk.backups" :key="b.name">
+                    <tr><td x-text="fmtDate(b.ts)"></td><td x-text="fmtBytes(b.size)"></td>
+                      <td class="text-right"><a class="btn" :href="'/api/backup/auto/' + b.name" download>⬇️ Baixar</a></td></tr>
+                  </template>
+                  <tr x-show="!panelBk.backups.length"><td colspan="3" class="text-slate-500">Nenhuma cópia ainda. A primeira sai na próxima coleta (ou clique em "Fazer agora").</td></tr>
+                </tbody>
+              </table></div>
+              <p class="hint"><span x-text="t('Última verificação: {time}', { time: panelBk.state.checked ? fmtAgo(panelBk.state.checked) : t('nunca') })"></span>
+                <span x-show="panelBk.state.sent_at" x-text="' · ' + t('Último envio: {time} ({where})', { time: fmtAgo(panelBk.state.sent_at), where: (panelBk.state.sent_to || []).join(', ') })"></span>
+                · Uma cópia nova só é guardada quando algo mudou. Para restaurar: ⬆️ Restaurar backup, acima.</p>
+            </div>
+          </template>
         </div>
         <div class="card space-y-3 lg:col-span-3">
           <div class="flex flex-wrap items-center gap-3">
@@ -635,13 +670,12 @@
             <button class="btn ml-auto" @click="runAutoBackup()" :disabled="busy">▶️ Fazer agora</button>
           </div>
           <p class="text-sm text-slate-400">O painel exporta a configuração de cada MikroTik (sem senhas) e guarda uma cópia <b>só quando algo mudou</b>. Assim dá para ver o que foi alterado e quando.</p>
+          <p class="hint">Entre uma cópia e outra, o painel espia a cada 10 minutos o histórico de alterações do MikroTik (uma consulta levinha): se alguém mudou algo — pelo painel, Winbox ou terminal — a cópia sai em minutos, sem esperar o dia seguinte.</p>
           <template x-if="settings">
             <div class="flex flex-wrap items-end gap-4">
               <label class="flex items-center gap-2 text-sm cursor-pointer pb-2">
                 <button type="button" class="toggle" :class="settings.auto_backup_enabled && 'on'" @click="settings.auto_backup_enabled = !settings.auto_backup_enabled"></button>
                 <span>Ativado (vale para todos os roteadores)</span></label>
-              <label class="block"><span class="label">Frequência</span>
-                <select class="input" x-model="settings.auto_backup_interval"><option value="daily">Diário</option><option value="weekly">Semanal</option></select></label>
               <label class="block"><span class="label">Guardar até (cópias)</span><input class="input w-28" type="number" min="1" max="365" x-model.number="settings.auto_backup_keep"></label>
               <button class="btn" @click="saveAutoBackupSettings()" :disabled="busy">Salvar</button>
             </div>
@@ -661,6 +695,57 @@
           </table></div>
           <p class="hint"><span x-text="t('Última verificação: {time}', { time: autoBk?.last_check ? fmtAgo(autoBk.last_check) : t('nunca') })"></span>
             · Para voltar algo atrás, abra o .rsc, copie os comandos que precisa e cole no terminal do MikroTik.</p>
+        </div>
+        <!-- Sending backups off the panel (shared by the panel and MikroTik automatic backups) -->
+        <div class="card space-y-3 lg:col-span-3">
+          <div class="font-semibold text-white">📤 Envio para fora do painel</div>
+          <p class="text-sm text-slate-400">Manda os backups automáticos (do painel e, se quiser, de cada MikroTik) para um canal do <b>Discord</b> e/ou <b>Telegram</b>, protegidos pela <b>senha de backup</b>. Assim eles sobrevivem se o pendrive ou o computador do painel morrer.</p>
+          <template x-if="panelBk">
+            <div class="space-y-3">
+              <div class="rounded-lg border p-3 space-y-2" :class="panelBk.settings.password_set ? 'border-slate-800' : 'border-amber-900 bg-amber-950/30'">
+                <div class="text-sm font-medium" :class="panelBk.settings.password_set ? 'text-emerald-300' : 'text-amber-200'"
+                     x-text="panelBk.settings.password_set ? '🔒 Senha de backup definida: as cópias saem protegidas.' : '🔓 Sem senha de backup: as cópias ficam só no painel, sem proteção, e não vão para o Discord/Telegram.'"></div>
+                <form class="flex flex-wrap items-end gap-2" @submit.prevent="savePanelBackup(true)">
+                  <label class="block flex-1 min-w-[14rem]"><span class="label" x-text="panelBk.settings.password_set ? 'Trocar a senha do backup' : 'Definir a senha do backup'"></span>
+                    <input class="input" type="password" minlength="8" autocomplete="new-password" x-model="panelBkPassword" placeholder="mínimo 8 caracteres" required></label>
+                  <button class="btn-primary" :disabled="busy || panelBkPassword.length < 8">Salvar senha</button>
+                  <button type="button" class="btn" x-show="panelBk.settings.password_set" @click="removePanelBackupPassword()" :disabled="busy">Remover</button>
+                </form>
+                <p class="hint">⚠️ <b>Guarde essa senha fora do painel</b> (gerenciador de senhas, papel guardado). Sem ela, ninguém abre o backup — nem você. Trocar a senha vale para as próximas cópias; as antigas continuam abrindo com a senha antiga.</p>
+              </div>
+              <div class="rounded-lg border border-slate-800 p-3 space-y-3">
+                <div class="text-sm font-medium text-white">Canais de backup <span class="hint font-normal">— separados dos Alertas: os backups vão só para cá</span></div>
+                <p class="text-sm text-amber-300" x-show="!panelBk.settings.password_set">🔒 Para ligar o envio ao Discord/Telegram, defina antes a senha de backup (acima).</p>
+                <div class="grid md:grid-cols-2 gap-4" :class="!panelBk.settings.password_set && 'opacity-50 pointer-events-none'">
+                  <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                      <button type="button" class="toggle" :class="panelBk.settings.send_discord && 'on'" @click="panelBk.settings.send_discord = !panelBk.settings.send_discord"></button>
+                      <span>Enviar para o Discord</span></label>
+                    <label class="block"><span class="label">Webhook do canal de backup</span>
+                      <input class="input mono text-xs" x-model="panelBk.settings.discord_webhook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off"></label>
+                    <p class="hint">Crie um canal <b>privado</b> (ex.: #wgpanel-backup) → Editar canal → Integrações → Webhooks → Novo webhook → Copiar URL.</p>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                      <button type="button" class="toggle" :class="panelBk.settings.send_telegram && 'on'" @click="panelBk.settings.send_telegram = !panelBk.settings.send_telegram"></button>
+                      <span>Enviar para o Telegram</span></label>
+                    <div class="grid grid-cols-2 gap-2">
+                      <label class="block"><span class="label">Token do bot</span><input class="input mono text-xs" x-model="panelBk.settings.telegram_token" placeholder="123456:ABC…" autocomplete="off"></label>
+                      <label class="block"><span class="label">Chat de backup</span><input class="input mono text-xs" x-model="panelBk.settings.telegram_chat_id" placeholder="-1001234567890" autocomplete="off"></label>
+                    </div>
+                    <p class="hint">Pode ser o mesmo bot dos Alertas, mas use outro grupo/chat, privado, só para os backups.</p>
+                  </div>
+                </div>
+                <div class="text-sm text-slate-300">O que enviar:</div>
+                <div class="flex items-center gap-2 text-sm"><span class="badge b-green">✓</span><span>Backup do painel (sempre que um canal estiver ligado)</span></div>
+                <label class="flex items-center gap-2 text-sm cursor-pointer" :class="(!panelBk.settings.password_set || !settings?.auto_backup_enabled) && 'opacity-50 pointer-events-none'">
+                  <button type="button" class="toggle" :class="panelBk.settings.send_mikrotik && 'on'" @click="panelBk.settings.send_mikrotik = !panelBk.settings.send_mikrotik"></button>
+                  <span>Backup de cada MikroTik, quando a configuração mudar</span></label>
+                <p class="hint" x-show="!settings?.auto_backup_enabled">Ligue o 🕒 Backup automático do MikroTik (acima) para enviar também os backups dos roteadores.</p>
+                <div class="flex justify-end"><button class="btn-primary" @click="savePanelBackup()" :disabled="busy">Salvar</button></div>
+              </div>
+            </div>
+          </template>
         </div>
       </section>
 
@@ -1143,7 +1228,10 @@
             <ul>
               <li><b>Baixar backup</b> — arquivo com tudo do painel: roteadores cadastrados (com as senhas de API), interfaces, clientes (com chaves), MikroTiks remotos, portas, configurações, alertas e usuários. Guarde em local seguro: quem tiver o arquivo consegue entrar na sua VPN e nos roteadores.</li>
               <li><b>Restaurar</b> — importa um backup (ex.: ao trocar o painel de máquina). Itens existentes são atualizados, nada é apagado. O que faltar é recriado só no <b>roteador principal</b>; os dos outros roteadores entram no painel (eles já estão configurados nos MikroTiks deles). Aceita backups de versões antigas.</li>
-              <li><b>🕒 Backup automático do MikroTik</b> — todo dia (ou toda semana) o painel exporta a configuração de cada roteador (sem senhas) e guarda uma cópia <b>só quando algo mudou</b>, até o limite escolhido. <b>🔍 O que mudou</b> compara com a cópia anterior (linhas com + entraram, com − saíram); <b>⬇️ .rsc</b> baixa o arquivo. Ficam na pasta <span class="mono">data/</span> do painel.</li>
+              <li><b>🛡️ Backup automático do painel</b> — a cada 10 minutos o painel confere se os dados dele mudaram (clientes, chaves, portas, roteadores, usuários) e, se mudaram, guarda uma cópia em <span class="mono">data/panel-backups</span>, até o limite escolhido. <b>▶️ Fazer agora</b> faz na hora.</li>
+              <li><b>📤 Envio para fora do painel</b> — com uma <b>senha de backup</b>, os backups automáticos saem protegidos e vão para um <b>canal de backup</b> no Discord (webhook) e/ou Telegram (token do bot + chat), <b>separado dos Alertas</b>. Vai o backup do painel e, se ligado, o de cada MikroTik quando a configuração muda. Assim eles sobrevivem se o pendrive ou o computador do painel morrer. Use um canal <b>privado</b> e <b>guarde a senha fora do painel</b>: sem ela ninguém abre os arquivos.</li>
+              <li><b>Restaurar um backup protegido</b> — <b>Restaurar</b> → escolha o arquivo (ex.: baixado do Discord) → digite a senha. Para <b>ler</b> um backup de MikroTik que chegou no canal, use <b>🔓 Abrir backup protegido</b>: ele devolve o <span class="mono">.rsc</span>.</li>
+              <li><b>🕒 Backup automático do MikroTik</b> — a cada 10 minutos o painel espia o histórico de alterações de cada roteador (<span class="mono">/system history</span>, bem leve); quando algo mudou, exporta a configuração (sem senhas) e guarda uma cópia <b>só se ela mudou</b>, até o limite escolhido. Uma vez por dia ele faz também a cópia completa, por segurança (o histórico zera quando o roteador reinicia). <b>🔍 O que mudou</b> compara com a cópia anterior (linhas com + entraram, com − saíram) — guarde pelo menos 2 cópias para isso funcionar; <b>⬇️ .rsc</b> baixa o arquivo. Ficam na pasta <span class="mono">data/</span> do painel.</li>
               <li><b>Backup do MikroTik</b> — salva um <span class="mono">.backup</span> e um <span class="mono">.rsc</span> da configuração inteira do <b>roteador escolhido no seletor</b>, dentro dele (Winbox → Files). Faça antes de mudanças grandes.</li>
             </ul>
             <p><b>Trocar de painel</b> (ex.: do PC para o container no MikroTik):</p>

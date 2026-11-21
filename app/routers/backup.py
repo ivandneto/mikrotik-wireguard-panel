@@ -2,85 +2,140 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..db import NatRule, Peer, Router, User, WgInterface, _migrate, audit, iso, utcnow
+from ..db import NatRule, Peer, Router, User, WgInterface, _migrate, audit
 from ..i18n import tr
 from ..mikrotik import MikroTikError, mt, use
 from ..mikrotik import main as main_client
 from ..routerctx import use_router
-from ..security import decrypt, encrypt, get_db, require_admin
-from ..services import collector, nat_ops
+from ..security import encrypt, get_db, require_admin
+from ..services import collector, nat_ops, panel_backup, panel_export
 from ..settings_store import get_settings, save_settings
 from .wireguard import PEERS_PATH, _create_on_router, _sync_site
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
-BACKUP_VERSION = 3  # 2: várias interfaces e sites · 3: vários roteadores
-
 
 class ImportIn(BaseModel):
     data: dict
     apply_to_router: bool = True
+    password: str | None = None  # for backups protected with the backup password
 
 
-ROUTER_FIELDS = ("endpoint_remote", "endpoint_local", "nat_match_mode", "nat_in_target", "wan_interface")
+ROUTER_FIELDS = panel_export.ROUTER_FIELDS
 
 
 @router.get("/export")
 def export_backup(include_alert_secrets: bool = True, user: User = Depends(require_admin),
                   db: Session = Depends(get_db)):
-    settings = get_settings(db)
-    if not include_alert_secrets:
-        settings["alerts"].update(telegram_token="", discord_webhook="")
-    routers = {r.id: r for r in db.query(Router).all()}
-    router_name = {rid: ("" if r.is_main else r.name) for rid, r in routers.items()}  # "" = principal
-    ifaces = {i.id: i for i in db.query(WgInterface).all()}
-    peers = db.query(Peer).all()
-    peer_keys = {p.id: p.public_key for p in peers}
-    main = next(r for r in routers.values() if r.is_main)
-    data = {
-        "app": "mikrotik-wg-panel",
-        "version": BACKUP_VERSION,
-        "exported_at": iso(utcnow()),
-        "settings": settings,
-        "main_router": {k: getattr(main, k) for k in ROUTER_FIELDS},
-        "routers": [{
-            "name": r.name, "url": r.url, "username": r.username,
-            "password": decrypt(r.password_enc) if r.password_enc else "", "verify_tls": r.verify_tls,
-            "enabled": r.enabled, "site_peer_public_key": peer_keys.get(r.site_peer_id, ""),
-            **{k: getattr(r, k) for k in ROUTER_FIELDS},
-        } for r in routers.values() if not r.is_main],
-        "interfaces": [{
-            "router": router_name.get(i.router_id, ""), "name": i.name, "description": i.description,
-            "listen_port": i.listen_port, "address": i.address, "public_key": i.public_key, "dns": i.dns,
-            "lan_networks": i.lan_networks,
-        } for i in ifaces.values()],
-        "peers": [{
-            "name": p.name, "description": p.description, "owner": p.owner, "ip": p.ip,
-            "public_key": p.public_key,
-            "private_key": decrypt(p.private_key_enc) if p.private_key_enc else "",
-            "preshared_key": decrypt(p.preshared_key_enc) if p.preshared_key_enc else "",
-            "tunnel_mode": p.tunnel_mode, "kind": p.kind, "remote_networks": p.remote_networks,
-            "site_access": p.site_access,
-            "router": router_name.get(ifaces[p.interface_id].router_id, "") if p.interface_id in ifaces else "",
-            "interface": ifaces[p.interface_id].name if p.interface_id in ifaces else "",
-            "enabled": p.enabled, "created_by": p.created_by, "created_at": iso(p.created_at),
-        } for p in peers],
-        "nat_rules": [{
-            "router": router_name.get(r.router_id, ""), "name": r.name, "template": r.template,
-            "protocol": r.protocol, "external_port": r.external_port, "internal_ip": r.internal_ip,
-            "internal_port": r.internal_port, "whitelist": r.whitelist, "health_check": r.health_check,
-            "enabled": r.enabled, "expires_at": iso(r.expires_at), "created_by": r.created_by,
-        } for r in db.query(NatRule).all()],
-        "users": [{"username": u.username, "password_hash": u.password_hash, "role": u.role}
-                  for u in db.query(User).all()],
-    }
+    data = panel_export.build_export(db, include_alert_secrets)
     audit(db, user.username, "backup exportado")
     filename = f"wgpanel-backup-{datetime.now():%Y%m%d-%H%M}.json"
     return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+# ------------------------------------------------------------------ automatic panel backup
+
+class AutoBackupIn(BaseModel):
+    enabled: bool = True
+    keep: int = Field(14, ge=1, le=365)
+    send_discord: bool = False
+    send_telegram: bool = False
+    send_mikrotik: bool = True
+    discord_webhook: str = ""
+    telegram_token: str = ""
+    telegram_chat_id: str = ""
+    password: str | None = None  # None = keep the current one · "" = remove · text = new password
+
+
+class UnlockIn(BaseModel):
+    data: dict
+    password: str
+
+
+def _auto_status(db: Session) -> dict:
+    s = get_settings(db)
+    state = panel_backup.load_state()
+    return {
+        "settings": {"enabled": s["panel_backup_enabled"], "keep": s["panel_backup_keep"],
+                     "send_discord": s["panel_backup_send_discord"], "send_telegram": s["panel_backup_send_telegram"],
+                     "send_mikrotik": s["panel_backup_send_mikrotik"],
+                     "discord_webhook": s["panel_backup_discord_webhook"], "telegram_token": s["panel_backup_telegram_token"],
+                     "telegram_chat_id": s["panel_backup_telegram_chat_id"],
+                     "password_set": bool(panel_backup.password(s))},
+        "channels": {c: bool(v) for c, v in panel_backup.targets(s).items()},
+        "backups": panel_backup.list_backups(),
+        "state": {k: state.get(k) for k in ("checked", "last_saved", "sent_to", "sent_at", "error", "encrypted")},
+    }
+
+
+@router.get("/auto")
+def auto_status(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return _auto_status(db)
+
+
+@router.put("/auto")
+def auto_settings(body: AutoBackupIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    webhook = body.discord_webhook.strip()
+    if webhook and not webhook.startswith("https://"):
+        raise HTTPException(400, tr("O webhook do Discord deve começar com https://"))
+    values = {"panel_backup_enabled": body.enabled, "panel_backup_keep": body.keep,
+              "panel_backup_send_discord": body.send_discord, "panel_backup_send_telegram": body.send_telegram,
+              "panel_backup_send_mikrotik": body.send_mikrotik, "panel_backup_discord_webhook": webhook,
+              "panel_backup_telegram_token": body.telegram_token.strip(),
+              "panel_backup_telegram_chat_id": body.telegram_chat_id.strip()}
+    if body.password is not None:
+        if body.password and len(body.password) < 8:
+            raise HTTPException(400, tr("A senha do backup precisa ter pelo menos 8 caracteres"))
+        values["panel_backup_password_enc"] = encrypt(body.password) if body.password else ""
+    has_password = bool(body.password) if body.password is not None else bool(panel_backup.password(get_settings(db)))
+    if (body.send_discord or body.send_telegram) and not has_password:
+        raise HTTPException(400, tr("Para enviar o backup ao Discord/Telegram, defina antes uma senha de backup: "
+                                    "o arquivo tem as chaves da VPN e não pode ir sem proteção."))
+    if body.send_discord and not webhook:
+        raise HTTPException(400, tr("Para enviar ao Discord, preencha o webhook do canal de backup"))
+    if body.send_telegram and not (body.telegram_token.strip() and body.telegram_chat_id.strip()):
+        raise HTTPException(400, tr("Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup"))
+    save_settings(db, values)
+    panel_backup.clear_error()  # an old sending error no longer applies once the settings changed
+    audit(db, user.username, "backup automático do painel configurado",
+          "senha alterada" if body.password is not None else "")
+    return _auto_status(db)
+
+
+@router.post("/auto/run")
+async def auto_run(user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    result = await panel_backup.run(force=True)
+    audit(db, user.username, "backup do painel feito agora", ", ".join(result.get("sent_to") or []))
+    return {**result, **_auto_status(db)}
+
+
+@router.post("/unlock")
+def unlock(body: UnlockIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Opens a protected backup (panel or MikroTik) and returns the readable file, e.g. one taken from Discord."""
+    if not panel_export.is_protected(body.data):
+        raise HTTPException(400, tr("Este arquivo não é um backup protegido"))
+    try:
+        data = panel_export.unprotect(body.data, body.password)
+    except ValueError:
+        raise HTTPException(400, tr("Senha do backup incorreta (ou arquivo danificado)."))
+    audit(db, user.username, "backup protegido aberto", data.get("router") or data.get("kind") or "painel")
+    if data.get("kind") == "mikrotik-export":
+        name = data.get("name") or "mikrotik.rsc"
+        return PlainTextResponse(data.get("text", ""), headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    return JSONResponse(data, headers={"Content-Disposition": 'attachment; filename="wgpanel-backup.json"'})
+
+
+@router.get("/auto/{name}")
+def auto_download(name: str, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    path = panel_backup.backup_path(name)
+    if not path:
+        raise HTTPException(404, tr("Backup não encontrado"))
+    audit(db, user.username, "backup do painel baixado", name)
+    return FileResponse(path, media_type="application/json", filename=name)
 
 
 def _parse_dt(value):
@@ -93,6 +148,16 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
     data = body.data
     if data.get("app") != "mikrotik-wg-panel":
         raise HTTPException(400, tr("Arquivo não é um backup deste painel"))
+    if panel_export.is_protected(data):
+        if not body.password:
+            raise HTTPException(400, tr("Este backup é protegido por senha. Digite a senha do backup."))
+        try:
+            data = panel_export.unprotect(data, body.password)
+        except ValueError:
+            raise HTTPException(400, tr("Senha do backup incorreta (ou arquivo danificado)."))
+    if data.get("kind") == "mikrotik-export":
+        raise HTTPException(400, tr("Este arquivo é um backup da configuração de um MikroTik, não do painel. "
+                                    "Abra com 🔓 Abrir backup protegido para ler o .rsc."))
     report = {"peers_created": 0, "peers_updated": 0, "nat_created": 0, "users_created": 0, "routers_created": 0,
               "errors": []}
     use(main_client)

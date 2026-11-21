@@ -148,5 +148,21 @@
  "Nova versão do WG Panel disponível": "Neue WG-Panel-Version verfügbar",
  "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "Version {latest} verfügbar (installiert: {installed}). So aktualisieren Sie: {url}",
  "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "Der Panel-Benutzer auf dem MikroTik darf diesen Befehl nicht ausführen. Nutzen Sie 🌐 WebFig, das sich mit Ihrem eigenen Benutzer anmeldet.",
- "O comando passou de {seconds} segundos e foi interrompido.": "Der Befehl dauerte länger als {seconds} Sekunden und wurde abgebrochen."
+ "O comando passou de {seconds} segundos e foi interrompido.": "Der Befehl dauerte länger als {seconds} Sekunden und wurde abgebrochen.",
+ "Para enviar o backup ao Discord/Telegram, defina antes uma senha de backup: o arquivo tem as chaves da VPN e não pode ir sem proteção.": "Um die Sicherung an Discord/Telegram zu senden, legen Sie zuerst ein Sicherungspasswort fest: Die Datei enthält die VPN-Schlüssel und darf nicht ungeschützt rausgehen.",
+ "A senha do backup precisa ter pelo menos 8 caracteres": "Das Sicherungspasswort muss mindestens 8 Zeichen haben",
+ "Este backup é protegido por senha. Digite a senha do backup.": "Diese Sicherung ist passwortgeschützt. Geben Sie das Sicherungspasswort ein.",
+ "Senha do backup incorreta (ou arquivo danificado).": "Falsches Sicherungspasswort (oder beschädigte Datei).",
+ "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ WG-Panel-Sicherung ({date}). Mit dem Sicherungspasswort geschützt: zum Wiederherstellen im Panel Sicherung → Wiederherstellen und das Passwort eingeben.",
+ "Backup do painel salvo, mas o envio falhou: {error}": "Panel-Sicherung gespeichert, aber das Senden ist fehlgeschlagen: {error}",
+ "Discord: não está configurado ou ativado em Alertas": "Discord: in Alarme nicht eingerichtet oder nicht aktiv",
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram: in Alarme nicht eingerichtet oder nicht aktiv",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "Um an Discord zu senden, tragen Sie den Webhook des Sicherungskanals ein",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "Um an Telegram zu senden, tragen Sie Bot-Token und Chat des Sicherungskanals ein",
+ "Este arquivo não é um backup protegido": "Diese Datei ist keine geschützte Sicherung",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "Diese Datei ist eine Sicherung der Konfiguration eines MikroTik, nicht des Panels. Öffnen Sie sie mit 🔓 Geschützte Sicherung öffnen, um die .rsc zu lesen.",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ Konfiguration von MikroTik {router} geändert ({date}). Mit dem Sicherungspasswort geschützt: zum Lesen im Panel Sicherung → 🔓 Geschützte Sicherung öffnen.",
+ "Discord: preencha o webhook do canal de backup": "Discord: Webhook des Sicherungskanals eintragen",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram: Bot-Token und Chat des Sicherungskanals eintragen",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "Sicherung von MikroTik {router} gespeichert, aber das Senden ist fehlgeschlagen: {error}"
 }

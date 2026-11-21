@@ -148,5 +148,21 @@
  "Nova versão do WG Panel disponível": "Доступна новая версия WG Panel",
  "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "Доступна версия {latest} (установлена: {installed}). Как обновиться: {url}",
  "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "У пользователя панели на MikroTik нет прав на эту команду. Используйте 🌐 WebFig — там вход под вашей учётной записью.",
- "O comando passou de {seconds} segundos e foi interrompido.": "Команда выполнялась дольше {seconds} секунд и была остановлена."
+ "O comando passou de {seconds} segundos e foi interrompido.": "Команда выполнялась дольше {seconds} секунд и была остановлена.",
+ "Para enviar o backup ao Discord/Telegram, defina antes uma senha de backup: o arquivo tem as chaves da VPN e não pode ir sem proteção.": "Чтобы отправлять копию в Discord/Telegram, сначала задайте пароль резервной копии: в файле ключи VPN, и он не может уйти без защиты.",
+ "A senha do backup precisa ter pelo menos 8 caracteres": "Пароль резервной копии должен быть не короче 8 символов",
+ "Este backup é protegido por senha. Digite a senha do backup.": "Эта копия защищена паролем. Введите пароль резервной копии.",
+ "Senha do backup incorreta (ou arquivo danificado).": "Неверный пароль резервной копии (или файл повреждён).",
+ "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ Резервная копия WG Panel ({date}). Защищена паролем резервной копии: для восстановления откройте в панели «Резервная копия» → «Восстановить» и введите пароль.",
+ "Backup do painel salvo, mas o envio falhou: {error}": "Копия панели сохранена, но отправка не удалась: {error}",
+ "Discord: não está configurado ou ativado em Alertas": "Discord: не настроен или не включён в «Оповещениях»",
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram: не настроен или не включён в «Оповещениях»",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "Чтобы отправлять в Discord, укажите webhook канала копий",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "Чтобы отправлять в Telegram, укажите токен бота и чат для копий",
+ "Este arquivo não é um backup protegido": "Этот файл не является защищённой копией",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "Этот файл — копия конфигурации MikroTik, а не панели. Откройте его через 🔓 Открыть защищённую копию, чтобы прочитать .rsc.",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ Конфигурация MikroTik {router} изменилась ({date}). Копия защищена паролем резервной копии: чтобы прочитать, в панели «Резервная копия» → 🔓 Открыть защищённую копию.",
+ "Discord: preencha o webhook do canal de backup": "Discord: укажите webhook канала копий",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram: укажите токен бота и чат для копий",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "Копия MikroTik {router} сохранена, но отправка не удалась: {error}"
 }

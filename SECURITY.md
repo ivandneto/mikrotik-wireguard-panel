@@ -110,6 +110,7 @@ If step 3 opens the panel, it is exposed: review item 1 immediately.
 - Restrict the MikroTik API to the networks the panel connects from: `/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24` (adjust the ranges).
 - The panel runs over **HTTP**. Inside the local network and the VPN (which is already encrypted) this is acceptable. If you want HTTPS, put a reverse proxy (Caddy, Nginx) in front of it and set `COOKIE_SECURE=true` in `.env`.
 - Keep these safe: `.env`, the `data/` folder (database and `secret.key`) and exported backups — they contain passwords and VPN keys.
+- The **automatic panel backup** only goes to Discord/Telegram when a **backup password** is set, and then the file is encrypted (PBKDF2 + AES). Use a **private** channel anyway, pick a long password and keep it outside the panel.
 - The "Store the clients' private key on the MikroTik" option means the keys also end up in the router's backups.
 - Keep RouterOS and the panel up to date. The panel warns you when a new version is out (badge below the version in the side menu and a Discord/Telegram alert).
 

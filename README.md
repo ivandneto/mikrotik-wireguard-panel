@@ -95,7 +95,7 @@
 | 🌐 **9 languages** | English, Português (Brasil), Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — screens, tour, manual, errors and alerts |
 | 📣 **Alerts** | Telegram and Discord: client connected/disconnected, service down/up, rule removed from the MikroTik, temporary port expired, MikroTik offline, RouterOS update available, configuration changed — in the language you choose |
 | 👥 **Users** | Multiple users: **administrator** or **read-only** |
-| 💾 **Backup** | Export/import everything in the panel (JSON), create `.backup`/`.rsc` backups on the MikroTik and **automatic daily/weekly backups** of each MikroTik's configuration, kept **only when something changed**, with a **What changed** diff |
+| 💾 **Backup** | **Automatic panel backup** (checked every 10 min, saved only on change), password-protected and sent to a **Discord/Telegram backup channel** together with each MikroTik's, so it survives losing the flash drive; export/import everything in the panel (JSON), create `.backup`/`.rsc` backups on the MikroTik and **automatic backups** of each MikroTik's configuration (changes caught within 10 minutes), kept **only when something changed**, with a **What changed** diff |
 | 📜 **Audit log** | Record of who created, changed or removed what, and when |
 
 > **Safety:** the panel only changes what it created itself (everything carries the `[wgpanel]` comment). Your existing MikroTik rules are **not touched**.
@@ -330,7 +330,10 @@ Choose which events trigger alerts. All of them are recorded in the **Events** t
 ## Backup and updates
 
 - **Panel backup:** **Backup → Download backup**. It contains the VPN private keys, so store it somewhere safe.
-- **Automatic MikroTik backup:** on by default. Every day (or week) the panel exports each router's configuration (without passwords) into `data/router-backups/` and keeps a copy only when something changed. See and compare them in **Backup → 🕒 Automatic MikroTik backup**.
+- **Automatic panel backup:** on by default. Every 10 minutes the panel checks whether its data changed and, if so, keeps a copy in `data/panel-backups/`.
+- **Sending off the panel (recommended):** in **Backup → 📤 Sending off the panel**, set a **backup password** and fill in a **backup channel** on **Discord** (webhook) and/or **Telegram** (bot token + chat), **separate from the Alerts channel** and private. Panel backups and, if you turn it on, each MikroTik's (when its configuration changes) go there protected by the password, outside the panel's flash drive or computer. **Keep the password outside the panel**: without it nobody can open the files.
+- **Restore:** **Backup → Restore**, pick the file and enter the password. To read a MikroTik backup that arrived in the channel, use **🔓 Open protected backup** (it gives you the `.rsc`).
+- **Automatic MikroTik backup:** on by default. Once a day (and whenever the 10-minute peek below notices a change) the panel exports each router's configuration (without passwords) into `data/router-backups/` and keeps a copy only when something changed. Between copies it peeks at the router's change history every 10 minutes (`/system history`, very light): if something changed, the copy comes out within minutes. See and compare them in **Backup → 🕒 Automatic MikroTik backup**.
 - **Older RouterOS 7?** If the automatic backup shows "needs the 'ftp' permission", your RouterOS can't send the export directly; the panel shows the one-line command to fix it (`ftp` is file access only — it does **not** enable the FTP service).
 - **Data lives in** `./data` (SQLite database + `secret.key`). Copy this folder for a full backup. **Without `secret.key` the stored keys cannot be read** (unless you restore from the exported JSON).
 - **Update the panel:** download the new Release and run `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` and `docker compose up -d` (or, from source, `docker compose up -d --build`). The database is migrated automatically.
@@ -452,12 +455,12 @@ If they come back empty (or incomplete), recreate them. Clear first to avoid dup
 Drag the `.tar` into `usb1` (Winbox → **Files**) and run the `/container add …` and `/container start wgpanel` from step 5 above.
 
 **4. Log in and recover the data:** open **http://172.20.0.2:8080** with user **`admin`** and the `ADMIN_PASSWORD` password. Without `ADMIN_PASSWORD`, the panel creates a random password and prints it in the log: `/log print where message~"senha"`.
-- Have a panel backup? **Backup → Restore** (brings everything).
+- Have a panel backup? **Backup → Restore** (brings everything). If automatic sending to Discord/Telegram was on, download the latest file from there and restore it with the **backup password**.
 - No backup? **WireGuard VPN → Adopt and import clients**: the interface and clients come back from the MikroTik (with QR Code, if "Store the private key on the MikroTik" was enabled). Extra users, Discord/Telegram alerts and client routers must be set up again.
 
 > **Forgot the panel password?** `ADMIN_PASSWORD` is only used when the data folder is empty. To reset: `/container stop wgpanel`, `/file remove usb1/wgpanel/data`, `/container start wgpanel` — this **erases the panel's configuration** (the VPN on the MikroTik is not affected).
 
-**To avoid losing it again:** once everything works, download a backup (**Backup → Download backup**) and keep it off the router; before upgrading RouterOS, run `/export file=before-upgrade`. Prefer a USB SSD or a "High Endurance" flash drive — regular flash drives wear out from constant writes.
+**To avoid losing it again:** once everything works, turn on the **🛡️ Automatic panel backup** with a password and sending to Discord/Telegram (or download a backup in **Backup → Download backup** and keep it off the router); before upgrading RouterOS, run `/export file=before-upgrade`. Prefer a USB SSD or a "High Endurance" flash drive — regular flash drives wear out from constant writes.
 
 ---
 

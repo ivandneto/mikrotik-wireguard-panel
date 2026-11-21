@@ -1,7 +1,9 @@
 """Ferramentas feitas pelo próprio roteador: exportar a configuração, verificar atualização, ping,
 traceroute e a checagem de segurança."""
 import asyncio
+import hashlib
 import ipaddress
+import json
 import re
 
 import httpx
@@ -55,6 +57,19 @@ async def run_command(client: MikroTik, command: str) -> str:
 
 
 # ------------------------------------------------------------------ exportação (backup automático)
+
+async def config_marker(client: MikroTik) -> str | None:
+    """Cheap "did the configuration change?" check: a fingerprint of RouterOS's undo history (/system history,
+    the list behind Winbox's Undo). Any change — from the panel, Winbox or the terminal — adds an entry.
+    Returns None when the router doesn't expose it (old version or no permission)."""
+    try:
+        rows = await client.get("/system/history")
+    except MikroTikError:
+        return None
+    if not isinstance(rows, list):
+        return None
+    return hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest()
+
 
 async def export_config(client: MikroTik) -> str:
     """Configuração do roteador em .rsc (sem senhas: o RouterOS esconde dados sensíveis).

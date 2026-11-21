@@ -93,7 +93,7 @@
 | 🌐 **9 idiomas** | Português (Brasil), English, Español, Français, Deutsch, Italiano, Русский, 中文, 日本語 — telas, tour, manual, erros e alertas. Segue o idioma do navegador; troque na tela de login, no menu lateral ou em Configurações |
 | 📣 **Alertas** | Telegram e Discord: cliente conectou/desconectou, serviço caiu/voltou, regra sumiu do MikroTik, porta temporária expirou, MikroTik offline, atualização do RouterOS disponível, configuração mudou — no idioma que você escolher |
 | 👥 **Usuários** | Vários usuários: **administrador** ou **somente leitura** |
-| 💾 **Backup** | Exporta/importa tudo do painel (JSON), cria backup `.backup`/`.rsc` dentro do MikroTik e faz **backup automático diário/semanal** da configuração de cada MikroTik, guardando **só quando algo mudou**, com o **O que mudou** para comparar |
+| 💾 **Backup** | **Backup automático do painel** (confere a cada 10 min, salva só quando muda), protegido por senha e enviado a um **canal de backup no Discord/Telegram** junto com o de cada MikroTik, para sobreviver à perda do pendrive; exporta/importa tudo do painel (JSON), cria backup `.backup`/`.rsc` dentro do MikroTik e faz **backup automático** da configuração de cada MikroTik (mudanças pegas em até 10 minutos), guardando **só quando algo mudou**, com o **O que mudou** para comparar |
 | 📜 **Auditoria** | Registro de quem criou, alterou ou removeu o quê, e quando |
 
 > **Segurança:** o painel só altera o que ele mesmo criou (tudo leva o comentário `[wgpanel]`). Suas regras atuais do MikroTik **não são tocadas**.
@@ -330,7 +330,10 @@ Escolha quais eventos geram alerta. Todos ficam registrados na aba **Eventos**.
 ## Backup e atualização
 
 - **Backup do painel:** aba **Backup → Baixar backup**. Contém as chaves privadas da VPN, então guarde em local seguro.
-- **Backup automático do MikroTik:** ligado por padrão. Todo dia (ou semana) o painel exporta a configuração de cada roteador (sem senhas) para `data/router-backups/` e guarda uma cópia só quando algo mudou. Veja e compare em **Backup → 🕒 Backup automático do MikroTik**.
+- **Backup automático do painel:** ligado por padrão. A cada 10 minutos o painel confere se os dados dele mudaram e, se mudaram, guarda uma cópia em `data/panel-backups/`.
+- **Envio para fora do painel (recomendado):** em **Backup → 📤 Envio para fora do painel**, defina uma **senha de backup** e preencha um **canal de backup** no **Discord** (webhook) e/ou **Telegram** (token do bot + chat), **separado do canal de Alertas** e privado. Os backups do painel e, se você ligar, os de cada MikroTik (quando a configuração muda) vão para lá protegidos pela senha, fora do pendrive ou do computador do painel. **Guarde a senha fora do painel**: sem ela ninguém abre os arquivos.
+- **Restaurar:** **Backup → Restaurar**, escolha o arquivo e digite a senha. Para ler um backup de MikroTik que chegou no canal, use **🔓 Abrir backup protegido** (devolve o `.rsc`).
+- **Backup automático do MikroTik:** ligado por padrão. Uma vez por dia (e sempre que a espiada de 10 minutos, abaixo, notar uma alteração) o painel exporta a configuração de cada roteador (sem senhas) para `data/router-backups/` e guarda uma cópia só quando algo mudou. Entre uma cópia e outra, ele espia a cada 10 minutos o histórico de alterações do roteador (`/system history`, bem leve): se algo mudou, a cópia sai em minutos. Veja e compare em **Backup → 🕒 Backup automático do MikroTik**.
 - **RouterOS 7 mais antigo?** Se o backup automático mostrar "precisa da permissão 'ftp'", o seu RouterOS não consegue mandar a exportação direto; o painel mostra o comando de uma linha que resolve (`ftp` é só acesso a arquivos — **não** liga o serviço FTP).
 - **Dados ficam em** `./data` (banco SQLite + `secret.key`). Copie essa pasta para fazer backup completo. **Sem o `secret.key` as chaves salvas não podem ser lidas** (a não ser que você restaure pelo JSON exportado).
 - **Atualizar o painel:** baixe a Release nova e rode `docker load -i wgpanel-docker-amd64-vX.Y.Z.tar.gz` e `docker compose up -d` (ou, a partir do código, `docker compose up -d --build`). O banco é migrado sozinho.
@@ -452,12 +455,12 @@ Se vierem vazios (ou incompletos), recrie. Comece limpando para não duplicar:
 Arraste o `.tar` para o `usb1` (Winbox → **Files**) e rode o `/container add …` e o `/container start wgpanel` do passo 5 acima.
 
 **4. Entrar e recuperar os dados:** abra **http://172.20.0.2:8080** com usuário **`admin`** e a senha do `ADMIN_PASSWORD`. Sem `ADMIN_PASSWORD`, o painel cria uma senha aleatória e mostra no log: `/log print where message~"senha"`.
-- Tem backup do painel? **Backup → Restaurar** (traz tudo).
+- Tem backup do painel? **Backup → Restaurar** (traz tudo). Se o envio automático para o Discord/Telegram estava ligado, baixe de lá o arquivo mais recente e restaure com a **senha de backup**.
 - Não tem? **VPN WireGuard → Adotar e importar clientes**: a interface e os clientes voltam do MikroTik (com QR Code, se "Guardar a chave privada no MikroTik" estava ligado). Usuários extras, alertas do Discord/Telegram e roteadores de clientes precisam ser cadastrados de novo.
 
 > **Esqueceu a senha do painel?** O `ADMIN_PASSWORD` só é usado quando a pasta de dados está vazia. Para zerar: `/container stop wgpanel`, `/file remove usb1/wgpanel/data`, `/container start wgpanel` — isso **apaga a configuração do painel** (a VPN no MikroTik não é afetada).
 
-**Para não perder de novo:** depois de tudo funcionando, baixe um backup (**Backup → Baixar backup**) e guarde fora do roteador; antes de atualizar o RouterOS, rode `/export file=antes-de-atualizar`. Prefira SSD USB ou pendrive "High Endurance" — pendrive comum se desgasta com a gravação constante.
+**Para não perder de novo:** depois de tudo funcionando, ligue o **🛡️ Backup automático do painel** com senha e envio para o Discord/Telegram (ou baixe um backup em **Backup → Baixar backup** e guarde fora do roteador); antes de atualizar o RouterOS, rode `/export file=antes-de-atualizar`. Prefira SSD USB ou pendrive "High Endurance" — pendrive comum se desgasta com a gravação constante.
 
 ---
 
