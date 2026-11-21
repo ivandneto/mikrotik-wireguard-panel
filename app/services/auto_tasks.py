@@ -116,6 +116,11 @@ async def run_backup(router: Router, keep: int, force_check: bool = False) -> di
     for old in list_backups(router.id)[keep:]:
         (d / old["name"]).unlink(missing_ok=True)
     _update_state(router.id, backup_checked=_now().isoformat(), backup_error=None)
+    from . import panel_backup  # lazy: avoids loading the export code at startup
+    try:
+        await panel_backup.send_mikrotik_copy(router.name, name, text)  # to the backup channel, if turned on
+    except Exception:  # sending must never break the backup itself
+        logger.exception("Sending the MikroTik backup of %s failed", router.name)
     return {"saved": True, "name": name, "first": not previous,
             "message": tr("Backup salvo: {name}", name=name) if previous else tr("Primeiro backup salvo: {name}", name=name)}
 

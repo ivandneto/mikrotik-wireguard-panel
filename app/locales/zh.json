@@ -156,5 +156,13 @@
  "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ WG Panel 备份（{date}）。已用备份密码保护：恢复时在面板中打开 备份 → 恢复 并输入密码。",
  "Backup do painel salvo, mas o envio falhou: {error}": "面板备份已保存，但发送失败：{error}",
  "Discord: não está configurado ou ativado em Alertas": "Discord：未在“告警”中配置或启用",
- "Telegram: não está configurado ou ativado em Alertas": "Telegram：未在“告警”中配置或启用"
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram：未在“告警”中配置或启用",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "要发送到 Discord，请填写备份频道的 Webhook",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "要发送到 Telegram，请填写机器人令牌和备份聊天",
+ "Este arquivo não é um backup protegido": "此文件不是受保护的备份",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "此文件是某台 MikroTik 的配置备份，不是面板备份。请用 🔓 打开受保护的备份 来读取 .rsc。",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ MikroTik {router} 的配置已变化（{date}）。备份已用备份密码保护：要查看，请在面板中打开 备份 → 🔓 打开受保护的备份。",
+ "Discord: preencha o webhook do canal de backup": "Discord：请填写备份频道的 Webhook",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram：请填写机器人令牌和备份聊天",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "MikroTik {router} 的备份已保存，但发送失败：{error}"
 }

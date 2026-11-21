@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from ..mikrotik import MikroTikError, mt, use
 from ..mikrotik import main as main_client
 from ..routerctx import use_router
 from ..security import encrypt, get_db, require_admin
-from ..services import alerts, collector, nat_ops, panel_backup, panel_export
+from ..services import collector, nat_ops, panel_backup, panel_export
 from ..settings_store import get_settings, save_settings
 from .wireguard import PEERS_PATH, _create_on_router, _sync_site
 
@@ -44,7 +44,16 @@ class AutoBackupIn(BaseModel):
     keep: int = Field(14, ge=1, le=365)
     send_discord: bool = False
     send_telegram: bool = False
+    send_mikrotik: bool = True
+    discord_webhook: str = ""
+    telegram_token: str = ""
+    telegram_chat_id: str = ""
     password: str | None = None  # None = keep the current one · "" = remove · text = new password
+
+
+class UnlockIn(BaseModel):
+    data: dict
+    password: str
 
 
 def _auto_status(db: Session) -> dict:
@@ -53,8 +62,11 @@ def _auto_status(db: Session) -> dict:
     return {
         "settings": {"enabled": s["panel_backup_enabled"], "keep": s["panel_backup_keep"],
                      "send_discord": s["panel_backup_send_discord"], "send_telegram": s["panel_backup_send_telegram"],
+                     "send_mikrotik": s["panel_backup_send_mikrotik"],
+                     "discord_webhook": s["panel_backup_discord_webhook"], "telegram_token": s["panel_backup_telegram_token"],
+                     "telegram_chat_id": s["panel_backup_telegram_chat_id"],
                      "password_set": bool(panel_backup.password(s))},
-        "channels": {c: alerts.channel_ready(s["alerts"], c) for c in ("discord", "telegram")},
+        "channels": {c: bool(v) for c, v in panel_backup.targets(s).items()},
         "backups": panel_backup.list_backups(),
         "state": {k: state.get(k) for k in ("checked", "last_saved", "sent_to", "sent_at", "error", "encrypted")},
     }
@@ -67,8 +79,14 @@ def auto_status(_: User = Depends(require_admin), db: Session = Depends(get_db))
 
 @router.put("/auto")
 def auto_settings(body: AutoBackupIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    webhook = body.discord_webhook.strip()
+    if webhook and not webhook.startswith("https://"):
+        raise HTTPException(400, tr("O webhook do Discord deve começar com https://"))
     values = {"panel_backup_enabled": body.enabled, "panel_backup_keep": body.keep,
-              "panel_backup_send_discord": body.send_discord, "panel_backup_send_telegram": body.send_telegram}
+              "panel_backup_send_discord": body.send_discord, "panel_backup_send_telegram": body.send_telegram,
+              "panel_backup_send_mikrotik": body.send_mikrotik, "panel_backup_discord_webhook": webhook,
+              "panel_backup_telegram_token": body.telegram_token.strip(),
+              "panel_backup_telegram_chat_id": body.telegram_chat_id.strip()}
     if body.password is not None:
         if body.password and len(body.password) < 8:
             raise HTTPException(400, tr("A senha do backup precisa ter pelo menos 8 caracteres"))
@@ -77,6 +95,10 @@ def auto_settings(body: AutoBackupIn, user: User = Depends(require_admin), db: S
     if (body.send_discord or body.send_telegram) and not has_password:
         raise HTTPException(400, tr("Para enviar o backup ao Discord/Telegram, defina antes uma senha de backup: "
                                     "o arquivo tem as chaves da VPN e não pode ir sem proteção."))
+    if body.send_discord and not webhook:
+        raise HTTPException(400, tr("Para enviar ao Discord, preencha o webhook do canal de backup"))
+    if body.send_telegram and not (body.telegram_token.strip() and body.telegram_chat_id.strip()):
+        raise HTTPException(400, tr("Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup"))
     save_settings(db, values)
     audit(db, user.username, "backup automático do painel configurado",
           "senha alterada" if body.password is not None else "")
@@ -88,6 +110,22 @@ async def auto_run(user: User = Depends(require_admin), db: Session = Depends(ge
     result = await panel_backup.run(force=True)
     audit(db, user.username, "backup do painel feito agora", ", ".join(result.get("sent_to") or []))
     return {**result, **_auto_status(db)}
+
+
+@router.post("/unlock")
+def unlock(body: UnlockIn, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Opens a protected backup (panel or MikroTik) and returns the readable file, e.g. one taken from Discord."""
+    if not panel_export.is_protected(body.data):
+        raise HTTPException(400, tr("Este arquivo não é um backup protegido"))
+    try:
+        data = panel_export.unprotect(body.data, body.password)
+    except ValueError:
+        raise HTTPException(400, tr("Senha do backup incorreta (ou arquivo danificado)."))
+    audit(db, user.username, "backup protegido aberto", data.get("router") or data.get("kind") or "painel")
+    if data.get("kind") == "mikrotik-export":
+        name = data.get("name") or "mikrotik.rsc"
+        return PlainTextResponse(data.get("text", ""), headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    return JSONResponse(data, headers={"Content-Disposition": 'attachment; filename="wgpanel-backup.json"'})
 
 
 @router.get("/auto/{name}")
@@ -116,6 +154,9 @@ async def import_backup(body: ImportIn, user: User = Depends(require_admin), db:
             data = panel_export.unprotect(data, body.password)
         except ValueError:
             raise HTTPException(400, tr("Senha do backup incorreta (ou arquivo danificado)."))
+    if data.get("kind") == "mikrotik-export":
+        raise HTTPException(400, tr("Este arquivo é um backup da configuração de um MikroTik, não do painel. "
+                                    "Abra com 🔓 Abrir backup protegido para ler o .rsc."))
     report = {"peers_created": 0, "peers_updated": 0, "nat_created": 0, "users_created": 0, "routers_created": 0,
               "errors": []}
     use(main_client)

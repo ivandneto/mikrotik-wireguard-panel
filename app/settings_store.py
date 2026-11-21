@@ -39,6 +39,11 @@ DEFAULTS = {
     "panel_backup_send_discord": False,
     "panel_backup_send_telegram": False,
     "panel_backup_password_enc": "",  # encrypted with the panel's SECRET_KEY; required to send copies off the panel
+    # Backup channels, separate from the Alerts channels (backups never go to the Alerts channels)
+    "panel_backup_discord_webhook": "",
+    "panel_backup_telegram_token": "",
+    "panel_backup_telegram_chat_id": "",
+    "panel_backup_send_mikrotik": True,  # also send each MikroTik's exported configuration when it changes
     "language": "pt-BR",  # idioma dos alertas e eventos
     "alerts": {
         "telegram_enabled": False,

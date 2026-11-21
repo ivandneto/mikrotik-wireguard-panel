@@ -156,5 +156,13 @@
  "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ Резервная копия WG Panel ({date}). Защищена паролем резервной копии: для восстановления откройте в панели «Резервная копия» → «Восстановить» и введите пароль.",
  "Backup do painel salvo, mas o envio falhou: {error}": "Копия панели сохранена, но отправка не удалась: {error}",
  "Discord: não está configurado ou ativado em Alertas": "Discord: не настроен или не включён в «Оповещениях»",
- "Telegram: não está configurado ou ativado em Alertas": "Telegram: не настроен или не включён в «Оповещениях»"
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram: не настроен или не включён в «Оповещениях»",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "Чтобы отправлять в Discord, укажите webhook канала копий",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "Чтобы отправлять в Telegram, укажите токен бота и чат для копий",
+ "Este arquivo não é um backup protegido": "Этот файл не является защищённой копией",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "Этот файл — копия конфигурации MikroTik, а не панели. Откройте его через 🔓 Открыть защищённую копию, чтобы прочитать .rsc.",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ Конфигурация MikroTik {router} изменилась ({date}). Копия защищена паролем резервной копии: чтобы прочитать, в панели «Резервная копия» → 🔓 Открыть защищённую копию.",
+ "Discord: preencha o webhook do canal de backup": "Discord: укажите webhook канала копий",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram: укажите токен бота и чат для копий",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "Копия MikroTik {router} сохранена, но отправка не удалась: {error}"
 }

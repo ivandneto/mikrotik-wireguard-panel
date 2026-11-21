@@ -156,5 +156,13 @@
  "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ WG Panel のバックアップ（{date}）。バックアップ用パスワードで保護されています。復元するには、パネルの バックアップ → 復元 を開きパスワードを入力します。",
  "Backup do painel salvo, mas o envio falhou: {error}": "パネルのバックアップは保存しましたが、送信に失敗しました：{error}",
  "Discord: não está configurado ou ativado em Alertas": "Discord：アラートで未設定または無効です",
- "Telegram: não está configurado ou ativado em Alertas": "Telegram：アラートで未設定または無効です"
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram：アラートで未設定または無効です",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "Discord に送るには、バックアップ用チャンネルの Webhook を入力してください",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "Telegram に送るには、ボットのトークンとバックアップ用チャットを入力してください",
+ "Este arquivo não é um backup protegido": "このファイルは保護されたバックアップではありません",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "このファイルはパネルではなく MikroTik の設定のバックアップです。.rsc を読むには 🔓 保護されたバックアップを開く で開いてください。",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ MikroTik {router} の設定が変わりました（{date}）。バックアップ用パスワードで保護されています。読むには、パネルの バックアップ → 🔓 保護されたバックアップを開く。",
+ "Discord: preencha o webhook do canal de backup": "Discord：バックアップ用チャンネルの Webhook を入力してください",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram：ボットのトークンとバックアップ用チャットを入力してください",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "MikroTik {router} のバックアップは保存しましたが、送信に失敗しました：{error}"
 }

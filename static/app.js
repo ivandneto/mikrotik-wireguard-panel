@@ -872,7 +872,8 @@ function panel() {
     },
     async savePanelBackup(changePassword = false) {
       const s = this.panelBk.settings;
-      const body = { enabled: s.enabled, keep: s.keep, send_discord: s.send_discord, send_telegram: s.send_telegram };
+      const body = { enabled: s.enabled, keep: s.keep, send_discord: s.send_discord, send_telegram: s.send_telegram,
+        send_mikrotik: s.send_mikrotik, discord_webhook: s.discord_webhook, telegram_token: s.telegram_token, telegram_chat_id: s.telegram_chat_id };
       if (changePassword) body.password = this.panelBkPassword;
       const r = await this.run(() => api('PUT', '/api/backup/auto', body),
         changePassword ? (this.panelBkPassword ? t('Senha do backup salva') : t('Senha do backup removida')) : t('Configurações salvas')).catch(() => null);
@@ -883,6 +884,30 @@ function panel() {
       this.panelBk.settings.send_discord = this.panelBk.settings.send_telegram = false;
       this.panelBkPassword = '';
       await this.savePanelBackup(true);
+    },
+    async unlockBackup(ev) {
+      const file = ev.target.files[0];
+      ev.target.value = '';
+      if (!file) return;
+      let data;
+      try { data = JSON.parse(await file.text()); } catch { return this.toast(t('Arquivo inválido'), 'err'); }
+      if (!data.encrypted) return this.toast(t('Este arquivo não é um backup protegido'), 'err');
+      const password = prompt(t('Este backup é protegido. Digite a senha do backup:'));
+      if (!password) return;
+      try {
+        const r = await fetch('/api/backup/unlock', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Lang': LANG }, body: JSON.stringify({ data, password }) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || t('Erro {status}', { status: r.status }));
+        const name = (r.headers.get('content-disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'backup.txt';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(await r.blob());
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.toast(t('Backup aberto: {name}', { name }));
+      } catch (e) {
+        this.toast(e.message, 'err');
+      }
     },
     async runPanelBackup() {
       const r = await this.run(() => api('POST', '/api/backup/auto/run')).catch(() => null);

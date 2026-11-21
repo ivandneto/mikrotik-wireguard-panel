@@ -156,5 +156,13 @@
  "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ Sauvegarde WG Panel ({date}). Protégée par le mot de passe de sauvegarde : pour restaurer, Sauvegarde → Restaurer dans le panneau, puis saisissez le mot de passe.",
  "Backup do painel salvo, mas o envio falhou: {error}": "Sauvegarde du panneau enregistrée, mais l'envoi a échoué : {error}",
  "Discord: não está configurado ou ativado em Alertas": "Discord : non configuré ou non activé dans Alertes",
- "Telegram: não está configurado ou ativado em Alertas": "Telegram : non configuré ou non activé dans Alertes"
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram : non configuré ou non activé dans Alertes",
+ "Para enviar ao Discord, preencha o webhook do canal de backup": "Pour envoyer sur Discord, remplissez le webhook du canal de sauvegarde",
+ "Para enviar ao Telegram, preencha o token do bot e o chat do canal de backup": "Pour envoyer sur Telegram, remplissez le token du bot et le chat du canal de sauvegarde",
+ "Este arquivo não é um backup protegido": "Ce fichier n'est pas une sauvegarde protégée",
+ "Este arquivo é um backup da configuração de um MikroTik, não do painel. Abra com 🔓 Abrir backup protegido para ler o .rsc.": "Ce fichier est une sauvegarde de la configuration d'un MikroTik, pas du panneau. Ouvrez-le avec 🔓 Ouvrir une sauvegarde protégée pour lire le .rsc.",
+ "🗄️ Configuração do MikroTik {router} mudou ({date}). Backup protegido com a senha de backup: para ler, Backup → 🔓 Abrir backup protegido no painel.": "🗄️ La configuration du MikroTik {router} a changé ({date}). Sauvegarde protégée par le mot de passe de sauvegarde : pour la lire, Sauvegarde → 🔓 Ouvrir une sauvegarde protégée dans le panneau.",
+ "Discord: preencha o webhook do canal de backup": "Discord : remplissez le webhook du canal de sauvegarde",
+ "Telegram: preencha o token do bot e o chat do canal de backup": "Telegram : remplissez le token du bot et le chat du canal de sauvegarde",
+ "Backup do MikroTik {router} salvo, mas o envio falhou: {error}": "Sauvegarde du MikroTik {router} enregistrée, mais l'envoi a échoué : {error}"
 }
