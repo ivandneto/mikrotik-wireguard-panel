@@ -189,5 +189,12 @@
  "Na pasta do projeto, pare o painel e rode:": "プロジェクトフォルダーでパネルを止めて実行：",
  "Conferir": "確認",
  "Ligue o painel de novo e aperte Ctrl+F5: o menu lateral deve mostrar v{version}.": "パネルをもう一度起動して Ctrl+F5 を押します。サイドメニューに v{version} と表示されるはずです。",
- "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ MikroTik のコンテナー設定を読み取れませんでした。コマンドは README の標準の名前を使っています。実行前に /container print で確認してください。"
+ "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ MikroTik のコンテナー設定を読み取れませんでした。コマンドは README の標準の名前を使っています。実行前に /container print で確認してください。",
+ "2. Parar o painel": "2. パネルを停止",
+ "No Terminal do Winbox. Depois de parar, rode /container print a cada poucos segundos até o {name} aparecer SEM o R na frente. Pode levar alguns segundos.": "Winbox のターミナルで実行します。停止後、{name} の前の R が消えるまで数秒ごとに /container print を実行します。数秒かかることがあります。",
+ "3. Apagar o container antigo": "3. 古いコンテナーを削除",
+ "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ R が消えてから実行してください。コンテナーがまだ動いていると MikroTik は削除を拒否し、手順 5 で「root-dir overlap」エラーになります。/container print で {name} が一覧から消えたことを確認してください。",
+ "4. Enviar o arquivo novo": "4. 新しいファイルをアップロード",
+ "5. Criar e ligar o container": "5. コンテナーを作成して起動",
+ "6. Conferir": "6. 確認"
 }

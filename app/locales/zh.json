@@ -189,5 +189,12 @@
  "Na pasta do projeto, pare o painel e rode:": "在项目文件夹中停止面板并运行：",
  "Conferir": "检查",
  "Ligue o painel de novo e aperte Ctrl+F5: o menu lateral deve mostrar v{version}.": "重新启动面板并按 Ctrl+F5：侧边菜单应显示 v{version}。",
- "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ 无法读取 MikroTik 上的容器配置：命令使用 README 中的默认名称。运行前请用 /container print 核对。"
+ "⚠️ Não consegui ler a configuração do container no MikroTik: os comandos usam os nomes padrão do README. Confira com /container print antes de rodar.": "⚠️ 无法读取 MikroTik 上的容器配置：命令使用 README 中的默认名称。运行前请用 /container print 核对。",
+ "2. Parar o painel": "2. 停止面板",
+ "No Terminal do Winbox. Depois de parar, rode /container print a cada poucos segundos até o {name} aparecer SEM o R na frente. Pode levar alguns segundos.": "在 Winbox 终端中执行。停止后，每隔几秒运行一次 /container print，直到 {name} 前面不再有 R。可能需要几秒钟。",
+ "3. Apagar o container antigo": "3. 删除旧容器",
+ "⚠️ Só depois que o R sumir. Se o container ainda estiver rodando, o MikroTik recusa a remoção e o passo 5 dá o erro \"root-dir overlap\". Confira com /container print que o {name} sumiu da lista.": "⚠️ 必须等 R 消失后再删除。如果容器仍在运行，MikroTik 会拒绝删除，第 5 步会出现“root-dir overlap”错误。用 /container print 确认 {name} 已从列表中消失。",
+ "4. Enviar o arquivo novo": "4. 上传新文件",
+ "5. Criar e ligar o container": "5. 创建并启动容器",
+ "6. Conferir": "6. 检查"
 }
