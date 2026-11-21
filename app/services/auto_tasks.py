@@ -138,6 +138,13 @@ async def run(router_ids: list[int], settings: dict, prefix_names: bool):
     async with _lock:
         if settings.get("update_check_enabled", True) and _due(panel_state().get("checked"), UPDATE_EVERY):
             await check_panel_update()
+        if settings.get("panel_backup_enabled", True):
+            from . import panel_backup  # imported here: it pulls in the export code, which isn't needed at startup
+            if panel_backup.due():
+                try:
+                    await panel_backup.run()
+                except Exception:  # a failed backup must not stop the router tasks below
+                    logger.exception("Automatic panel backup failed")
         for rid in router_ids:
             db = SessionLocal()
             try:

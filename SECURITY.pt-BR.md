@@ -110,6 +110,7 @@ Se o passo 3 abrir o painel, ele está exposto: revise o item 1 imediatamente.
 - Restrinja a API do MikroTik às redes de onde o painel acessa: `/ip service set www-ssl available-from=192.168.88.0/24,10.10.0.0/24` (ajuste as faixas).
 - O painel roda em **HTTP**. Dentro da rede local e da VPN (que já é criptografada) isso é aceitável. Se quiser HTTPS, coloque um proxy reverso (Caddy, Nginx) na frente e defina `COOKIE_SECURE=true` no `.env`.
 - Guarde com cuidado: o `.env`, a pasta `data/` (banco e `secret.key`) e os backups exportados — eles contêm senhas e as chaves da VPN.
+- O **backup automático do painel** só vai para o Discord/Telegram quando existe uma **senha de backup**, e aí o arquivo sai criptografado (PBKDF2 + AES). Mesmo assim, use um canal **privado**, escolha uma senha longa e guarde-a fora do painel.
 - A opção "Guardar a chave privada dos clientes no MikroTik" faz as chaves irem também para os backups do roteador.
 - Mantenha o RouterOS e o painel atualizados. O painel avisa quando sai versão nova (selo embaixo da versão no menu lateral e alerta no Discord/Telegram).
 

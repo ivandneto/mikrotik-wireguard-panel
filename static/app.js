@@ -131,6 +131,8 @@ function panel() {
     tools: { address: '', count: 4, ping: null, trace: null, running: '', error: '' },
     sec: { findings: null, update: null, loading: false },
     autoBk: null,
+    panelBk: null,
+    panelBkPassword: '',
     diff: { name: '', lines: [] },
 
     tabs: [
@@ -370,7 +372,7 @@ function panel() {
       if (t === 'settings') this.loadSettings();
       if (t === 'routers') this.loadRouters();
       if (t === 'security') this.loadSecurity();
-      if (t === 'backup') this.loadAutoBackups();
+      if (t === 'backup') { this.loadAutoBackups(); this.loadPanelBackup(); }
     },
 
     async refreshLive() {
@@ -864,6 +866,31 @@ function panel() {
     async saveAutoBackupSettings() {
       await this.run(() => api('PUT', '/api/settings', this.settings), t('Configurações salvas'));
     },
+    // ---------- automatic backup of the panel itself ----------
+    async loadPanelBackup() {
+      this.panelBk = await api('GET', '/api/backup/auto').catch(() => null);
+    },
+    async savePanelBackup(changePassword = false) {
+      const s = this.panelBk.settings;
+      const body = { enabled: s.enabled, keep: s.keep, send_discord: s.send_discord, send_telegram: s.send_telegram };
+      if (changePassword) body.password = this.panelBkPassword;
+      const r = await this.run(() => api('PUT', '/api/backup/auto', body),
+        changePassword ? (this.panelBkPassword ? t('Senha do backup salva') : t('Senha do backup removida')) : t('Configurações salvas')).catch(() => null);
+      if (r) { this.panelBk = r; this.panelBkPassword = ''; }
+    },
+    async removePanelBackupPassword() {
+      if (!confirm(t('Remover a senha do backup? Os próximos backups ficam sem proteção e o envio para Discord/Telegram é desligado.'))) return;
+      this.panelBk.settings.send_discord = this.panelBk.settings.send_telegram = false;
+      this.panelBkPassword = '';
+      await this.savePanelBackup(true);
+    },
+    async runPanelBackup() {
+      const r = await this.run(() => api('POST', '/api/backup/auto/run')).catch(() => null);
+      if (!r) return;
+      this.panelBk = r;
+      if (r.error) this.toast(t('Backup salvo, mas o envio falhou: {error}', { error: r.error }), 'err');
+      else this.toast(r.sent_to?.length ? t('Backup salvo e enviado para {where}', { where: r.sent_to.join(' e ') }) : t('Backup salvo'));
+    },
     async showBackupDiff(b) {
       const text = await this.run(() => api('GET', `/api/tools/backups/${b.name}/diff`));
       this.diff = { name: b.name, lines: text.split('\n') };
@@ -941,8 +968,13 @@ function panel() {
       if (!file) return;
       let data;
       try { data = JSON.parse(await file.text()); } catch { return this.toast(t('Arquivo inválido'), 'err'); }
+      let password = null;
+      if (data.encrypted) {
+        password = prompt(t('Este backup é protegido. Digite a senha do backup:'));
+        if (!password) return;
+      }
       const apply = confirm(t('Recriar no MikroTik os clientes e regras que não existirem lá?\n\nOK = sim (recomendado ao migrar/restaurar)\nCancelar = só importar para o painel'));
-      const r = await this.run(() => api('POST', '/api/backup/import', { data, apply_to_router: apply }));
+      const r = await this.run(() => api('POST', '/api/backup/import', { data, apply_to_router: apply, password }));
       this.toast(t('Importado: {created} clientes novos, {updated} atualizados, {nat} regras NAT, {users} usuários', { created: r.peers_created, updated: r.peers_updated, nat: r.nat_created, users: r.users_created }));
       r.errors.forEach(e => this.toast(e, 'err'));
       this.refreshLive();

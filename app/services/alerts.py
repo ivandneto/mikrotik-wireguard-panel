@@ -1,6 +1,7 @@
 """Envio de alertas para Telegram e Discord. Todo evento também fica registrado no banco."""
 import asyncio
 import html
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -54,6 +55,31 @@ async def send_discord(webhook: str, title: str, message: str, level: str):
         resp = await client.post(webhook, json=payload)
     if resp.status_code >= 400:
         raise RuntimeError(f"Discord recusou: {resp.text[:200]}")
+
+
+async def send_discord_file(webhook: str, filename: str, content: bytes, message: str):
+    payload = {"username": "WG Panel", "content": message}
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(webhook, data={"payload_json": json.dumps(payload)},
+                                 files={"file": (filename, content, "application/json")})
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Discord recusou: {resp.text[:200]}")
+
+
+async def send_telegram_file(token: str, chat_id: str, filename: str, content: bytes, message: str):
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(f"https://api.telegram.org/bot{token}/sendDocument",
+                                 data={"chat_id": chat_id, "caption": message[:1000]},
+                                 files={"document": (filename, content, "application/json")})
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Telegram recusou: {resp.text[:200]}")
+
+
+def channel_ready(cfg: dict, channel: str) -> bool:
+    """The channel is configured in Alerts (enabled and with its token/webhook)."""
+    if channel == "telegram":
+        return bool(cfg.get("telegram_enabled") and cfg.get("telegram_token") and cfg.get("telegram_chat_id"))
+    return bool(cfg.get("discord_enabled") and cfg.get("discord_webhook"))
 
 
 async def dispatch(cfg: dict, title: str, message: str, level: str) -> dict[str, str | None]:

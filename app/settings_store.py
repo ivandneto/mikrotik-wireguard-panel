@@ -33,6 +33,12 @@ DEFAULTS = {
     "auto_backup_interval": "daily",
     "auto_backup_keep": 14,
     "update_check_enabled": True,
+    # Automatic backup of the panel itself (clients, keys, users): local copies, optionally sent to Discord/Telegram
+    "panel_backup_enabled": True,
+    "panel_backup_keep": 14,
+    "panel_backup_send_discord": False,
+    "panel_backup_send_telegram": False,
+    "panel_backup_password_enc": "",  # encrypted with the panel's SECRET_KEY; required to send copies off the panel
     "language": "pt-BR",  # idioma dos alertas e eventos
     "alerts": {
         "telegram_enabled": False,

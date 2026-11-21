@@ -148,5 +148,13 @@
  "Nova versão do WG Panel disponível": "Nuova versione di WG Panel disponibile",
  "Versão {latest} disponível (instalada: {installed}). Como atualizar: {url}": "Versione {latest} disponibile (installata: {installed}). Come aggiornare: {url}",
  "O usuário do painel no MikroTik não tem permissão para esse comando. Use o 🌐 WebFig, que entra com o seu próprio login.": "L'utente del pannello sul MikroTik non può eseguire questo comando. Usa 🌐 WebFig, che entra con il tuo utente.",
- "O comando passou de {seconds} segundos e foi interrompido.": "Il comando ha superato {seconds} secondi ed è stato interrotto."
+ "O comando passou de {seconds} segundos e foi interrompido.": "Il comando ha superato {seconds} secondi ed è stato interrotto.",
+ "Para enviar o backup ao Discord/Telegram, defina antes uma senha de backup: o arquivo tem as chaves da VPN e não pode ir sem proteção.": "Per inviare il backup su Discord/Telegram, imposta prima una password di backup: il file contiene le chiavi della VPN e non può uscire senza protezione.",
+ "A senha do backup precisa ter pelo menos 8 caracteres": "La password di backup deve avere almeno 8 caratteri",
+ "Este backup é protegido por senha. Digite a senha do backup.": "Questo backup è protetto da password. Inserisci la password di backup.",
+ "Senha do backup incorreta (ou arquivo danificado).": "Password di backup errata (o file danneggiato).",
+ "🛡️ Backup do WG Panel ({date}). Protegido com a senha de backup: para restaurar, Backup → Restaurar no painel e digite a senha.": "🛡️ Backup di WG Panel ({date}). Protetto con la password di backup: per ripristinare, Backup → Ripristina nel pannello e inserisci la password.",
+ "Backup do painel salvo, mas o envio falhou: {error}": "Backup del pannello salvato, ma l'invio non è riuscito: {error}",
+ "Discord: não está configurado ou ativado em Alertas": "Discord: non configurato o non attivo in Avvisi",
+ "Telegram: não está configurado ou ativado em Alertas": "Telegram: non configurato o non attivo in Avvisi"
 }
